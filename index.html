@@ -63,82 +63,26 @@
     </div>
   </div>
 
-  <script type="module">
-    // ---------- ИМПОРТЫ ----------
-    import * as pdfjsLib from "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.6.82/build/pdf.mjs";
-    pdfjsLib.GlobalWorkerOptions.workerSrc =
-      "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.6.82/build/pdf.worker.mjs";
+  <script>
+    // ====== Базовые утилиты/селекторы и статус ======
+    const $ = s => document.querySelector(s);
+    const status = t => { $('#status').textContent = t || ''; };
+    window.addEventListener('error', e => console.error('Global error:', e.error || e.message));
+    window.addEventListener('unhandledrejection', e => console.error('Unhandled promise:', e.reason));
 
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js";
-    import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
-    import { getFirestore, collection, addDoc, serverTimestamp, updateDoc } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
-    import Tesseract from "https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js";
-
-    // ---------- КОНФИГ ----------
+    // ====== Конфиг (Firebase/Cloudinary/notify) ======
     const FIREBASE_CONFIG = {
       apiKey: "AIzaSyAH58ZpWAp64mhM589KD6jXHcOlPqU0aYU",
       authDomain: "skladsborka-6c2a7.firebaseapp.com",
       projectId: "skladsborka-6c2a7",
       storageBucket: "skladsborka-6c2a7.appspot.com",
       messagingSenderId: "516526717198"
-      // appId не обязателен для web v9 модулей
     };
-    const CLOUDINARY_CLOUD_NAME    = "dnx1taqp7";       // замени на свой при необходимости
-    const CLOUDINARY_UPLOAD_PRESET = "unsigned_tasks";  // должен быть unsigned
+    const CLOUDINARY_CLOUD_NAME    = "dnx1taqp7";
+    const CLOUDINARY_UPLOAD_PRESET = "unsigned_tasks";
     const VERCEL_NOTIFY_PROXY_URL  = "/api/notify-taskCreated";
 
-    // ---------- INIT ----------
-    const app = initializeApp(FIREBASE_CONFIG);
-    const auth = getAuth(app);
-    const db   = getFirestore(app);
-
-    const $ = s => document.querySelector(s);
-    const status = t => { $('#status').textContent = t; };
-
-    // Ловим ошибки, чтобы не «умирал» модуль и было видно причину
-    window.addEventListener('error', e => console.error('Global error:', e.error || e.message));
-    window.addEventListener('unhandledrejection', e => console.error('Unhandled promise:', e.reason));
-
-    // ---------- Ввод файлов: КНОПКА + DND + PASTE ----------
-    const drop = $('#drop');
-    const fi   = $('#fileInput');
-
-    // кнопка — кликаем по скрытому input
-    $('#btnPick').addEventListener('click', () => fi.click());
-    fi.addEventListener('change', () => handleFiles(fi.files));
-
-    // drag & drop
-    ['dragenter','dragover'].forEach(ev=>{
-      document.addEventListener(ev, e=>{ e.preventDefault(); });
-      drop.addEventListener(ev, e=>{ e.preventDefault(); drop.classList.add('drag'); });
-    });
-    ['dragleave','drop'].forEach(ev=>{
-      document.addEventListener(ev, e=>{ e.preventDefault(); });
-      drop.addEventListener(ev, e=>{ e.preventDefault(); drop.classList.remove('drag'); });
-    });
-    drop.addEventListener('drop', e => { handleFiles(e.dataTransfer.files); });
-
-    // paste скриншота
-    window.addEventListener('paste', async (e)=>{
-      const items = e.clipboardData?.items; if (!items) return;
-      for (const it of items) { if (it.kind==='file'){ handleFiles([it.getAsFile()]); break; } }
-    });
-
-    // ---------- Авторизация Firebase (не блокирует UI) ----------
-    (async ()=>{
-      try {
-        await signInAnonymously(auth);
-        console.log("✅ Firebase анонимный вход выполнен");
-      } catch(e) {
-        console.warn("⚠️ Firebase вход не удался (UI продолжит работать):", e);
-      }
-    })();
-
-    // ---------- УТИЛЫ ----------
-    const readAsArrayBuffer = (f)=> new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(r.result); r.onerror=rej; r.readAsArrayBuffer(f); });
-    const readAsDataURL    = (f)=> new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(r.result); r.onerror=rej; r.readAsDataURL(f); });
-    const bytesToSize = (b)=>{ const u=['B','KB','MB','GB']; let i=0,v=b; while(v>=1024&&i<u.length-1){v/=1024;i++} return v.toFixed(1)+' '+u[i]; };
-
+    // ====== Функции парсинга / таблицы ======
     function parseTable(lines){
       const headIdx = lines.findIndex(l => /артикул|товар|наименование|кол-во|количество/i.test(l));
       const work = headIdx>=0 ? lines.slice(headIdx+1) : lines;
@@ -198,14 +142,69 @@
       $('#btnCreate').disabled = items.length===0;
     }
 
-    // ---------- Обработка выбранных файлов ----------
+    // ====== DnD + Кнопка + Paste: навешиваем моментально ======
+    const drop = $('#drop');
+    const fi   = $('#fileInput');
+
+    $('#btnPick').addEventListener('click', () => fi.click());
+    fi.addEventListener('change', () => handleFiles(fi.files));
+
+    ['dragenter','dragover'].forEach(ev=>{
+      document.addEventListener(ev, e=>{ e.preventDefault(); });
+      drop.addEventListener(ev, e=>{ e.preventDefault(); drop.classList.add('drag'); });
+    });
+    ['dragleave','drop'].forEach(ev=>{
+      document.addEventListener(ev, e=>{ e.preventDefault(); });
+      drop.addEventListener(ev, e=>{ e.preventDefault(); drop.classList.remove('drag'); });
+    });
+    drop.addEventListener('drop', e => { handleFiles(e.dataTransfer.files); });
+
+    window.addEventListener('paste', async (e)=>{
+      const items = e.clipboardData?.items; if (!items) return;
+      for (const it of items) { if (it.kind==='file'){ handleFiles([it.getAsFile()]); break; } }
+    });
+
+    // ====== Динамические импорты (загрузятся только когда нужны) ======
+    let _pdfjsLib = null;
+    let _tesseract = null;
+    let _firebase = null;
+    let _app, _auth, _db;
+
+    async function ensurePdfJs() {
+      if (_pdfjsLib) return _pdfjsLib;
+      const m = await import("https://cdn.jsdelivr.net/npm/pdfjs-dist@4.6.82/build/pdf.mjs");
+      m.GlobalWorkerOptions.workerSrc = "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.6.82/build/pdf.worker.mjs";
+      _pdfjsLib = m; return m;
+    }
+    async function ensureTesseract() {
+      if (_tesseract) return _tesseract;
+      const m = await import("https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js");
+      _tesseract = m.default || m; return _tesseract;
+    }
+    async function ensureFirebase() {
+      if (_firebase) return _firebase;
+      const appMod  = await import("https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js");
+      const authMod = await import("https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js");
+      const fsMod   = await import("https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js");
+      _app = appMod.initializeApp(FIREBASE_CONFIG);
+      _auth = authMod.getAuth(_app);
+      _db   = fsMod.getFirestore(_app);
+      try { await authMod.signInAnonymously(_auth); } catch(e){ console.warn("Anon auth failed:", e); }
+      _firebase = { appMod, authMod, fsMod };
+      return _firebase;
+    }
+
+    // ====== Обработка файлов ======
+    const readAsArrayBuffer = (f)=> new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(r.result); r.onerror=rej; r.readAsArrayBuffer(f); });
+    const readAsDataURL    = (f)=> new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(r.result); r.onerror=rej; r.readAsDataURL(f); });
+
     let inputFile=null, sourceKind="", items=[];
 
     async function handleFiles(fileList){
       if (!fileList || !fileList.length) return;
       const f = fileList[0];
       inputFile = f;
-      $('#preview').textContent = `${f.name} (${bytesToSize(f.size)})`;
+      $('#preview').textContent = `${f.name} (${(f.size/1024/1024).toFixed(2)} MB)`;
       $('#btnCreate').disabled = true;
       $('#itemsBody').innerHTML = "";
       $('#totals').textContent = "";
@@ -217,10 +216,10 @@
       try {
         if (file.type === 'application/pdf' || /\.pdf$/i.test(file.name)) {
           status('Читаю PDF…');
+          const pdfjsLib = await ensurePdfJs();
           const ab = await readAsArrayBuffer(file);
           const pdf = await pdfjsLib.getDocument({ data: ab }).promise;
 
-          // Пробуем текствой слой
           let hasTextLayer = false;
           try {
             const p1  = await pdf.getPage(1);
@@ -242,9 +241,10 @@
             renderItems(items);
             status(`Готово. Найдено позиций: ${items.length}`);
           } else {
-            // OCR каждого рендера страницы
             sourceKind = "pdf-scan";
             items = [];
+            const pdfjsLib2 = await ensurePdfJs();
+            const Tesseract = await ensureTesseract();
             for (let i=1;i<=pdf.numPages;i++){
               status(`Делаю OCR… стр. ${i}/${pdf.numPages}`);
               const page = await pdf.getPage(i);
@@ -266,9 +266,9 @@
             status(`Готово. Найдено позиций: ${items.length}`);
           }
         } else {
-          // Обычное изображение
           sourceKind = "image";
           status('Делаю OCR изображения…');
+          const Tesseract = await ensureTesseract();
           const dataUrl = await readAsDataURL(file);
           const worker = await Tesseract.createWorker('rus+eng');
           const { data } = await worker.recognize(dataUrl);
@@ -278,7 +278,6 @@
           renderItems(items);
           status(`Готово. Найдено позиций: ${items.length}`);
         }
-        // после успешного парса — можно создавать
         $('#btnCreate').disabled = collectItemsFromTable().length===0;
       } catch (e) {
         console.error(e);
@@ -287,7 +286,7 @@
       }
     }
 
-    // ---------- Cloudinary + Firestore + push ----------
+    // ====== Cloudinary + Firestore + push (динамическая загрузка Firebase) ======
     async function uploadToCloudinary(file, taskId) {
       status('Загружаю файл в Cloudinary…');
       const form = new FormData();
@@ -313,21 +312,23 @@
         $('#btnCreate').disabled = true;
         status('Создаю задачу…');
 
+        const { appMod, authMod, fsMod } = await ensureFirebase();
+
         const assigneeIds = assigneesRaw ? assigneesRaw.split(/[,;\s]+/).filter(Boolean) : [];
 
-        const docRef = await addDoc(collection(db, 'tasks'), {
+        const docRef = await fsMod.addDoc(fsMod.collection(_db, 'tasks'), {
           title, comment, status:'new',
           assignees: assigneeIds,
           assigneeNames: [],
           items: selectedItems,
           source: sourceKind,
           sourceMeta: { ua: navigator.userAgent },
-          createdAt: serverTimestamp()
+          createdAt: fsMod.serverTimestamp()
         });
         const taskId = docRef.id;
 
         const fileRec = await uploadToCloudinary(inputFile, taskId);
-        await updateDoc(docRef, { files: [fileRec] });
+        await fsMod.updateDoc(docRef, { files: [fileRec] });
 
         status('Пишу задачу… ок. Шлю пуш…');
         const r = await fetch(VERCEL_NOTIFY_PROXY_URL, {
@@ -354,13 +355,13 @@
         alert('Ошибка: ' + (e?.message||e));
         status('Ошибка');
       } finally {
-        // если что-то не так — оставить кнопку активной для повтора
         $('#btnCreate').disabled = collectItemsFromTable().length===0;
       }
     }
 
-    document.getElementById('btnCreate').onclick = createTask;
+    document.getElementById('btnCreate').addEventListener('click', createTask);
   </script>
 </body>
 </html>
+
 
