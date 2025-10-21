@@ -93,7 +93,7 @@
             <th>Товар</th>
             <th style="max-width:220px">Артикул</th>
             <th style="width:110px">Кол-во</th>
-            <th style="width:90px">Ед.</th>
+            <th style="width:110px">Ед.</th>
             <th style="width:110px">Упаковок</th>
             <th style="width:110px">Шт</th>
             <th style="width:40px"></th>
@@ -134,41 +134,56 @@
 
     // ====== Нормализация ======
     const UNIT_ALIASES = {
-  // базовые
-  "шт":"шт","штук":"шт","штука":"шт","штуки":"шт","шт.":"шт",
-  "лист":"лист","листа":"лист","листы":"лист",
-  "упак":"упак","упаковка":"упак","упаковки":"упак","упаковок":"упак","пак":"упак","пач":"упак",
-  // рулоны, коробки, комплекты
-  "рул":"рул","рулон":"рул","рул.":"рул",
-  "кор":"кор","короб":"кор","коробка":"кор","коробок":"кор",
-  "комп":"компл","компл":"компл","комплект":"компл",
-  "пар":"пара","пара":"пара","пары":"пара",
-  // метры
-  "м":"м","метр":"м","м.п.":"м.п","пог.м":"м.п","погонный метр":"м.п",
-  "м2":"м²","м^2":"м²","m2":"м²","м²":"м²",
-  // вес, объём
-  "кг":"кг","килограмм":"кг","г":"г","гр":"г","грамм":"г","л":"л","литр":"л","литра":"л","литров":"л"
-};
-    const normNum = (s)=>{
-  s = (s??"").toString().replace(/\u00A0/g,' ').trim();
-
-  // 1) Форматы типа "1.234.567,89" → 1234567.89
-  if (/^\d{1,3}(?:\.\d{3})+(?:,\d+)?$/.test(s)) {
-    return s.replace(/\./g,'').replace(',', '.');
-  }
-  // 2) Форматы "1 234 567,89" или "1 234 567.89" → 1234567.89
-  if (/^\d{1,3}(?: \d{3})+(?:[.,]\d+)?$/.test(s)) {
-    return s.replace(/ /g,'').replace(',', '.');
-  }
-  // 3) Частый кейс "1.000" (ровно 3 знака после точки, без запятых) → 1000
-  if (/^\d+\.\d{3}$/.test(s)) {
-    return s.replace(/\./g,'');
-  }
-  // 4) Обычный случай
-  return s.replace(/\s+/g,'').replace(',', '.');
-};
-    const toNum = (s)=> { const n = parseFloat(normNum(s)); return Number.isFinite(n) ? n : 0; };
+      // базовые
+      "шт":"шт","штук":"шт","штука":"шт","штуки":"шт","шт.":"шт",
+      "лист":"лист","листа":"лист","листы":"лист",
+      "упак":"упак","упаковка":"упак","упаковки":"упак","упаковок":"упак","пак":"упак","пач":"упак",
+      // рулоны, коробки, комплекты
+      "рул":"рул","рулон":"рул","рул.":"рул",
+      "кор":"кор","короб":"кор","коробка":"кор","коробок":"кор",
+      "комп":"компл","компл":"компл","комплект":"компл",
+      "пар":"пара","пара":"пара","пары":"пара",
+      // метры
+      "м":"м","метр":"м","м.п.":"м.п","м.п":"м.п","пог.м":"м.п","погонный метр":"м.п",
+      "м2":"м²","м^2":"м²","m2":"м²","м²":"м²",
+      // вес, объём
+      "кг":"кг","килограмм":"кг","г":"г","гр":"г","грамм":"г","л":"л","литр":"л","литра":"л","литров":"л"
+    };
     const normUnit = (u)=> UNIT_ALIASES[(u??"").toString().trim().toLowerCase()] || (u??"").toString().trim().toLowerCase();
+
+    // 🔹 Умная нормализация чисел
+    const normNum = (s) => {
+      if (s == null) return "";
+      s = s.toString().trim()
+           .replace(/\u00A0/g, ' ')  // неразрывные пробелы
+           .replace(/\s+/g, ' ');
+      // "1.234.567,89" → "1234567.89"
+      if (/^\d{1,3}(\.\d{3})+(,\d+)?$/.test(s)) return s.replace(/\./g, '').replace(',', '.');
+      // "1 234 567,89" или "1 234 567.89" → "1234567.89"
+      if (/^\d{1,3}( \d{3})+([.,]\d+)?$/.test(s)) return s.replace(/ /g, '').replace(',', '.');
+      // "1.000" → "1000"
+      if (/^\d+\.\d{3}$/.test(s)) return s.replace(/\./g, '');
+      // "1,000" → "1000"
+      if (/^\d+,\d{3}$/.test(s)) return s.replace(/,/g, '');
+      // обычный случай
+      return s.replace(',', '.');
+    };
+    const toNum = (s)=> { const n = parseFloat(normNum(s)); return Number.isFinite(n) ? n : 0; };
+
+    // 🔹 Подсказки по названию → единица измерения
+    const TITLE_UNIT_HINTS = [
+      { re: /\b(лист|листы|плита|плиты|панел[ьяи]|панель|osb|гкл|гвл|цсп|фанера|профлист)\b/i, unit: "лист" },
+      { re: /\b(рулон|рул\.?|рул)\b/i, unit: "рул" },
+      { re: /\b(саморез|шуруп|дюбел|клипс|кляймер|гвозд|шурупы|крепеж)\b/i, unit: "шт" },
+      { re: /\b(краска|эмаль|праймер|грунтов|лак)\b/i, unit: "л" },
+      { re: /\b(пена|клей|шпатлев|шпакл|гермет)\b/i, unit: "кг" },
+      { re: /\b(труба|профиль|уголок|планка|добор|канал|рейка|наличник)\b/i, unit: "м.п" }
+    ];
+    function guessUnitFromText(title, article) {
+      const t = (title||"") + " " + (article||"");
+      for (const h of TITLE_UNIT_HINTS) { if (h.re.test(t)) return h.unit; }
+      return null;
+    }
 
     // ====== DnD / файлы ======
     const drop = $('#drop');
@@ -240,29 +255,22 @@
     };
     function keyOf(colName){
       const s = (colName||"").toString().trim().toLowerCase();
-      for (const k of Object.keys(HEADER_MAP)){
-        if (HEADER_MAP[k].includes(s)) return k;
-      }
+      for (const k of Object.keys(HEADER_MAP)){ if (HEADER_MAP[k].includes(s)) return k; }
       return null;
     }
     function mapColumns(headerRow){
       const map = {};
-      headerRow.forEach((h,i)=>{
-        const k = keyOf(h);
-        if (k && !(k in map)) map[k] = i;
-      });
+      headerRow.forEach((h,i)=>{ const k = keyOf(h); if (k && !(k in map)) map[k] = i; });
       return map;
     }
-    // ищем первую строку, где найдено >=2 из ключевых заголовков (title ОБЯЗАТЕЛЬНО)
     function findHeaderRow(aoa){
-      for (let i=0;i<Math.min(aoa.length, 50);i++){            // в первых 50 строках
+      for (let i=0;i<Math.min(aoa.length, 50);i++){
         const row = aoa[i] || [];
         const cols = mapColumns(row);
         const hasTitle = cols.title != null;
         const count = Object.keys(cols).length;
         if (hasTitle && count >= 2) return { idx:i, cols };
       }
-      // fallback: первая строка как шапка
       return { idx:0, cols: mapColumns(aoa[0] || []) };
     }
     function getCell(row, idx){ return (idx==null||idx<0) ? "" : (row[idx] ?? ""); }
@@ -276,8 +284,7 @@
       return parseAOA(aoa);
     }
     async function parseCsvFile(file){
-      // Пробуем UTF-8, при странных символах можно сменить на 'windows-1251'
-      const txt = await readAsText(file, 'utf-8');
+      const txt = await readAsText(file, 'utf-8'); // при кракозябрах можно сменить на windows-1251
       const wb = XLSX.read(txt, {type:'string'});
       const ws = wb.Sheets[wb.SheetNames[0]];
       const aoa = XLSX.utils.sheet_to_json(ws, { header:1, raw:false, defval:"" });
@@ -298,7 +305,6 @@
         let qtyPacks  = (getCell(row, cols.qtyPacks)|| "").toString().trim();
         let qtyUnits  = (getCell(row, cols.qtyUnits)|| "").toString().trim();
 
-        // пустые/подвальные строки пропускаем
         if (!title && !qty && !qtyPacks && !qtyUnits) continue;
 
         // нормализация
@@ -306,33 +312,32 @@
         qty = normNum(qty);
         qtyPacks = normNum(qtyPacks);
         qtyUnits = normNum(qtyUnits);
-        
 
-        // === Fallback-правила ===
-// если есть Qty + Unit — уже обрабатывается ниже
-// если Unit пусто, но указаны спецполя:
-if (!unit) {
-  if (qtyPacks) unit = "упак";
-  else if (qtyUnits) unit = "шт";
-}
-// если Unit пусто и ни packs/units не заданы, но есть Qty — считаем шт
-if (!unit && qty) {
-  unit = "шт";
-  if (!qtyUnits) qtyUnits = qty;
-}
+        // попытка угадать ед. по названию, если явно не задано
+        const unitGuess = guessUnitFromText(title, article);
+        if (!unit && unitGuess) unit = unitGuess;
+        if (unit === "шт" && unitGuess && unitGuess !== "шт" && !qtyPacks && !qtyUnits) {
+          unit = unitGuess;
+        }
 
-// если указано Qty + Unit — подставим совместимость
-if (qty && unit) {
-  if (unit === "упак" && !qtyPacks) qtyPacks = qty;
-  if (unit !== "упак" && !qtyUnits) qtyUnits = qty;
-}
+        // fallback-правила
+        if (!unit) {
+          if (qtyPacks) unit = "упак";
+          else if (qtyUnits) unit = "шт";
+        }
+        if (!unit && qty) {
+          unit = "шт";
+          if (!qtyUnits) qtyUnits = qty;
+        }
+
+        // согласование Qty + Unit
+        if (qty && unit) {
+          if (unit === "упак" && !qtyPacks) qtyPacks = qty;
+          if (unit !== "упак" && !qtyUnits) qtyUnits = qty;
+        }
 
         const rowNo = rowNoR || String(autoRow++);
-        out.push({
-          rowNo, title, article,
-          qty, unit, qtyPacks, qtyUnits,
-          _lowconf:false
-        });
+        out.push({ rowNo, title, article, qty, unit, qtyPacks, qtyUnits, _lowconf:false, _src:"" });
       }
       return out;
     }
@@ -398,9 +403,7 @@ if (qty && unit) {
           const add = (a,b)=> String((toNum(a)||0)+(toNum(b)||0)||"");
           m.qtyPacks = add(m.qtyPacks, it.qtyPacks);
           m.qtyUnits = add(m.qtyUnits, it.qtyUnits);
-          if ((m.unit||"") === (it.unit||"")) {
-            m.qty = add(m.qty, it.qty);
-          }
+          if ((m.unit||"") === (it.unit||"")) { m.qty = add(m.qty, it.qty); }
           m._lowconf = m._lowconf || it._lowconf;
         }
       }
@@ -433,42 +436,44 @@ if (qty && unit) {
       }
       updateTotals();
     }
+
     function collectItemsFromTable() {
-  return [...document.querySelectorAll('#itemsBody tr')].map(tr => {
-    const get = k => (tr.querySelector(`[data-k="${k}"]`)?.value || "").trim();
+      return [...document.querySelectorAll('#itemsBody tr')].map(tr => {
+        const get = k => (tr.querySelector(`[data-k="${k}"]`)?.value || "").trim();
 
-    const qtyRaw = get('qty');
-    let unit = normUnit(get('unit'));
-    let qtyPacks = get('qtyPacks');
-    let qtyUnits = get('qtyUnits');
+        const qtyRaw   = get('qty');
+        const title    = get('title');
+        const article  = get('article');
 
-    const qty = normNum(qtyRaw);
+        let unit      = normUnit(get('unit'));
+        let qtyPacks  = get('qtyPacks');
+        let qtyUnits  = get('qtyUnits');
+        const qty     = normNum(qtyRaw);
 
-    // 🔹 автоопределение единицы измерения
-    if (!unit) {
-      if (qtyPacks) unit = "упак";
-      else if (qtyUnits) unit = "шт";
-      else if (qty) {
-        unit = "шт";
-        qtyUnits = qtyUnits || qty;
-      }
+        // попытка угадать ед. по названию
+        const unitGuess = guessUnitFromText(title, article);
+        if (!unit && unitGuess) unit = unitGuess;
+        if (unit === "шт" && unitGuess && unitGuess !== "шт" && !qtyPacks && !qtyUnits) {
+          unit = unitGuess;
+        }
+
+        // автоединица, если всё ещё пусто
+        if (!unit) {
+          if (qtyPacks) unit = "упак";
+          else if (qtyUnits) unit = "шт";
+          else if (qty) { unit = "шт"; qtyUnits = qtyUnits || qty; }
+        }
+
+        // согласование Qty + Unit
+        if (qty && unit) {
+          if (unit === "упак" && !qtyPacks) qtyPacks = qty;
+          if (unit !== "упак" && !qtyUnits) qtyUnits = qty;
+        }
+
+        return { rowNo: get('rowNo'), title, article, qty, unit, qtyPacks, qtyUnits };
+      }).filter(it => it.title || it.qty || it.qtyPacks || it.qtyUnits)
+        .sort((a, b) => (parseInt(a.rowNo || 0, 10)) - (parseInt(b.rowNo || 0, 10)));
     }
-
-    // 🔹 согласование Qty + Unit
-    if (qty && unit) {
-      if (unit === "упак" && !qtyPacks) qtyPacks = qty;
-      if (unit !== "упак" && !qtyUnits) qtyUnits = qty;
-    }
-
-    return {
-      rowNo: get('rowNo'),
-      title: get('title'),
-      article: get('article'),
-      qty, unit, qtyPacks, qtyUnits
-    };
-  }).filter(it => it.title || it.qty || it.qtyPacks || it.qtyUnits)
-    .sort((a, b) => (parseInt(a.rowNo || 0, 10)) - (parseInt(b.rowNo || 0, 10)));
-}
 
     function updateTotals(){
       const items = collectItemsFromTable();
@@ -645,13 +650,10 @@ if (qty && unit) {
     (async function init(){
       await ensureFirebase();
       await loadUsers();
-      // По умолчанию НЕ мерджим, чтобы сохранить порядок, как в исходном файле
-      $('#mergeToggle').checked = false;
+      $('#mergeToggle').checked = false; // по умолчанию НЕ мерджим — порядок как в исходнике
       updateCreateDisabled();
     })();
   </script>
 </body>
 </html>
-
-
 
