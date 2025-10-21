@@ -23,10 +23,12 @@
     button.ghost { background:#0b1220; border:1px solid #374151; }
     button[disabled] { opacity:.6; cursor: not-allowed }
     .status { margin-top: 8px; font-size: 14px; color: #93c5fd; white-space: pre-wrap; }
+    .preview { margin-top: 10px; font-size: 13px; color: #cbd5e1; }
     .files { margin-top: 10px; }
     .fileRow { display:flex; align-items:center; gap:8px; margin:6px 0; padding:8px; border:1px solid #1f2a44; border-radius:10px; background:#0b1220; }
     .fileRow .name { flex:1 1 auto; }
     .fileRow .size { font-size:12px; opacity:.75 }
+    .fileRow .tag { font-size:12px; opacity:.9 }
     table { width: 100%; border-collapse: collapse; margin-top: 8px; }
     th, td { border: 1px solid #374151; padding: 6px 8px; }
     th { background: #111827; color: #cbd5e1; position: sticky; top: 0; }
@@ -39,6 +41,7 @@
     .chip.active { background:#1e293b; border-color:#60a5fa; }
     .hidden { display:none !important; }
     #fileInput { position: fixed; left: -9999px; top: -9999px; width: 1px; height: 1px; opacity: 0; }
+    .narrow { max-width: 220px; }
   </style>
 </head>
 <body>
@@ -88,7 +91,7 @@
           <tr>
             <th style="width:56px">#</th>
             <th>Товар</th>
-            <th style="max-width:220px">Артикул</th>
+            <th class="narrow">Артикул</th>
             <th style="width:110px">Кол-во</th>
             <th style="width:90px">Ед.</th>
             <th style="width:110px">Упаковок</th>
@@ -131,27 +134,31 @@
 
     // ====== Нормализация чисел/единиц ======
     const UNIT_ALIASES = {
-      "шт":"шт","штук":"шт","штука":"шт","штуки":"шт",
+      "шт":"шт","штука":"шт","штук":"шт","штуки":"шт",
       "лист":"лист","листа":"лист","листы":"лист",
       "упак":"упак","упаковка":"упак","упаковки":"упак","упаковок":"упак","пак":"упак",
       "м2":"м²","м²":"м²","м":"м","кг":"кг","л":"л"
     };
-    const UNIT_RX = "(лист(?:а|ы)?|штук(?:а|и)?|ш[тт]\\.?|упаков(?:ка|ки|ок)|упак|пак|м2|м²|м|кг|л)";
+    const UNIT_RX = "(лист(?:а|ы)?|ш[тт]ук[аи]?|ш[тт]|упаков(?:ка|ки|ок)|упак|пак|м2|м²|м|кг|л)";
     const normNumber = s => (s||"").toString().replace(/\s+/g,"").replace(",",".");
     const parseFloatSafe = s => { const n = parseFloat(normNumber(s)); return isFinite(n)?n:0; };
     const normUnit = u => UNIT_ALIASES[(u||"").toLowerCase()] || (u||"").toLowerCase();
 
     // ====== Парсеры ======
-    // «как в документе»: "№ [опц.АРТ] НАЗВАНИЕ ... ЧИСЛО ЕД"
+
+    // 1) «Реализация товаров/Расходная накладная» — как в твоих примерах:
+    //    №  Товар ...  <число> <ед>
+    //    (иногда артикул стоит сразу после номера)
     function parseLinesLikeDocs(fullText) {
       const rx = new RegExp(
-        "(?:^|\\n)\\s*(\\d+)\\s+" +                 // (1) номер строки
-        "(?:(?:([A-ZА-Я0-9-]{4,})\\s+))?" +        // (2) [опц] артикул
-        "(.+?)\\s+" +                               // (3) наименование
-        "(\\d[\\d\\s.,]*)\\s*" +                    // (4) количество
-        UNIT_RX +                                   // (5) единица
+        "(?:^|\\n)\\s*(\\d+)\\s+" +                       // (1) номер строки
+        "(?:(?:([A-ZА-Я0-9-]{4,})\\s+))?" +              // (2) [опц] артикул в начале
+        "(.+?)\\s+" +                                    // (3) наименование (жадно до количества)
+        "(\\d[\\d\\s.,]*)\\s*" +                         // (4) количество
+        UNIT_RX +                                        // (5) единица
         "(?=\\s*(?:\\n|$))", "gimu"
       );
+
       const items = [];
       let m;
       while ((m = rx.exec(fullText)) !== null) {
@@ -160,8 +167,14 @@
         const title   = m[3].replace(/\s+/g," ").trim();
         const qty     = normNumber(m[4]);
         const unit    = normUnit(m[5]);
+
         items.push({
-          rowNo, title, article, qty, unit,
+          rowNo,
+          title,
+          article,
+          qty,                 // основное «как в документе»
+          unit,                // «лист», «шт», «упак», «м²», …
+          // обратная совместимость:
           qtyPacks: unit==="упак" ? qty : "",
           qtyUnits: unit!=="упак" ? qty : "",
           _lowconf:false
@@ -170,61 +183,91 @@
       return items.sort((a,b)=> (a.rowNo||0)-(b.rowNo||0));
     }
 
-    // Табличные/свободные строки: "[АРТ] [НАЗВ] [QTY] [UNIT]" или "[НАЗВ] [QTY] [UNIT]"
+    // 2) Таблички вида «Артикул/Товар/Упаковок/Шт» (если попадутся)
     function parseStructuredTable(fullText) {
       const lines = fullText.split(/\n/g).map(s=>s.trim()).filter(Boolean);
-      const out = [];
+      const headIdx = lines.findIndex(l => /артикул|товар|наименование|упаков|шт|кол-во|количество/i.test(l));
+      const work = headIdx>=0 ? lines.slice(headIdx+1) : lines;
+
+      const items = [];
       let rowNo = 0;
-      for (const raw of lines) {
+      for (const raw of work) {
         const s = raw.replace(/\s+/g,' ').trim(); if (!s) continue;
-        // с артикулом
-        let m = s.match(new RegExp("^([A-Za-zА-Яа-я0-9\\-]{4,})\\s+(.+?)\\s+(\\d[\\d\\s.,]*)\\s*"+UNIT_RX+"\\.?$","i"));
+
+        // пробуем вариант: [артикул] [название...] [упаковок] [шт]
+        const m = s.match(/^([A-Za-zА-Яа-я0-9\-]{4,})\s+(.+?)\s+(\d[\d\s.,]*)\s*уп[а-я.]*\s+(\d[\d\s.,]*)\s*ш[тт]\.?$/i);
         if (m) {
           rowNo++;
-          out.push({
+          items.push({
             rowNo,
             article: (m[1]||"").trim(),
-            title:   (m[2]||"").trim(),
-            qty:     normNumber(m[3]),
-            unit:    normUnit(m[4]),
-            qtyPacks: normUnit(m[4])==="упак" ? normNumber(m[3]) : "",
-            qtyUnits: normUnit(m[4])!=="упак" ? normNumber(m[3]) : "",
+            title: (m[2]||"").trim(),
+            qtyPacks: normNumber(m[3]),
+            qtyUnits: normNumber(m[4]),
+            qty: normNumber(m[4]),
+            unit: "шт",
             _lowconf:false
           });
           continue;
         }
-        // без артикула
-        m = s.match(new RegExp("^(.+?)\\s+(\\d[\\d\\s.,]*)\\s*"+UNIT_RX+"\\.?$","i"));
-        if (m) {
+
+        // вариант: [название...] [число] [ед]
+        const m2 = s.match(/^(.+?)\s+(\d[\d\s.,]*)\s*([^\s]+)$/);
+        if (m2) {
           rowNo++;
-          const artMatch = (m[1]||"").match(/^([A-Za-zА-Яа-я0-9\-]{4,})\b\s*(.*)$/);
-          const art = artMatch ? artMatch[1] : "";
-          const name = artMatch ? (artMatch[2]||"").trim() : (m[1]||"").trim();
-          out.push({
+          const maybeArt = (m2[1].match(/^([A-Za-zА-Яа-я0-9\-]{4,})\b\s*(.*)$/) || []);
+          const art = (maybeArt[1]||"").trim();
+          const name = ((maybeArt[2]||m2[1])||"").trim();
+          const qty = normNumber(m2[2]);
+          const unit = normUnit(m2[3]);
+
+          items.push({
             rowNo,
             article: art,
             title: name,
-            qty: normNumber(m[2]),
-            unit: normUnit(m[3]),
-            qtyPacks: normUnit(m[3])==="упак" ? normNumber(m[2]) : "",
-            qtyUnits: normUnit(m[3])!=="упак" ? normNumber(m[2]) : "",
+            qty,
+            unit,
+            qtyPacks: unit==="упак" ? qty : "",
+            qtyUnits: unit!=="упак" ? qty : "",
             _lowconf:false
           });
         }
       }
-      return out;
-    }
-
-    // OCR-фолбэк (используем те же правила)
-    function parseFromOcr(ocrLines){
-      const t = ocrLines.join("\n");
-      let items = parseLinesLikeDocs(t);
-      if (!items.length) items = parseStructuredTable(t);
-      items.forEach(it => it._lowconf = true);
       return items;
     }
 
-    // merge с сохранением порядка первого вхождения
+    // 3) Общий OCR-фолбэк
+    function parseFromOcr(ocrLines){
+      const items = [];
+      let rowNo = 0;
+      for (const raw of ocrLines.map(x=>x.trim()).filter(Boolean)) {
+        // как выше: [№] [опц. артикул] [имя] [число] [ед]
+        const m = raw.match(new RegExp("^\\s*(?:\\d+\\s+)?(?:(?:([A-ZА-Я0-9-]{4,})\\s+))?(.+?)\\s+(\\d[\\d\\s.,]*)\\s*"+UNIT_RX+"\\s*$","i"));
+        if (m){
+          rowNo++;
+          items.push({
+            rowNo,
+            article:(m[1]||"").trim(),
+            title: (m[2]||"").trim(),
+            qty:   normNumber(m[3]),
+            unit:  normUnit(m[4]),
+            qtyPacks: (normUnit(m[4])==="упак") ? normNumber(m[3]) : "",
+            qtyUnits: (normUnit(m[4])!=="упак") ? normNumber(m[3]) : "",
+            _lowconf:true
+          });
+        }
+      }
+      return items;
+    }
+
+    // 4) Комбайнер: сначала «как в доке», потом структурная таблица, потом OCR-фолбэк
+    function parseAllText(fullText) {
+      let items = parseLinesLikeDocs(fullText);
+      if (!items.length) items = parseStructuredTable(fullText);
+      return items;
+    }
+
+    // merge одинаковых позиций (по артикулу → иначе по имени). Порядок берём по первому вхождению.
     function mergeSameItemsKeepOrder(items) {
       const map = new Map();
       const order = [];
@@ -237,6 +280,7 @@
           const m = map.get(key);
           m.qtyPacks = String(parseFloatSafe(m.qtyPacks) + parseFloatSafe(it.qtyPacks) || "");
           m.qtyUnits = String(parseFloatSafe(m.qtyUnits) + parseFloatSafe(it.qtyUnits) || "");
+          // если единица одинакова — аккумулируем qty
           if ((m.unit||"") === (it.unit||"")) {
             const sum = parseFloatSafe(m.qty) + parseFloatSafe(it.qty);
             m.qty = sum ? String(sum) : m.qty;
@@ -254,44 +298,56 @@
         const tr = document.createElement('tr');
         if (it._lowconf) tr.classList.add('lowconf');
         tr.innerHTML = `
-          <td><input value="${it.rowNo||""}" data-k="rowNo" style="max-width:56px"></td>
+          <td><input class="narrow" value="${it.rowNo||""}" data-k="rowNo"></td>
           <td><input value="${it.title||""}"    data-k="title"></td>
-          <td><input value="${it.article||""}"  data-k="article" style="max-width:220px"></td>
-          <td><input value="${it.qty||it.qtyUnits||""}" data-k="qty" style="max-width:110px"></td>
+          <td><input value="${it.article||""}"  data-k="article"></td>
+          <td><input value="${it.qty||it.qtyUnits||""}" data-k="qty"></td>
           <td>
-            <select data-k="unit" style="width:100%">
-              ${["","шт","лист","упак","м²","м","кг","л"].map(u=>`<option value="${u}" ${(it.unit||"")===u?"selected":""}>${u}</option>`).join("")}
+            <select data-k="unit">
+              ${["","шт","лист","упак","м²","м","кг","л"].map(u=>`<option value="${u}" ${ (it.unit||"")===u ? "selected":"" }>${u}</option>`).join("")}
             </select>
           </td>
-          <td><input value="${it.qtyPacks||""}" data-k="qtyPacks" placeholder="если есть" style="max-width:110px"></td>
-          <td><input value="${it.qtyUnits||""}" data-k="qtyUnits" placeholder="если есть" style="max-width:110px"></td>
+          <td><input value="${it.qtyPacks||""}" data-k="qtyPacks" placeholder="если есть"></td>
+          <td><input value="${it.qtyUnits||""}" data-k="qtyUnits" placeholder="если есть"></td>
           <td><button type="button" class="rm">✕</button></td>
         `;
-        tr.querySelector('.rm').onclick = () => { tr.remove(); updateTotals(); };
+        tr.querySelector('.rm').onclick = () => { tr.remove(); renumberRows(); updateTotals(); };
         tr.querySelectorAll('input,select').forEach(inp => inp.addEventListener('input', updateTotals));
         tbody.appendChild(tr);
       }
+      renumberRows();
       updateTotals();
     }
+    function renumberRows(){
+      let n=1;
+      document.querySelectorAll('#itemsBody tr').forEach(tr=>{
+        const rn = tr.querySelector('input[data-k="rowNo"]');
+        if (rn && !rn.value) rn.value = String(n);
+        n++;
+      });
+    }
     function collectItemsFromTable() {
-      return [...document.querySelectorAll('#itemsBody tr')].map(tr=>{
+      const arr = [...document.querySelectorAll('#itemsBody tr')].map(tr=>{
         const get = k => (tr.querySelector(`[data-k="${k}"]`)?.value || "").trim();
-        const qty  = get('qty');
-        const unit = get('unit');
+        const qty   = get('qty');
+        const unit  = get('unit');
         let qtyPacks = get('qtyPacks');
         let qtyUnits = get('qtyUnits');
+        // если явно выбрана единица, подстрахуем обратную совместимость
         if (unit) {
-          if (unit === "упак" && !qtyPacks) qtyPacks = qty;
-          if (unit !== "упак" && !qtyUnits) qtyUnits = qty;
+          if (unit === "упак") { qtyPacks = qtyPacks || qty; }
+          else { qtyUnits = qtyUnits || qty; }
         }
         return {
           rowNo: get('rowNo'),
           title: get('title'),
           article: get('article'),
-          qty, unit, qtyPacks, qtyUnits
+          qty, unit,
+          qtyPacks, qtyUnits
         };
-      }).filter(it => it.title || it.qty || it.qtyPacks || it.qtyUnits)
-        .sort((a,b)=> (parseInt(a.rowNo||0,10)) - (parseInt(b.rowNo||0,10)));
+      }).filter(it => it.title || it.qty || it.qtyPacks || it.qtyUnits);
+      // сортировка по rowNo как по числу
+      return arr.sort((a,b)=> (parseInt(a.rowNo||0,10)) - (parseInt(b.rowNo||0,10)));
     }
     function updateTotals(){
       const items = collectItemsFromTable();
@@ -340,6 +396,7 @@
       status('');
       updateCreateDisabled();
     }
+
     function renderFilesList() {
       const box = $('#filesList'); box.innerHTML = "";
       if (!filesAll.length) return;
@@ -352,18 +409,26 @@
         const btnDel = document.createElement('button'); btnDel.type='button'; btnDel.className='ghost'; btnDel.textContent='Удалить';
         const btnRe = document.createElement('button'); btnRe.type='button'; btnRe.className='ghost'; btnRe.textContent='Распарсить этот';
         const thisIndex = idx++;
-        btnDel.onclick = async () => { filesAll.splice(thisIndex,1); await reparseAll(); };
-        btnRe.onclick = async () => { await parseOneFileIntoRaw(f, true); rerenderFromRaw(); };
-        row.appendChild(name); row.appendChild(size); row.appendChild(btnRe); row.appendChild(btnDel);
+        btnDel.onclick = async () => {
+          filesAll.splice(thisIndex,1);
+          await reparseAll();
+        };
+        btnRe.onclick = async () => {
+          await parseOneFileIntoRaw(f, true);
+          rerenderFromRaw();
+        };
+        row.appendChild(name); row.appendChild(size);
+        row.appendChild(btnRe); row.appendChild(btnDel);
         box.appendChild(row);
       }
     }
+
     async function handleFiles(fileList){
       const arr = Array.from(fileList || []).filter(Boolean);
       if (!arr.length) return;
       filesAll.push(...arr);
       renderFilesList();
-      await reparseAll();
+      await reparseAll(); // АВТОПАРСИНГ всех файлов
     }
 
     // ====== Динамические импорты ======
@@ -420,13 +485,22 @@
             for (let i=1;i<=pdf.numPages;i++){
               const p = await pdf.getPage(i);
               const tc = await p.getTextContent();
-              let pageText = tc.items.map(it => (it.hasEOL ? (it.str || "") + "\n" : (it.str || "") + " ")).join("");
-              pageText = pageText.replace(/[ \t]+/g, ' ').replace(/[ \t]*\n[ \t]*/g, '\n').replace(/\n{2,}/g, '\n');
+              let pageText = tc.items.map(it => {
+                const s = (it.str || "");
+                return it.hasEOL ? (s + "\n") : s + " ";
+              }).join("");
+              pageText = pageText
+                .replace(/[ \t]+/g, ' ')
+                .replace(/[ \t]*\n[ \t]*/g, '\n')
+                .replace(/\n{2,}/g, '\n');
               allPagesText.push(pageText);
             }
             const fullText = allPagesText.join("\n");
-            let parsed = parseLinesLikeDocs(fullText);             // главный путь
-            if (!parsed.length) parsed = parseStructuredTable(fullText); // фолбэк
+            let parsed = parseAllText(fullText);
+            if (!parsed.length) {
+              // ещё попытка: иногда таблица идёт кусками
+              parsed = parseStructuredTable(fullText);
+            }
             parsed.forEach(it => it._src = file.name);
             return parsed;
           } else {
@@ -570,6 +644,7 @@
 
     // ====== Создание задач (creator = "unknown") ======
     function getSelectedItems(){ return collectItemsFromTable(); }
+
     function updateCreateDisabled() {
       const okItems = getSelectedItems().length > 0;
       const okFiles = filesAll.length > 0;
@@ -579,6 +654,7 @@
     async function createOneTaskFor(fsMod, title, comment, assigneeId, assigneeName, isPickup) {
       const docRef = fsMod.doc(fsMod.collection(_db, 'tasks'));
       const taskId = docRef.id;
+
       const data = {
         title, comment,
         assignees: assigneeId ? [assigneeId] : [],
@@ -588,14 +664,16 @@
         createdAt: fsMod.serverTimestamp(),
         creatorId: "unknown",
         creatorName: "unknown",
-        items: getSelectedItems(), // rowNo, title, article, qty, unit, qtyPacks, qtyUnits
+        items: getSelectedItems(), // включает: rowNo, title, article, qty, unit, qtyPacks, qtyUnits
         source: "web-multi",
         sourceMeta: { ua: navigator.userAgent, filesCount: filesAll.length },
         files: []
       };
+
       await fsMod.setDoc(docRef, data);
       const fileRecs = await uploadAllToCloudinary(taskId);
       await fsMod.updateDoc(docRef, { files: fileRecs });
+
       try {
         await fetch(VERCEL_NOTIFY_PROXY_URL, {
           method:'POST',
@@ -603,6 +681,7 @@
           body: JSON.stringify({ taskId, assigneeIds: assigneeId ? [assigneeId] : [] })
         });
       } catch(e) { console.warn('notify failed', e); }
+
       return taskId;
     }
 
@@ -614,10 +693,12 @@
         const items = getSelectedItems();
         if (!items.length) { alert('Нет позиций'); return; }
         if (!filesAll.length) { alert('Добавьте файл(ы)'); return; }
+
         $('#btnCreate').disabled = true;
         status('Создаю задачу(и)…');
 
         const { fsMod } = await ensureFirebase();
+
         const workerIds = Array.from(selectedWorkerIds);
         const workerNames = Array.from(selectedWorkerNames);
 
@@ -627,7 +708,11 @@
           createdIds.push(id);
         } else {
           for (let i=0;i<workerIds.length;i++){
-            const id = await createOneTaskFor(fsMod, title, comment, workerIds[i], workerNames[i] || workerIds[i], false);
+            const id = await createOneTaskFor(
+              fsMod, title, comment,
+              workerIds[i], workerNames[i] || workerIds[i],
+              false
+            );
             createdIds.push(id);
           }
         }
@@ -657,7 +742,7 @@
     (async function init(){
       await ensureFirebase();
       await loadUsers();
-      // по умолчанию НЕ мерджим — сохраняем порядок как в документе
+      // По умолчанию НЕ мерджим, чтобы сохранить порядок как в документе
       $('#mergeToggle').checked = false;
       updateCreateDisabled();
     })();
