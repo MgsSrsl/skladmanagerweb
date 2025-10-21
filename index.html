@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
   <meta charset="utf-8" />
-  <title>Создать задачу — СкладСборка (XLSX)</title>
+  <title>Создать задачу — СкладСборка (XLSX auto-header)</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
     :root { color-scheme: dark; }
@@ -45,12 +45,13 @@
 </head>
 <body>
   <div class="container">
-    <h1>Создать задачу (XLSX/CSV)</h1>
+    <h1>Создать задачу (XLSX/CSV, авто-поиск шапки)</h1>
 
     <div class="card">
       <div class="dropzone" id="drop">
         <p><b>Перетащите XLSX/XLS/CSV (можно несколько)</b> или нажмите «Выбрать файлы».<br>
-        Ожидаемые колонки: <span class="kbd">No/№</span>, <span class="kbd">Article</span>, <span class="kbd">Title</span>, <span class="kbd">Qty</span>, <span class="kbd">Unit</span>, <span class="kbd">QtyPacks</span>, <span class="kbd">QtyUnits</span></p>
+        Поддерживаются заголовки (синонимы): <span class="kbd">No/№/Номер/#</span>, <span class="kbd">Article/Артикул/SKU/Код</span>, <span class="kbd">Title/Товар/Наименование</span>, <span class="kbd">Qty/Кол-во/Количество</span>, <span class="kbd">Unit/Ед.</span>, <span class="kbd">QtyPacks/Упаковок</span>, <span class="kbd">QtyUnits/Шт</span>.<br>
+        <small>Шапка может быть <u>не</u> в первой строке — найдём автоматически.</small></p>
         <div class="row" style="justify-content:center">
           <button id="btnPick" type="button" class="ghost">Выбрать файлы</button>
           <button id="btnClearFiles" type="button" class="ghost">Очистить список</button>
@@ -117,7 +118,7 @@
     const status = t => { $('#status').textContent = t || ''; };
     const sleep = (ms)=> new Promise(r=>setTimeout(r,ms));
     const readAsArrayBuffer = (f)=> new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(r.result); r.onerror=rej; r.readAsArrayBuffer(f); });
-    const readAsText = (f)=> new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(r.result); r.onerror=rej; r.readAsText(f); });
+    const readAsText = (f, enc='utf-8')=> new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(r.result); r.onerror=rej; r.readAsText(f, enc); });
 
     // ====== Конфиг ======
     const FIREBASE_CONFIG = {
@@ -160,7 +161,7 @@
     drop.addEventListener('drop', e => { handleFiles(e.dataTransfer.files); });
     fi.addEventListener('change', () => handleFiles(fi.files));
 
-    let filesAll = [];        // исходные файлы (мы тоже загрузим их в Cloudinary)
+    let filesAll = [];        // исходные файлы
     let itemsParsedRaw = [];  // собранные позиции
     let itemsRendered = [];
 
@@ -201,7 +202,7 @@
       await reparseAll();
     }
 
-    // ====== XLSX/CSV → items ======
+    // ====== XLSX/CSV → items (авто-поиск шапки в любой строке) ======
     const HEADER_MAP = {
       rowNo:    ["no","№","#","номер","row","rowno"],
       article:  ["article","артикул","sku","код","code"],
@@ -226,6 +227,18 @@
       });
       return map;
     }
+    // ищем первую строку, где найдено >=2 из ключевых заголовков (title ОБЯЗАТЕЛЬНО)
+    function findHeaderRow(aoa){
+      for (let i=0;i<Math.min(aoa.length, 50);i++){            // в первых 50 строках
+        const row = aoa[i] || [];
+        const cols = mapColumns(row);
+        const hasTitle = cols.title != null;
+        const count = Object.keys(cols).length;
+        if (hasTitle && count >= 2) return { idx:i, cols };
+      }
+      // fallback: первая строка как шапка
+      return { idx:0, cols: mapColumns(aoa[0] || []) };
+    }
     function getCell(row, idx){ return (idx==null||idx<0) ? "" : (row[idx] ?? ""); }
 
     async function parseXlsxFile(file){
@@ -237,19 +250,20 @@
       return parseAOA(aoa);
     }
     async function parseCsvFile(file){
-      const txt = await readAsText(file);
-      const aoa = XLSX.utils.sheet_to_json(XLSX.read(txt, {type:'string'}).Sheets["Sheet1"] || XLSX.read(txt, {type:'string'}).Sheets[XLSX.read(txt, {type:'string'}).SheetNames[0]], { header:1, raw:false, defval:"" });
+      // Пробуем UTF-8, при странных символах можно сменить на 'windows-1251'
+      const txt = await readAsText(file, 'utf-8');
+      const wb = XLSX.read(txt, {type:'string'});
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const aoa = XLSX.utils.sheet_to_json(ws, { header:1, raw:false, defval:"" });
       return parseAOA(aoa);
     }
     function parseAOA(aoa){
       if (!aoa.length) return [];
-      const header = aoa[0];
-      const cols = mapColumns(header);
-      // минимально: нужен хотя бы title и (qty+unit) ИЛИ (qtyPacks/qtyUnits)
+      const { idx:headIdx, cols } = findHeaderRow(aoa);
       const out = [];
       let autoRow = 1;
-      for (let r=1; r<aoa.length; r++){
-        const row = aoa[r];
+      for (let r=headIdx+1; r<aoa.length; r++){
+        const row = aoa[r] || [];
         const title   = (getCell(row, cols.title)   || "").toString().trim();
         const article = (getCell(row, cols.article) || "").toString().trim();
         const rowNoR  = (getCell(row, cols.rowNo)   || "").toString().trim();
@@ -258,6 +272,7 @@
         let qtyPacks  = (getCell(row, cols.qtyPacks)|| "").toString().trim();
         let qtyUnits  = (getCell(row, cols.qtyUnits)|| "").toString().trim();
 
+        // пустые/подвальные строки пропускаем
         if (!title && !qty && !qtyPacks && !qtyUnits) continue;
 
         // нормализация
@@ -507,7 +522,7 @@
         creatorId: "unknown",
         creatorName: "unknown",
         items: getSelectedItems(),
-        source: "web-xlsx",
+        source: "web-xlsx-autoheader",
         sourceMeta: { ua: navigator.userAgent, filesCount: filesAll.length },
         files: []
       };
@@ -580,5 +595,6 @@
   </script>
 </body>
 </html>
+
 
 
