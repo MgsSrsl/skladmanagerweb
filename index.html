@@ -1,4 +1,4 @@
-<!doctype html>
+<!doctype html> 
 <html lang="ru">
 <head>
   <meta charset="utf-8" />
@@ -42,6 +42,32 @@
     .hidden { display:none !important; }
     #fileInput { position: fixed; left: -9999px; top: -9999px; width: 1px; height: 1px; opacity: 0; }
   </style>
+
+  <!-- pdf.js ESM + UMD fallback (для Яндекс.Браузера) -->
+  <script>window.__PDFJS_READY__=false;</script>
+  <script type="module">
+    try {
+      const m = await import("https://cdn.jsdelivr.net/npm/pdfjs-dist@4.6.82/build/pdf.mjs");
+      m.GlobalWorkerOptions.workerSrc = "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.6.82/build/pdf.worker.mjs";
+      window.pdfjsLib = m; window.__PDFJS_READY__ = true;
+    } catch(e) {/* UMD ниже */}
+  </script>
+  <script>
+    (function ensurePdfJsUMD(){
+      if (window.__PDFJS_READY__) return;
+      const s1 = document.createElement('script');
+      s1.src = "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.6.82/build/pdf.min.js";
+      s1.onload = function(){
+        const s2 = document.createElement('script');
+        s2.src = "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.6.82/build/pdf.worker.min.js";
+        s2.onload = function(){ window.__PDFJS_READY__ = true; };
+        document.head.appendChild(s2);
+      };
+      document.head.appendChild(s1);
+    })();
+  </script>
+  <!-- Tesseract подключается только при необходимости -->
+  <script defer src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.0/dist/tesseract.min.js"></script>
 </head>
 <body>
   <div class="container">
@@ -122,11 +148,83 @@
     const CLOUDINARY_UPLOAD_PRESET = "unsigned_tasks";
     const VERCEL_NOTIFY_PROXY_URL  = "/api/notify-taskCreated";
 
-    // ====== Парсеры ======
+    // ====== Часть 1. УПРОЩЁННЫЙ/ЖЕЛЕЗОБЕТОННЫЙ ПАРСЕР ======
+    // Цель: вытащить ТОВАР + КОЛ-ВО. Приоритет — ШТ; если их нет, берём УПАК.
+    // При этом UI/таблица остаётся прежней: заполняем qtyUnits или qtyPacks, article по возможности.
+    function num(s){ if(!s) return null; const v=parseFloat(String(s).replace(/\s+/g,'').replace(',','.')); return Number.isFinite(v)?v:null; }
+    const U_PIECES = /^(шт|штук|шт\.?)$/i;
+    const U_PACKS  = /^(упак|уп|короб|кор\.?|пач|пач\.?)$/i;
+
+    function extractEssentialLine(line) {
+      const s = line.replace(/[ \t]+/g,' ').trim();
+      if (!s) return null;
+      // A) "3 упак по 10 шт" => 30 шт
+      let m = s.match(/(\d[\d\s.,]*)\s*(упак|уп|короб|пач|пач\.?)\s*(?:по|\()\s*(\d[\d\s.,]*)\s*(шт|штук|шт\.?)\)?/i);
+      if (m) {
+        const packs = num(m[1]), pcsPerPack = num(m[3]);
+        const totalPieces = (packs!=null && pcsPerPack!=null) ? packs * pcsPerPack : null;
+        const name = s.slice(0, m.index).replace(/[#•;:|\-–—]+$/,'').trim();
+        if (totalPieces!=null) return { title: name||null, qtyUnits: totalPieces, qtyPacks: null, article: "" };
+        if (packs!=null)       return { title: name||null, qtyUnits: null,        qtyPacks: packs,  article: "" };
+      }
+      // B) Две колонки: "... 12 шт 3 упак" / "... 3 упак 3 упак"
+      m = s.match(/(.+?)\s+(\d[\d\s.,]*)(?:\s*([^\s\d]+))?\s+(\d[\d\s.,]*)(?:\s*([^\s\d]+))?$/);
+      if (m) {
+        let name = (m[1]||'').replace(/\s+/g,' ').replace(/[#•;:|\-–—]+$/,'').trim();
+        const q1 = num(m[2]); const u1=(m[3]||'').trim();
+        const q2 = num(m[4]); const u2=(m[5]||'').trim();
+        const is1pcs=U_PIECES.test(u1), is2pcs=U_PIECES.test(u2);
+        const is1pack=U_PACKS.test(u1), is2pack=U_PACKS.test(u2);
+        // попытка выделить артикул в начале имени
+        let article=""; const a = name.match(/^([A-Za-zА-Яа-я0-9\-]{4,})\b[)\s-]?(.*)$/);
+        if (a) { article=a[1]; name=(a[2]||"").trim(); }
+
+        if (is1pcs||is2pcs){ const qty = is1pcs?q1:q2; if(qty!=null) return {title:name||null, article, qtyUnits:qty, qtyPacks:null}; }
+        if (is1pack||is2pack){ const qty = is1pack?q1:q2; if(qty!=null) return {title:name||null, article, qtyUnits:null, qtyPacks:qty}; }
+        if (q1!=null && q2!=null) return { title:name||null, article, qtyUnits:q1, qtyPacks:null }; // приоритет — первое число в «шт»
+      }
+      // C) Одинарные формы: "... 12 шт" / "... 4 упак"
+      m = s.match(/(.+?)\s+(\d[\d\s.,]*)\s*([^\s\d]+)$/);
+      if (m) {
+        let name=(m[1]||'').replace(/[#•;:|\-–—]+$/,'').trim();
+        const q=num(m[2]); const u=(m[3]||'').trim();
+        let article=""; const a = name.match(/^([A-Za-zА-Яа-я0-9\-]{4,})\b[)\s-]?(.*)$/);
+        if (a) { article=a[1]; name=(a[2]||"").trim(); }
+        if (q!=null){
+          if (U_PIECES.test(u)) return { title:name||null, article, qtyUnits:q, qtyPacks:null };
+          if (U_PACKS.test(u))  return { title:name||null, article, qtyUnits:null, qtyPacks:q };
+        }
+      }
+      return null;
+    }
+
+    function parseEssentialFromText(fullText) {
+      const text = fullText.replace(/[ \t]+/g,' ').replace(/[ \t]*\n[ \t]*/g,'\n').replace(/\n{2,}/g,'\n');
+      const rawLines = text.split('\n').map(s=>s.trim()).filter(Boolean)
+        .filter(s => !/^(№|вид|артикул|товар|наименование|кол-во|количество|склад|задание на отбор|размещение товара|итого|стр\.)/i.test(s));
+      const found = [];
+      for (const line of rawLines) {
+        const hit = extractEssentialLine(line);
+        if (!hit) continue;
+        let title = hit.title || line.replace(/\s+\d[\d\s.,]*.*$/,'').trim();
+        found.push({ title, article: hit.article||"", qtyPacks: hit.qtyPacks, qtyUnits: hit.qtyUnits });
+      }
+      // Приоритет: если одна и та же позиция встречалась и в «шт», и в «упак», оставим «шт»
+      const byKey = new Map();
+      for (const it of found) {
+        const key = ((it.article||'') + '|' + (it.title||'')).toLowerCase();
+        const prev = byKey.get(key);
+        if (!prev) { byKey.set(key, it); continue; }
+        const newIsPcs = it.qtyUnits!=null, oldIsPcs = prev.qtyUnits!=null;
+        if (newIsPcs && !oldIsPcs) byKey.set(key, it);
+      }
+      return Array.from(byKey.values());
+    }
+
+    // ====== Часть 2. Остальные парсеры (как были), используются как fallback ======
     function parseDockeTablesFromText(fullText) {
       const rx = /(?:^|\n)\s*\d+\s+([A-ZА-Я0-9-]{4,})\s+(.+?)\s+(\d[\d\s.,]*)\s*шт\s+(\d[\d\s.,]*)\s*шт\s*(?=\n|$)/gimu;
-      const items = [];
-      let m;
+      const items = []; let m;
       while ((m = rx.exec(fullText)) !== null) {
         const article = m[1].trim();
         const title   = m[2].replace(/\s+/g,' ').trim();
@@ -160,7 +258,7 @@
       return items;
     }
 
-    // merge одинаковых позиций
+    // merge одинаковых позиций (как было)
     function mergeSameItems(items) {
       const map = new Map();
       for (const it of items) {
@@ -297,39 +395,30 @@
       if (!arr.length) return;
       filesAll.push(...arr);
       renderFilesList();
-      await reparseAll(); // АВТОПАРСИНГ всех файлов
+      await reparseAll(); // автопарсинг всех файлов
     }
 
-    // ====== Динамические импорты ======
-    let _pdfjsLib = null;
+    // ====== Динамические импорты (оставлены как были, кроме pdf.js, где добавлен фолбэк выше) ======
     let _tesseract = null;
-    let _firebase = null;
-    let _app, _auth, _db;
-
-    async function ensurePdfJs() {
-      if (_pdfjsLib) return _pdfjsLib;
-      const m = await import("https://cdn.jsdelivr.net/npm/pdfjs-dist@4.6.82/build/pdf.mjs");
-      m.GlobalWorkerOptions.workerSrc = "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.6.82/build/pdf.worker.mjs";
-      _pdfjsLib = m; return m;
-    }
+    let _app, _auth, _db, _fs;
     async function ensureTesseract() {
       if (_tesseract) return _tesseract;
-      const m = await import("https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js");
-      _tesseract = m.default || m; return _tesseract;
+      _tesseract = window.Tesseract || (await import("https://cdn.jsdelivr.net/npm/tesseract.js@5.1.0/dist/tesseract.min.js")).default;
+      return _tesseract;
     }
     async function ensureFirebase() {
-      if (_firebase) return _firebase;
+      if (_app) return;
       const appMod  = await import("https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js");
       const authMod = await import("https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js");
       const fsMod   = await import("https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js");
       _app = appMod.initializeApp(FIREBASE_CONFIG);
       _auth = authMod.getAuth(_app);
+      _fs   = fsMod;
       _db   = fsMod.getFirestore(_app);
       try { await authMod.signInAnonymously(_auth); } catch(e){ console.warn("Anon auth failed:", e); }
-      _firebase = { appMod, authMod, fsMod }; return _firebase;
     }
 
-    // ====== Чтение файлов ======
+    // ====== Чтение ======
     const readAsArrayBuffer = (f)=> new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(r.result); r.onerror=rej; r.readAsArrayBuffer(f); });
     const readAsDataURL    = (f)=> new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(r.result); r.onerror=rej; r.readAsDataURL(f); });
 
@@ -338,7 +427,11 @@
       try {
         if (file.type === 'application/pdf' || /\.pdf$/i.test(file.name)) {
           status(`Читаю PDF: ${file.name}`);
-          const pdfjsLib = await ensurePdfJs();
+          // ждём pdf.js (ESM или UMD — не важно)
+          for (let i=0;i<50 && !window.__PDFJS_READY__;i++) await sleep(100);
+          if (!window.pdfjsLib) throw new Error('pdf.js не загрузился');
+          const pdfjsLib = window.pdfjsLib;
+
           const ab = await readAsArrayBuffer(file);
           const pdf = await pdfjsLib.getDocument({ data: ab }).promise;
 
@@ -354,26 +447,28 @@
             for (let i=1;i<=pdf.numPages;i++){
               const p = await pdf.getPage(i);
               const tc = await p.getTextContent();
-              let pageText = tc.items.map(it => {
-                const s = (it.str || "");
-                return it.hasEOL ? (s + "\n") : s + " ";
-              }).join("");
-              pageText = pageText
-                .replace(/[ \t]+/g, ' ')
-                .replace(/[ \t]*\n[ \t]*/g, '\n')
-                .replace(/\n{2,}/g, '\n');
+              let pageText = tc.items.map(it => (it.str || '') + (it.hasEOL ? '\n' : ' ')).join('');
+              pageText = pageText.replace(/[ \t]+/g,' ').replace(/[ \t]*\n[ \t]*/g,'\n').replace(/\n{2,}/g,'\n');
               allPagesText.push(pageText);
             }
             const fullText = allPagesText.join("\n");
-            let parsed = parseDockeTablesFromText(fullText);
+
+            // НОВОЕ: сначала пытаемся «essential», чтобы всегда иметь товар+кол-во (шт>упак)
+            let parsed = parseEssentialFromText(fullText);
+
+            // Fallback — старые парсеры (на случай редких макетов)
+            if (!parsed.length) {
+              parsed = parseDockeTablesFromText(fullText);
+            }
             if (!parsed.length) {
               const lines = fullText.split(/\n/g).map(s=>s.trim()).filter(Boolean);
               parsed = parseTable(lines);
             }
+
             parsed.forEach(it => it._src = file.name);
             return parsed;
           } else {
-            // OCR PDF постранично
+            // OCR PDF постранично (как было)
             const Tesseract = await ensureTesseract();
             const worker = await Tesseract.createWorker('rus+eng');
             const out = [];
@@ -417,11 +512,10 @@
       }
     }
 
-    // Вспомогательная: парсит один файл и кладёт в общий RAW (можно форснуть полную замену RAW)
+    // Вспомогательная: парсит один файл и кладёт в общий RAW
     async function parseOneFileIntoRaw(file, replaceRaw = false) {
       const arr = await parseOneFile(file);
       if (replaceRaw) {
-        // очищаем только позиции, пришедшие из этого файла, и записываем заново
         itemsParsedRaw = itemsParsedRaw.filter(x => x._src !== file.name).concat(arr);
       } else {
         itemsParsedRaw.push(...arr);
@@ -438,7 +532,6 @@
         i++;
         status(`Парсинг ${i}/${filesAll.length}: ${f.name}`);
         await parseOneFileIntoRaw(f);
-        // небольшой «breathing room», чтобы UI не залип
         await sleep(10);
       }
       rerenderFromRaw();
@@ -450,14 +543,13 @@
       const doMerge = $('#mergeToggle').checked;
       itemsRendered = doMerge ? mergeSameItems(itemsParsedRaw) : [...itemsParsedRaw];
       renderItems(itemsRendered);
-      // покажем источники
       const srcSet = new Set(itemsParsedRaw.map(x => x._src).filter(Boolean));
       $('#sourcesInfo').textContent = srcSet.size ? `Файлы: ${Array.from(srcSet).join(', ')}` : '';
     }
 
     $('#mergeToggle').addEventListener('change', rerenderFromRaw);
 
-    // ====== Cloudinary ======
+    // ====== Cloudinary (как было) ======
     async function uploadToCloudinary(file, taskId) {
       const form = new FormData();
       form.append('file', file);
@@ -474,8 +566,8 @@
       return out;
     }
 
-    // ====== Users (кладовщики) ======
-    let usersAll = [];                // {id, name, role}
+    // ====== Users (кладовщики) (как было) ======
+    let usersAll = [];                
     let selectedWorkerIds = new Set();
     let selectedWorkerNames = new Set();
 
@@ -500,8 +592,8 @@
 
     async function loadUsers() {
       try {
-        const { fsMod } = await ensureFirebase();
-        const snap = await fsMod.getDocs(fsMod.collection(_db, 'users'));
+        await ensureFirebase();
+        const snap = await _fs.getDocs(_fs.collection(_db, 'users'));
         usersAll = snap.docs.map(d => ({
           id: d.id,
           name: d.get('name') || d.get('displayName') || d.id,
@@ -514,7 +606,7 @@
       }
     }
 
-    // ====== Создание задач (creator = "unknown") ======
+    // ====== Создание задач (creator = "unknown") (как было) ======
     function getSelectedItems(){ return collectItemsFromTable(); }
 
     function updateCreateDisabled() {
@@ -523,8 +615,8 @@
       $('#btnCreate').disabled = !(okItems && okFiles);
     }
 
-    async function createOneTaskFor(fsMod, title, comment, assigneeId, assigneeName, isPickup) {
-      const docRef = fsMod.doc(fsMod.collection(_db, 'tasks'));
+    async function createOneTaskFor(title, comment, assigneeId, assigneeName, isPickup) {
+      const docRef = _fs.doc(_fs.collection(_db, 'tasks'));
       const taskId = docRef.id;
 
       const data = {
@@ -533,7 +625,7 @@
         assigneeNames: assigneeName ? [assigneeName] : [],
         isPickup: !!isPickup,
         status: "assigned",
-        createdAt: fsMod.serverTimestamp(),
+        createdAt: _fs.serverTimestamp(),
         creatorId: "unknown",
         creatorName: "unknown",
         items: getSelectedItems(),
@@ -542,9 +634,9 @@
         files: []
       };
 
-      await fsMod.setDoc(docRef, data);
+      await _fs.setDoc(docRef, data);
       const fileRecs = await uploadAllToCloudinary(taskId);
-      await fsMod.updateDoc(docRef, { files: fileRecs });
+      await _fs.updateDoc(docRef, { files: fileRecs });
 
       try {
         await fetch(VERCEL_NOTIFY_PROXY_URL, {
@@ -569,19 +661,19 @@
         $('#btnCreate').disabled = true;
         status('Создаю задачу(и)…');
 
-        const { fsMod } = await ensureFirebase();
+        await ensureFirebase();
 
         const workerIds = Array.from(selectedWorkerIds);
         const workerNames = Array.from(selectedWorkerNames);
 
         const createdIds = [];
         if (workerIds.length === 0) {
-          const id = await createOneTaskFor(fsMod, title, comment, null, null, true);
+          const id = await createOneTaskFor(title, comment, null, null, true);
           createdIds.push(id);
         } else {
           for (let i=0;i<workerIds.length;i++){
             const id = await createOneTaskFor(
-              fsMod, title, comment,
+              title, comment,
               workerIds[i], workerNames[i] || workerIds[i],
               false
             );
@@ -619,5 +711,3 @@
   </script>
 </body>
 </html>
-
-
