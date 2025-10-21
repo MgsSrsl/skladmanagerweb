@@ -149,7 +149,24 @@
   // вес, объём
   "кг":"кг","килограмм":"кг","г":"г","гр":"г","грамм":"г","л":"л","литр":"л","литра":"л","литров":"л"
 };
-    const normNum = (s)=> (s??"").toString().replace(/\u00A0/g,' ').replace(/\s+/g,'').replace(',', '.');
+    const normNum = (s)=>{
+  s = (s??"").toString().replace(/\u00A0/g,' ').trim();
+
+  // 1) Форматы типа "1.234.567,89" → 1234567.89
+  if (/^\d{1,3}(?:\.\d{3})+(?:,\d+)?$/.test(s)) {
+    return s.replace(/\./g,'').replace(',', '.');
+  }
+  // 2) Форматы "1 234 567,89" или "1 234 567.89" → 1234567.89
+  if (/^\d{1,3}(?: \d{3})+(?:[.,]\d+)?$/.test(s)) {
+    return s.replace(/ /g,'').replace(',', '.');
+  }
+  // 3) Частый кейс "1.000" (ровно 3 знака после точки, без запятых) → 1000
+  if (/^\d+\.\d{3}$/.test(s)) {
+    return s.replace(/\./g,'');
+  }
+  // 4) Обычный случай
+  return s.replace(/\s+/g,'').replace(',', '.');
+};
     const toNum = (s)=> { const n = parseFloat(normNum(s)); return Number.isFinite(n) ? n : 0; };
     const normUnit = (u)=> UNIT_ALIASES[(u??"").toString().trim().toLowerCase()] || (u??"").toString().trim().toLowerCase();
 
@@ -289,12 +306,26 @@
         qty = normNum(qty);
         qtyPacks = normNum(qtyPacks);
         qtyUnits = normNum(qtyUnits);
+        
 
-        // если указано Qty + Unit — подставим совместимость
-        if (qty && unit) {
-          if (unit === "упак" && !qtyPacks) qtyPacks = qty;
-          if (unit !== "упак" && !qtyUnits) qtyUnits = qty;
-        }
+        // === Fallback-правила ===
+// если есть Qty + Unit — уже обрабатывается ниже
+// если Unit пусто, но указаны спецполя:
+if (!unit) {
+  if (qtyPacks) unit = "упак";
+  else if (qtyUnits) unit = "шт";
+}
+// если Unit пусто и ни packs/units не заданы, но есть Qty — считаем шт
+if (!unit && qty) {
+  unit = "шт";
+  if (!qtyUnits) qtyUnits = qty;
+}
+
+// если указано Qty + Unit — подставим совместимость
+if (qty && unit) {
+  if (unit === "упак" && !qtyPacks) qtyPacks = qty;
+  if (unit !== "упак" && !qtyUnits) qtyUnits = qty;
+}
 
         const rowNo = rowNoR || String(autoRow++);
         out.push({
@@ -403,25 +434,42 @@
       updateTotals();
     }
     function collectItemsFromTable() {
-      return [...document.querySelectorAll('#itemsBody tr')].map(tr=>{
-        const get = k => (tr.querySelector(`[data-k="${k}"]`)?.value || "").trim();
-        const qty  = get('qty');
-        const unit = normUnit(get('unit'));
-        let qtyPacks = get('qtyPacks');
-        let qtyUnits = get('qtyUnits');
-        if (unit) {
-          if (unit === "упак" && !qtyPacks) qtyPacks = qty;
-          if (unit !== "упак" && !qtyUnits) qtyUnits = qty;
-        }
-        return {
-          rowNo: get('rowNo'),
-          title: get('title'),
-          article: get('article'),
-          qty, unit, qtyPacks, qtyUnits
-        };
-      }).filter(it => it.title || it.qty || it.qtyPacks || it.qtyUnits)
-        .sort((a,b)=> (parseInt(a.rowNo||0,10)) - (parseInt(b.rowNo||0,10)));
+  return [...document.querySelectorAll('#itemsBody tr')].map(tr => {
+    const get = k => (tr.querySelector(`[data-k="${k}"]`)?.value || "").trim();
+
+    const qtyRaw = get('qty');
+    let unit = normUnit(get('unit'));
+    let qtyPacks = get('qtyPacks');
+    let qtyUnits = get('qtyUnits');
+
+    const qty = normNum(qtyRaw);
+
+    // 🔹 автоопределение единицы измерения
+    if (!unit) {
+      if (qtyPacks) unit = "упак";
+      else if (qtyUnits) unit = "шт";
+      else if (qty) {
+        unit = "шт";
+        qtyUnits = qtyUnits || qty;
+      }
     }
+
+    // 🔹 согласование Qty + Unit
+    if (qty && unit) {
+      if (unit === "упак" && !qtyPacks) qtyPacks = qty;
+      if (unit !== "упак" && !qtyUnits) qtyUnits = qty;
+    }
+
+    return {
+      rowNo: get('rowNo'),
+      title: get('title'),
+      article: get('article'),
+      qty, unit, qtyPacks, qtyUnits
+    };
+  }).filter(it => it.title || it.qty || it.qtyPacks || it.qtyUnits)
+    .sort((a, b) => (parseInt(a.rowNo || 0, 10)) - (parseInt(b.rowNo || 0, 10)));
+}
+
     function updateTotals(){
       const items = collectItemsFromTable();
       const sumQty = items.reduce((s,it)=> s + (toNum(it.qty)||0), 0);
