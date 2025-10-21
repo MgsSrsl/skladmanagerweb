@@ -15,15 +15,15 @@
     .dropzone { border: 2px dashed #4b5563; border-radius: 14px; padding: 22px; background: #111827; text-align: center; transition: .2s; }
     .dropzone.drag { background: #1f2937; border-color: #60a5fa; }
     label { font-size: 14px; color: #9ca3af; display:block; margin: 12px 0 6px;}
-    input[type="text"], input[type="email"], input[type="password"], textarea {
+    input[type="text"], textarea {
       width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid #374151; background: #0b1220; color: #fff;
     }
     textarea { min-height: 80px; resize: vertical; }
     button { background: #3b82f6; border: 0; color: #fff; padding: 10px 14px; border-radius: 10px; cursor: pointer; font-weight: 600; }
     button.ghost { background:#0b1220; border:1px solid #374151; }
     button[disabled] { opacity:.6; cursor: not-allowed }
-    .status { margin-top: 8px; font-size: 14px; color: #93c5fd; }
-    .preview { margin-top: 10px; font-size: 13px; color: #9ca3af; }
+    .status { margin-top: 8px; font-size: 14px; color: #93c5fd; white-space: pre-wrap; }
+    .preview { margin-top: 10px; font-size: 13px; color: #cbd5e1; white-space: pre-wrap; }
     table { width: 100%; border-collapse: collapse; margin-top: 8px; }
     th, td { border: 1px solid #374151; padding: 6px 8px; }
     th { background: #111827; color: #cbd5e1; position: sticky; top: 0; }
@@ -32,12 +32,14 @@
     .totals { text-align: right; margin-top: 6px; color:#cbd5e1 }
     .kbd { background:#111827; border:1px solid #374151; border-radius:6px; padding:0 6px; }
     .muted { color:#9ca3af; font-size:13px }
-    .bad { color:#fecaca }
-    .good { color:#86efac }
     .chip { border:1px solid #374151; background:#0b1220; padding:8px 10px; border-radius:999px; cursor:pointer; }
     .chip.active { background:#1e293b; border-color:#60a5fa; }
+    .fileRow { display:flex; align-items:center; gap:8px; margin:3px 0; }
+    .fileRow .name { flex:1 1 auto; }
+    .fileRow .tag { font-size:12px; opacity:.9 }
+    .fileRow button { padding:6px 8px; border-radius:8px; }
     .hidden { display:none !important; }
-    /* скрытый, но кликабельный input (не display:none) */
+    /* скрытый, но кликабельный input */
     #fileInput { position: fixed; left: -9999px; top: -9999px; width: 1px; height: 1px; opacity: 0; }
   </style>
 </head>
@@ -47,9 +49,12 @@
 
     <div class="card">
       <div class="dropzone" id="drop">
-        <p><b>Перетащите PDF/изображение</b> или нажмите «Выбрать файл». Можно вставить скрин через <span class="kbd">Ctrl+V</span>.</p>
-        <button id="btnPick" type="button" class="ghost">Выбрать файл</button>
-        <input id="fileInput" type="file" accept=".pdf,.png,.jpg,.jpeg,.webp" />
+        <p><b>Перетащите PDF/изображения (можно несколько)</b> или нажмите «Выбрать файлы». Можно вставить скрин через <span class="kbd">Ctrl+V</span>.</p>
+        <div class="row" style="justify-content:center">
+          <button id="btnPick" type="button" class="ghost">Выбрать файлы</button>
+          <button id="btnClearFiles" type="button" class="ghost">Очистить список</button>
+        </div>
+        <input id="fileInput" type="file" multiple accept=".pdf,.png,.jpg,.jpeg,.webp" />
         <div id="preview" class="preview"></div>
         <div id="status" class="status"></div>
       </div>
@@ -64,18 +69,9 @@
     </div>
 
     <div class="card">
-      <div class="row">
-        <div style="flex:1">
-          <label>Автор (кто создаёт)</label>
-          <select id="authorSelect" style="width:100%;padding:10px 12px;border-radius:10px;border:1px solid #374151;background:#0b1220;color:#fff"></select>
-          <div class="muted" id="authorHint">Загружаю список…</div>
-        </div>
-        <div style="flex:2">
-          <label>Исполнители (кладовщики)</label>
-          <div id="workersBox" class="row" style="gap:8px"></div>
-          <div class="muted">Если никого не выбрать — будет самовывоз (одна задача без assignees).</div>
-        </div>
-      </div>
+      <label>Исполнители (кладовщики)</label>
+      <div id="workersBox" class="row" style="gap:8px"></div>
+      <div class="muted">Если никого не выбрать — будет самовывоз (одна задача без assignees).</div>
     </div>
 
     <div class="card">
@@ -95,7 +91,7 @@
   </div>
 
   <script>
-    // ====== Базовые утилиты и статус ======
+    // ====== Утилиты и статус ======
     const $ = s => document.querySelector(s);
     const status = t => { $('#status').textContent = t || ''; };
     window.addEventListener('error', e => console.error('Global error:', e.error || e.message));
@@ -181,16 +177,14 @@
       const sumP = items.reduce((s,it)=> s + (parseFloat((it.qtyPacks||"").replace(",","."))||0), 0);
       const sumU = items.reduce((s,it)=> s + (parseFloat((it.qtyUnits||"").replace(",","."))||0), 0);
       $('#totals').textContent = `Итого: упаковок ${sumP} • штук ${sumU}`;
-      // включение кнопки делаем отдельно через updateCreateDisabled()
+      updateCreateDisabled();
     }
 
     // ====== DnD + Кнопка + Paste ======
     const drop = $('#drop');
     const fi   = $('#fileInput');
-    let inputFile=null, sourceKind="", parsedItems=[];
-
     $('#btnPick').addEventListener('click', () => fi.click());
-    fi.addEventListener('change', () => handleFiles(fi.files));
+    $('#btnClearFiles').addEventListener('click', clearFiles);
 
     ['dragenter','dragover'].forEach(ev=>{
       document.addEventListener(ev, e=>{ e.preventDefault(); });
@@ -201,6 +195,8 @@
       drop.addEventListener(ev, e=>{ e.preventDefault(); drop.classList.remove('drag'); });
     });
     drop.addEventListener('drop', e => { handleFiles(e.dataTransfer.files); });
+
+    fi.addEventListener('change', () => handleFiles(fi.files));
 
     window.addEventListener('paste', async (e)=>{
       const items = e.clipboardData?.items; if (!items) return;
@@ -233,26 +229,101 @@
       _auth = authMod.getAuth(_app);
       _db   = fsMod.getFirestore(_app);
       try { await authMod.signInAnonymously(_auth); } catch(e){ console.warn("Anon auth failed:", e); }
-      _firebase = { appMod, authMod, fsMod };
-      return _firebase;
+      _firebase = { appMod, authMod, fsMod }; return _firebase;
+    }
+
+    // ====== Файлы: мультизагрузка и выбор основного ======
+    let filesAll = [];      // все выбранные файлы
+    let primaryFile = null; // основной для парсинга (★)
+    let sourceKind = "";
+    let itemsParsed = [];
+
+    function clearFiles(){
+      filesAll = [];
+      primaryFile = null;
+      itemsParsed = [];
+      $('#preview').textContent = "";
+      $('#itemsBody').innerHTML = "";
+      $('#totals').textContent = "";
+      updateCreateDisabled();
+      status('');
+    }
+
+    function renderFilesPreview() {
+      const el = $('#preview');
+      if (!filesAll.length) { el.textContent = ""; return; }
+      el.innerHTML = "";
+      filesAll.forEach((f, idx) => {
+        const row = document.createElement('div');
+        row.className = 'fileRow';
+        const star = document.createElement('button');
+        star.type = 'button';
+        star.className = 'ghost';
+        star.textContent = (f === primaryFile) ? '★' : '☆';
+        star.title = 'Сделать основным для парсинга';
+        star.onclick = () => { primaryFile = f; renderFilesPreview(); if (itemsParsed.length) { /* не репарсим автоматически */ } };
+
+        const del = document.createElement('button');
+        del.type = 'button';
+        del.className = 'ghost';
+        del.textContent = 'Удалить';
+        del.onclick = () => {
+          filesAll.splice(idx, 1);
+          if (primaryFile === f) {
+            primaryFile = choosePrimary(filesAll);
+            // сброс позиций — чтобы не было рассинхрона
+            itemsParsed = [];
+            $('#itemsBody').innerHTML = "";
+            $('#totals').textContent = "";
+          }
+          renderFilesPreview();
+          updateCreateDisabled();
+        };
+
+        const name = document.createElement('div');
+        name.className = 'name';
+        const sizeMb = (f.size/1024/1024).toFixed(2);
+        name.textContent = `${f.name} (${sizeMb} MB)`;
+
+        const tag = document.createElement('div');
+        tag.className = 'tag';
+        tag.textContent = (f === primaryFile) ? '★ основной для парсинга' : '';
+
+        row.appendChild(star);
+        row.appendChild(name);
+        row.appendChild(tag);
+        row.appendChild(del);
+        el.appendChild(row);
+      });
+    }
+
+    function choosePrimary(list){
+      if (!list || !list.length) return null;
+      const pdf = list.find(f => f.type === 'application/pdf' || /\.pdf$/i.test(f.name));
+      return pdf || list[0];
+    }
+
+    async function handleFiles(fileList){
+      const arr = Array.from(fileList || []).filter(Boolean);
+      if (!arr.length) return;
+      filesAll.push(...arr);
+      if (!primaryFile) primaryFile = choosePrimary(filesAll);
+      renderFilesPreview();
+
+      // пересобираем позиции из primaryFile c нуля
+      $('#itemsBody').innerHTML = "";
+      $('#totals').textContent = "";
+      itemsParsed = [];
+      if (primaryFile) {
+        $('#btnCreate').disabled = true;
+        await processFile(primaryFile);
+      }
+      updateCreateDisabled();
     }
 
     // ====== Чтение файлов ======
     const readAsArrayBuffer = (f)=> new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(r.result); r.onerror=rej; r.readAsArrayBuffer(f); });
     const readAsDataURL    = (f)=> new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(r.result); r.onerror=rej; r.readAsDataURL(f); });
-
-    async function handleFiles(fileList){
-      if (!fileList || !fileList.length) return;
-      const f = fileList[0];
-      inputFile = f;
-      $('#preview').textContent = `${f.name} (${(f.size/1024/1024).toFixed(2)} MB)`;
-      $('#btnCreate').disabled = true;
-      $('#itemsBody').innerHTML = "";
-      $('#totals').textContent = "";
-      parsedItems = [];
-      await processFile(f);
-      updateCreateDisabled();
-    }
 
     async function processFile(file){
       try {
@@ -292,12 +363,12 @@
               const lines = fullText.split(/\n/g).map(s=>s.trim()).filter(Boolean);
               parsed = parseTable(lines);
             }
-            parsedItems = parsed;
-            renderItems(parsedItems);
-            status(`Готово. Найдено позиций: ${parsedItems.length}`);
+            itemsParsed = parsed;
+            renderItems(itemsParsed);
+            status(`Готово. Найдено позиций: ${itemsParsed.length}`);
           } else {
             sourceKind = "pdf-scan";
-            parsedItems = [];
+            itemsParsed = [];
             const Tesseract = await ensureTesseract();
             for (let i=1;i<=pdf.numPages;i++){
               status(`Делаю OCR… стр. ${i}/${pdf.numPages}`);
@@ -314,10 +385,10 @@
               await worker.terminate();
 
               const lines = data.lines.map(l => l.text);
-              parsedItems.push(...parseFromOcr(lines));
+              itemsParsed.push(...parseFromOcr(lines));
             }
-            renderItems(parsedItems);
-            status(`Готово. Найдено позиций: ${parsedItems.length}`);
+            renderItems(itemsParsed);
+            status(`Готово. Найдено позиций: ${itemsParsed.length}`);
           }
         } else {
           // Изображение -> OCR
@@ -329,9 +400,9 @@
           const { data } = await worker.recognize(dataUrl);
           await worker.terminate();
           const lines = data.lines.map(l => l.text);
-          parsedItems = parseFromOcr(lines);
-          renderItems(parsedItems);
-          status(`Готово. Найдено позиций: ${parsedItems.length}`);
+          itemsParsed = parseFromOcr(lines);
+          renderItems(itemsParsed);
+          status(`Готово. Найдено позиций: ${itemsParsed.length}`);
         }
       } catch (e) {
         console.error(e);
@@ -342,7 +413,6 @@
 
     // ====== Cloudinary ======
     async function uploadToCloudinary(file, taskId) {
-      status('Загружаю файл в Cloudinary…');
       const form = new FormData();
       form.append('file', file);
       form.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
@@ -352,61 +422,37 @@
       const j = await resp.json();
       return { url: j.secure_url, publicId: j.public_id, type: j.resource_type || 'raw', name: file.name || 'file' };
     }
+    async function uploadAllToCloudinary(taskId) {
+      const out = [];
+      for (const f of filesAll) {
+        out.push(await uploadToCloudinary(f, taskId));
+      }
+      return out;
+    }
 
-    // ====== Users UI (Автор + Исполнители) ======
-    let usersAll = [];           // {id, name, role}
+    // ====== Users (кладовщики) ======
+    let usersAll = [];                // {id, name, role}
     let selectedWorkerIds = new Set();
     let selectedWorkerNames = new Set();
-    let selectedAuthor = null;   // {id, name}
 
-    function renderUsersUI() {
-      const authorSel = document.getElementById('authorSelect');
-      const workersBox = document.getElementById('workersBox');
-      const authorHint = document.getElementById('authorHint');
-
-      const authors = usersAll.filter(u => (u.role||"").toLowerCase() !== "кладовщик");
-      const workers = usersAll.filter(u => (u.role||"").toLowerCase() === "кладовщик");
-
-      // — автор
-      authorSel.innerHTML = "";
-      const optEmpty = document.createElement('option');
-      optEmpty.value = ""; optEmpty.textContent = "— выбрать —";
-      authorSel.appendChild(optEmpty);
-      (authors.length ? authors : usersAll).forEach(u => {
-        const o = document.createElement('option');
-        o.value = u.id; o.textContent = u.name || u.id;
-        authorSel.appendChild(o);
-      });
-      authorSel.onchange = () => {
-        const u = usersAll.find(x => x.id === authorSel.value);
-        selectedAuthor = u ? { id: u.id, name: (u.name || u.id) } : null;
-        authorHint.textContent = selectedAuthor ? `Выбран: ${selectedAuthor.name}` : "Автор не выбран";
-        updateCreateDisabled();
-      };
-
-      // — исполнители
-      workersBox.innerHTML = "";
+    function renderWorkers() {
+      const box = $('#workersBox');
+      box.innerHTML = "";
+      const workers = usersAll.filter(u => (u.role||"").toLowerCase() === "кладовщик") ;
       (workers.length ? workers : usersAll).forEach(u => {
         const btn = document.createElement('button');
         btn.type = "button";
         btn.textContent = u.name || u.id;
         btn.className = "chip";
         let active = false;
-        function setActive(a){
-          active = a;
-          if (active) btn.classList.add('active'); else btn.classList.remove('active');
-        }
+        function setActive(a){ active = a; if (a) btn.classList.add('active'); else btn.classList.remove('active'); }
         btn.onclick = () => {
           if (!active) { selectedWorkerIds.add(u.id); selectedWorkerNames.add(u.name || u.id); }
           else         { selectedWorkerIds.delete(u.id); selectedWorkerNames.delete(u.name || u.id); }
           setActive(!active);
-          updateCreateDisabled();
         };
-        setActive(false);
-        workersBox.appendChild(btn);
+        box.appendChild(btn);
       });
-
-      authorHint.textContent = "Выберите автора";
     }
 
     async function loadUsers() {
@@ -418,28 +464,23 @@
           name: d.get('name') || d.get('displayName') || d.id,
           role: (d.get('role') || "").toString()
         }));
-        renderUsersUI();
+        renderWorkers();
       } catch (e) {
         console.error("loadUsers failed:", e);
-        document.getElementById('authorHint').textContent = "Не удалось загрузить пользователей";
+        $('#workersBox').innerHTML = '<div class="muted">Не удалось загрузить пользователей</div>';
       }
     }
 
-    // ====== Создание задач ======
-    function getSelectedItems() { return collectItemsFromTable(); }
+    // ====== Создание задач (creator = "unknown") ======
+    function getSelectedItems(){ return collectItemsFromTable(); }
 
     function updateCreateDisabled() {
       const okItems = getSelectedItems().length > 0;
-      const okFile  = !!inputFile;
-      const okAuthor= !!selectedAuthor;
-      document.getElementById('btnCreate').disabled = !(okItems && okFile && okAuthor);
+      const okFile  = !!primaryFile;
+      $('#btnCreate').disabled = !(okItems && okFile);
     }
 
-    async function createOneTaskFor(
-      fsMod, title, comment,
-      assigneeId, assigneeName,
-      isPickup, creatorId, creatorName
-    ) {
+    async function createOneTaskFor(fsMod, title, comment, assigneeId, assigneeName, isPickup) {
       const docRef = fsMod.doc(fsMod.collection(_db, 'tasks'));
       const taskId = docRef.id;
 
@@ -450,7 +491,8 @@
         isPickup: !!isPickup,
         status: "assigned",
         createdAt: fsMod.serverTimestamp(),
-        creatorId, creatorName,
+        creatorId: "unknown",
+        creatorName: "unknown",
         items: getSelectedItems(),
         source: sourceKind || "web",
         sourceMeta: { ua: navigator.userAgent },
@@ -459,8 +501,8 @@
 
       await fsMod.setDoc(docRef, data);
 
-      const fileRec = await uploadToCloudinary(inputFile, taskId);
-      await fsMod.updateDoc(docRef, { files: [fileRec] });
+      const fileRecs = await uploadAllToCloudinary(taskId);
+      await fsMod.updateDoc(docRef, { files: fileRecs });
 
       try {
         await fetch(VERCEL_NOTIFY_PROXY_URL, {
@@ -478,36 +520,30 @@
         const title = $('#title').value.trim();
         const comment = $('#comment').value.trim();
         if (!title) { alert('Введите заголовок'); return; }
-        if (!selectedAuthor) { alert('Выберите автора'); return; }
         const items = getSelectedItems();
         if (!items.length) { alert('Нет позиций'); return; }
-        if (!inputFile) { alert('Не выбран файл'); return; }
+        if (!primaryFile) { alert('Не выбран файл'); return; }
 
         $('#btnCreate').disabled = true;
         status('Создаю задачу(и)…');
 
         const { fsMod } = await ensureFirebase();
 
-        const creatorId = selectedAuthor.id;
-        const creatorName = selectedAuthor.name;
-
         const workerIds = Array.from(selectedWorkerIds);
         const workerNames = Array.from(selectedWorkerNames);
 
         const createdIds = [];
         if (workerIds.length === 0) {
-          const id = await createOneTaskFor(
-            fsMod, title, comment,
-            null, null,
-            true, creatorId, creatorName
-          );
+          // самовывоз — одна задача
+          const id = await createOneTaskFor(fsMod, title, comment, null, null, true);
           createdIds.push(id);
         } else {
+          // по одной задаче на каждого исполнителя
           for (let i=0;i<workerIds.length;i++){
             const id = await createOneTaskFor(
               fsMod, title, comment,
               workerIds[i], workerNames[i] || workerIds[i],
-              false, creatorId, creatorName
+              false
             );
             createdIds.push(id);
           }
@@ -522,9 +558,9 @@
         $('#preview').textContent = "";
         $('#title').value="";
         $('#comment').value="";
-        inputFile=null; sourceKind="";
+        filesAll = []; primaryFile = null; sourceKind=""; itemsParsed=[];
         selectedWorkerIds.clear(); selectedWorkerNames.clear();
-        document.getElementById('authorSelect').selectedIndex = 0; selectedAuthor=null;
+        renderFilesPreview();
         updateCreateDisabled();
       } catch (e) {
         console.error(e);
@@ -534,14 +570,16 @@
       }
     }
 
-    document.getElementById('btnCreate').addEventListener('click', createTask);
+    $('#btnCreate').addEventListener('click', createTask);
 
     // Инициализация
     (async function init(){
       await ensureFirebase();
-      loadUsers();
+      await loadUsers();
+      updateCreateDisabled();
     })();
   </script>
 </body>
 </html>
+
 
