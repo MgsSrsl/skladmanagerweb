@@ -23,12 +23,10 @@
     button.ghost { background:#0b1220; border:1px solid #374151; }
     button[disabled] { opacity:.6; cursor: not-allowed }
     .status { margin-top: 8px; font-size: 14px; color: #93c5fd; white-space: pre-wrap; }
-    .preview { margin-top: 10px; font-size: 13px; color: #cbd5e1; }
     .files { margin-top: 10px; }
     .fileRow { display:flex; align-items:center; gap:8px; margin:6px 0; padding:8px; border:1px solid #1f2a44; border-radius:10px; background:#0b1220; }
     .fileRow .name { flex:1 1 auto; }
     .fileRow .size { font-size:12px; opacity:.75 }
-    .fileRow .tag { font-size:12px; opacity:.9 }
     table { width: 100%; border-collapse: collapse; margin-top: 8px; }
     th, td { border: 1px solid #374151; padding: 6px 8px; }
     th { background: #111827; color: #cbd5e1; position: sticky; top: 0; }
@@ -103,7 +101,7 @@
   </div>
 
   <script>
-    // ====== Базовые утилиты/статус ======
+    // ====== Утилиты ======
     const $ = s => document.querySelector(s);
     const status = t => { $('#status').textContent = t || ''; };
     const sleep = (ms)=> new Promise(r=>setTimeout(r,ms));
@@ -122,13 +120,18 @@
     const CLOUDINARY_UPLOAD_PRESET = "unsigned_tasks";
     const VERCEL_NOTIFY_PROXY_URL  = "/api/notify-taskCreated";
 
-    // ====== НОВЫЙ ЖЁСТКИЙ ПАРСЕР ДЛЯ ДОКЕ ======
-    // Единицы, которые считаем "упаковками"
-    const PACK_UNITS = ['уп','упак','упаковка','упаковок','рул','рулон','паллет','палета','паллетa','кор','короб','ящ','ящик'];
-    // Единицы, которые считаем "штучными"
+    // ====== Ед. измерения ======
+    const PACK_UNITS = ['уп','упак','упаковка','упаковок','рул','рулон','паллет','палета','кор','короб','ящ','ящик'];
     const UNIT_UNITS = ['шт','лист','комплект','м2','м3','м²','м³','п.м','п.м.','пог.м','кг','л'];
 
-    // Вспомогательная: снимет справа один "хвост" вида "<число> <единица>".
+    // нормализация строки
+    const norm = s => (s||'')
+      .replace(/[ \t]+/g,' ')
+      .replace(/[ \t]*\n[ \t]*/g,'\n')
+      .replace(/\n{2,}/g,'\n')
+      .trim();
+
+    // снять справа хвост "<число> <ед.изм>"
     function popRightQtyTail(s) {
       const rx = /(?:^|[\s/])(\d[\d\s.,]*)\s*(шт|лист|рул(?:он)?|уп(?:аковка|аковок|ак)?|паллет(?:а)?|палета|кор(?:об)?|ящ(?:ик)?|комплект|м2|м3|м²|м³|п\.?м\.?|пог\.?м|кг|л)\.?$/i;
       const m = s.match(rx);
@@ -139,7 +142,7 @@
       return { rest, tail: { qty: numRaw, unit } };
     }
 
-    // Преобразует массив хвостов в qtyPacks/qtyUnits
+    // распределение хвостов в колонки
     function tailsToQty(tails) {
       let qtyPacks = "", qtyUnits = "";
       for (const t of tails) {
@@ -147,96 +150,87 @@
         if (!qtyPacks && PACK_UNITS.includes(u)) { qtyPacks = t.qty; continue; }
         if (!qtyUnits && (UNIT_UNITS.includes(u) || !PACK_UNITS.includes(u))) { qtyUnits = t.qty; continue; }
       }
-      // если нашли только одно значение — кладём в "Шт"
-      if (!qtyUnits && qtyPacks && !PACK_UNITS.includes('шт')) {
-        // оставляем как есть: упаковки показаны отдельно
-      }
-      return { qtyPacks, qtyUnits: qtyUnits || (!qtyPacks ? "" : qtyUnits) };
+      return { qtyPacks, qtyUnits };
     }
 
-    // Жёстко разбираем строки вида "№  Товар  Количество"
-    function parseDockeLinesStrict(fullText) {
-      const lines = fullText.split(/\n+/).map(s => s.replace(/\s+/g,' ').trim()).filter(Boolean);
+    // Парсер «по чанкам-строкам»: между строками, начинающимися с номера
+    function parseByRowChunks(fullText) {
+      const rawLines = norm(fullText).split(/\n+/);
+      const lines = rawLines
+        .map(s => s.replace(/\s+/g,' ').trim())
+        .filter(Boolean)
+        // выкинем заголовки/служебные
+        .filter(s => !/^(№|артикул|товар|наимен|кол-?во|колич|количество)/i.test(s));
 
-      // Ищем начало табличного блока
-      const startIdx = lines.findIndex(l => /^№\b.*товар.*кол/i.test(l));
-      const work = startIdx >= 0 ? lines.slice(startIdx + 1) : lines;
+      const chunks = [];
+      let cur = null;
+
+      const startsRow = s => /^\d+[\s.)-]+/.test(s); // "1 ...", "2) ...", "3. ..."
+
+      for (const s of lines) {
+        if (startsRow(s)) {
+          if (cur) chunks.push(cur);
+          cur = [s];
+        } else {
+          if (cur) cur.push(s); // «90 лист», «Количество (упаковок)» и т.п. пойдут сюда
+        }
+      }
+      if (cur) chunks.push(cur);
 
       const items = [];
-      for (let raw of work) {
-        if (!/^\d+[\s.)-]+/.test(raw)) continue; // только строки, начинающиеся с номера позиции
-        let s = raw.replace(/^\d+[\s.)-]+/, '').trim();
+      for (const chunk of chunks) {
+        // склеим с разделителем, чтобы сохранить порядок ячеек
+        let text = chunk.join(' ').replace(/\s{2,}/g,' ').trim();
 
-        // Снимаем справа до 2 "хвостов" количество+единица
+        // уберём номер позиции и возможный артикул-колонку (если сразу после номера стоит код)
+        text = text.replace(/^\d+[\s.)-]+/, '');
+        // отдельная колонка «Артикул»: если токен похож на код, снимем его в поле article
+        let article = "";
+        const articleMatch = text.match(/^([A-ZА-Я0-9-]{4,})\b\s+(.*)$/);
+        if (articleMatch) {
+          // это может быть и частью названия — поэтому считаем артикулом, только если дальше явно идёт название
+          article = articleMatch[1];
+          text = articleMatch[2];
+        }
+
+        // снимем с правого края до 2 хвостов "<число> <ед.изм>"
         const tails = [];
-        let tmp = s;
+        let tmp = text;
         for (let k=0; k<2; k++) {
           const { rest, tail } = popRightQtyTail(tmp);
           if (!tail) break;
-          tails.unshift(tail); // чтобы порядок слева-направо сохранился
+          tails.unshift(tail);
           tmp = rest;
         }
+        if (!tails.length) {
+          // ничего количественного не нашли — пропустим
+          continue;
+        }
 
-        // Если вообще нет количеств — пропускаем
-        if (!tails.length) continue;
-
-        // Оставшееся слева — чистое название товара (с цифрами в размерностях)
-        const title = tmp.replace(/\s{2,}/g,' ').trim();
-
-        // Раскладываем количества по колонкам
         const { qtyPacks, qtyUnits } = tailsToQty(tails);
+        const title = tmp.replace(/\s{2,}/g,' ').trim() || "(без названия)";
 
         items.push({
-          title: title || "(без названия)",
-          article: "",           // артикул в таких накладных часто не указан
-          qtyPacks: qtyPacks,
-          qtyUnits: qtyUnits,
+          title,
+          article,
+          qtyPacks,
+          qtyUnits,
           _lowconf: false
         });
       }
+
       return items;
     }
 
-    // ====== Прежние универсальные парсеры (оставляем как fallback) ======
-    function parseDockeTablesFromText(fullText) {
-      // старая регулярка — оставляем как запасной вариант
-      const rx = /(?:^|\n)\s*\d+\s+([A-ZА-Я0-9-]{4,})\s+(.+?)\s+(\d[\d\s.,]*)\s*(шт|лист|рул|уп|упак|паллет)?\s+(\d[\d\s.,]*)\s*(шт|лист|рул|уп|упак|паллет)?\s*(?=\n|$)/gimu;
-      const items = [];
-      let m;
-      while ((m = rx.exec(fullText)) !== null) {
-        const article = (m[1]||"").trim();
-        const title   = (m[2]||"").replace(/\s+/g,' ').trim();
-        const q1      = (m[3]||"").replace(',', '.').replace(/\s+/g,'').trim();
-        const q2      = (m[5]||"").replace(',', '.').replace(/\s+/g,'').trim();
-        items.push({ title, article, qtyPacks:q1, qtyUnits:q2, _lowconf:false });
-      }
-      return items;
-    }
-    function parseTable(lines){
-      const headIdx = lines.findIndex(l => /артикул|товар|наименование|кол-во|количество/i.test(l));
-      const work = headIdx>=0 ? lines.slice(headIdx+1) : lines;
-      const items = [];
-      for (let raw of work) {
-        const s = raw.replace(/\s+/g,' ').trim(); if (!s) continue;
-        const m = s.match(/^(.*?)(\s+[-\d\s.,]+)(\s+[-\d\s.,]+)?$/);
-        let titlePart=s, qtyPacks="", qtyUnits="";
-        if (m) { titlePart=m[1].trim(); const t1=(m[2]||"").trim(), t2=(m[3]||"").trim(); if (t2){qtyPacks=t1; qtyUnits=t2;} else {qtyUnits=t1;} }
-        let article=""; const a = titlePart.match(/^([A-Za-zА-Яа-я0-9\-]{4,})\b[)\s-]?(.*)$/);
-        if (a) { article=a[1]; titlePart=(a[2]||"").trim(); }
-        const hasQty = /\d/.test(qtyPacks+qtyUnits);
-        if (!titlePart && !hasQty) continue;
-        items.push({ title:titlePart||"(без названия)", article, qtyPacks:(qtyPacks||"").replace(",",".").trim(), qtyUnits:(qtyUnits||"").replace(",",".").trim(), _lowconf:false });
-      }
-      return items;
-    }
-    function parseFromOcr(ocrLines){
-      const lines = ocrLines.map(x=>x.trim()).filter(Boolean);
-      const items = parseTable(lines);
+    // OCR-fallback: берём только строки с номерами, остальное приклеивается как часть чанка
+    function parseFromOcr(ocrLines) {
+      const full = ocrLines.map(x=>x.trim()).filter(Boolean).join("\n");
+      const items = parseByRowChunks(full);
       items.forEach(it => it._lowconf = true);
       return items;
     }
 
-    // merge одинаковых позиций
+    // ====== merge одинаковых позиций ======
     function mergeSameItems(items) {
       const map = new Map();
       for (const it of items) {
@@ -326,9 +320,9 @@
       for (const it of items) { if (it.kind==='file'){ handleFiles([it.getAsFile()]); break; } }
     });
 
-    let filesAll = [];         // выбранные файлы
-    let itemsParsedRaw = [];   // все позиции «как есть» со всех файлов
-    let itemsRendered = [];    // после склейки/правок
+    let filesAll = [];
+    let itemsParsedRaw = [];
+    let itemsRendered = [];
 
     function clearFiles(){
       filesAll = [];
@@ -373,7 +367,7 @@
       if (!arr.length) return;
       filesAll.push(...arr);
       renderFilesList();
-      await reparseAll(); // АВТОПАРСИНГ всех файлов
+      await reparseAll();
     }
 
     // ====== Динамические импорты ======
@@ -405,11 +399,11 @@
       _firebase = { appMod, authMod, fsMod }; return _firebase;
     }
 
-    // ====== Чтение файлов ======
+    // ====== Чтение файла ======
     const readAsArrayBuffer = (f)=> new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(r.result); r.onerror=rej; r.readAsArrayBuffer(f); });
     const readAsDataURL    = (f)=> new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(r.result); r.onerror=rej; r.readAsDataURL(f); });
 
-    // ====== Парсинг одного файла → массив позиций ======
+    // ====== Парсинг файла → позиции ======
     async function parseOneFile(file){
       try {
         if (file.type === 'application/pdf' || /\.pdf$/i.test(file.name)) {
@@ -430,33 +424,19 @@
             for (let i=1;i<=pdf.numPages;i++){
               const p = await pdf.getPage(i);
               const tc = await p.getTextContent();
-              let pageText = tc.items.map(it => {
-                const s = (it.str || "");
-                return it.hasEOL ? (s + "\n") : s + " ";
-              }).join("");
-              pageText = pageText
-                .replace(/[ \t]+/g, ' ')
-                .replace(/[ \t]*\n[ \t]*/g, '\n')
-                .replace(/\n{2,}/g, '\n');
+              let pageText = tc.items.map(it => (it.str || "") + (it.hasEOL ? "\n" : " ")).join("");
+              pageText = norm(pageText);
               allPagesText.push(pageText);
             }
             const fullText = allPagesText.join("\n");
 
-            // 1) Жёсткий парсер под доковскую верстку
-            let parsed = parseDockeLinesStrict(fullText);
-            // 2) Если ничего не нашли — пробуем запасные варианты
-            if (!parsed.length) {
-              parsed = parseDockeTablesFromText(fullText);
-            }
-            if (!parsed.length) {
-              const lines = fullText.split(/\n/g).map(s=>s.trim()).filter(Boolean);
-              parsed = parseTable(lines);
-            }
+            // новый парсер по чанкам (устойчив к разнесённым колонкам «90 лист»)
+            let parsed = parseByRowChunks(fullText);
             parsed.forEach(it => it._src = file.name);
             return parsed;
 
           } else {
-            // OCR PDF постранично
+            // OCR PDF
             const Tesseract = await ensureTesseract();
             const worker = await Tesseract.createWorker('rus+eng');
             const out = [];
@@ -471,8 +451,7 @@
               const dataUrl = canvas.toDataURL('image/png');
 
               const { data } = await worker.recognize(dataUrl);
-              const lines = (data.lines || []).map(l => l.text);
-              const items = parseFromOcr(lines);
+              const items = parseFromOcr((data.lines||[]).map(l=>l.text));
               items.forEach(it => { it._src = file.name; });
               out.push(...items);
             }
@@ -488,10 +467,9 @@
         const dataUrl = await readAsDataURL(file);
         const { data } = await worker.recognize(dataUrl);
         await worker.terminate();
-        const lines = (data.lines || []).map(l => l.text);
-        const parsed = parseFromOcr(lines);
-        parsed.forEach(it => { it._src = file.name; });
-        return parsed;
+        const items = parseFromOcr((data.lines||[]).map(l=>l.text));
+        items.forEach(it => { it._src = file.name; });
+        return items;
 
       } catch (e) {
         console.error(e);
@@ -500,7 +478,6 @@
       }
     }
 
-    // Вспомогательная: парсит один файл и кладёт в общий RAW (можно форснуть полную замену RAW)
     async function parseOneFileIntoRaw(file, replaceRaw = false) {
       const arr = await parseOneFile(file);
       if (replaceRaw) {
@@ -510,7 +487,6 @@
       }
     }
 
-    // Полный перепарсинг всех файлов
     async function reparseAll() {
       $('#itemsBody').innerHTML = ""; $('#totals').textContent = ""; $('#sourcesInfo').textContent = "";
       itemsParsedRaw = [];
@@ -555,7 +531,7 @@
     }
 
     // ====== Users (кладовщики) ======
-    let usersAll = [];                // {id, name, role}
+    let usersAll = [];
     let selectedWorkerIds = new Set();
     let selectedWorkerNames = new Set();
 
@@ -699,5 +675,3 @@
   </script>
 </body>
 </html>
-
-
