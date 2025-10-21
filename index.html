@@ -64,13 +64,13 @@
   </div>
 
   <script>
-    // ====== Базовые утилиты/селекторы и статус ======
+    // ====== Базовые утилиты и статус ======
     const $ = s => document.querySelector(s);
     const status = t => { $('#status').textContent = t || ''; };
     window.addEventListener('error', e => console.error('Global error:', e.error || e.message));
     window.addEventListener('unhandledrejection', e => console.error('Unhandled promise:', e.reason));
 
-    // ====== Конфиг (Firebase/Cloudinary/notify) ======
+    // ====== Конфиг ======
     const FIREBASE_CONFIG = {
       apiKey: "AIzaSyAH58ZpWAp64mhM589KD6jXHcOlPqU0aYU",
       authDomain: "skladsborka-6c2a7.firebaseapp.com",
@@ -82,7 +82,24 @@
     const CLOUDINARY_UPLOAD_PRESET = "unsigned_tasks";
     const VERCEL_NOTIFY_PROXY_URL  = "/api/notify-taskCreated";
 
-    // ====== Функции парсинга / таблицы ======
+    // ====== Парсеры ======
+    // Специализированный парсер под строки вида:
+    //  1  PSHB-1035  Docke PREMIUM// H-профиль (Банан)  8 шт  8 шт
+    function parseDockeTablesFromText(fullText) {
+      const rx = /(?:^|\n)\s*\d+\s+([A-ZА-Я0-9-]{4,})\s+(.+?)\s+(\d[\d\s.,]*)\s*шт\s+(\d[\d\s.,]*)\s*шт\s*(?=\n|$)/gimu;
+      const items = [];
+      let m;
+      while ((m = rx.exec(fullText)) !== null) {
+        const article = m[1].trim();
+        const title   = m[2].replace(/\s+/g,' ').trim();
+        const qtyPacks= (m[3]||"").replace(',', '.').replace(/\s+/g,'').trim();
+        const qtyUnits= (m[4]||"").replace(',', '.').replace(/\s+/g,'').trim();
+        items.push({ title, article, qtyPacks, qtyUnits, _lowconf:false });
+      }
+      return items;
+    }
+
+    // Универсальный запасной парсер «по строкам»
     function parseTable(lines){
       const headIdx = lines.findIndex(l => /артикул|товар|наименование|кол-во|количество/i.test(l));
       const work = headIdx>=0 ? lines.slice(headIdx+1) : lines;
@@ -108,6 +125,7 @@
       return items;
     }
 
+    // ====== Рендер таблицы ======
     function renderItems(items) {
       const tbody = $('#itemsBody'); tbody.innerHTML = "";
       for (const it of items) {
@@ -164,7 +182,7 @@
       for (const it of items) { if (it.kind==='file'){ handleFiles([it.getAsFile()]); break; } }
     });
 
-    // ====== Динамические импорты (загрузятся только когда нужны) ======
+    // ====== Динамические импорты ======
     let _pdfjsLib = null;
     let _tesseract = null;
     let _firebase = null;
@@ -194,7 +212,7 @@
       return _firebase;
     }
 
-    // ====== Обработка файлов ======
+    // ====== Чтение файлов ======
     const readAsArrayBuffer = (f)=> new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(r.result); r.onerror=rej; r.readAsArrayBuffer(f); });
     const readAsDataURL    = (f)=> new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(r.result); r.onerror=rej; r.readAsDataURL(f); });
 
@@ -220,6 +238,7 @@
           const ab = await readAsArrayBuffer(file);
           const pdf = await pdfjsLib.getDocument({ data: ab }).promise;
 
+          // Проверяем текстовый слой
           let hasTextLayer = false;
           try {
             const p1  = await pdf.getPage(1);
@@ -228,27 +247,45 @@
           } catch(_){}
 
           if (hasTextLayer) {
+            // Сбор текста постранично с учетом hasEOL
             sourceKind = "pdf-text";
-            const allLines = [];
+            const allPagesText = [];
             for (let i=1;i<=pdf.numPages;i++){
               const p = await pdf.getPage(i);
               const tc = await p.getTextContent();
-              const pageText = tc.items.map(it=> (it.str||"")).join(" ").replace(/\s{2,}/g," ");
-              const lines = pageText.split(/(?<=\S)\s{2,}(?=\S)/g).map(s=>s.trim());
-              allLines.push(...lines);
+              let pageText = tc.items.map(it => {
+                const s = (it.str || "");
+                return it.hasEOL ? (s + "\n") : s + " ";
+              }).join("");
+              pageText = pageText
+                .replace(/[ \t]+/g, ' ')
+                .replace(/[ \t]*\n[ \t]*/g, '\n')
+                .replace(/\n{2,}/g, '\n');
+              allPagesText.push(pageText);
             }
-            items = parseTable(allLines);
+            const fullText = allPagesText.join("\n");
+
+            // Сначала пробуем «умный» парсер под накладные
+            let parsed = parseDockeTablesFromText(fullText);
+
+            // Если ничего не нашли — fallback к универсальному
+            if (!parsed.length) {
+              const lines = fullText.split(/\n/g).map(s=>s.trim()).filter(Boolean);
+              parsed = parseTable(lines);
+            }
+
+            items = parsed;
             renderItems(items);
             status(`Готово. Найдено позиций: ${items.length}`);
           } else {
+            // OCR страниц
             sourceKind = "pdf-scan";
             items = [];
-            const pdfjsLib2 = await ensurePdfJs();
             const Tesseract = await ensureTesseract();
             for (let i=1;i<=pdf.numPages;i++){
               status(`Делаю OCR… стр. ${i}/${pdf.numPages}`);
               const page = await pdf.getPage(i);
-              const viewport = page.getViewport({ scale: 2.0 });
+              const viewport = page.getViewport({ scale: 3.0 }); // чуть лучше качество
               const canvas = document.createElement('canvas');
               const ctx = canvas.getContext('2d');
               canvas.width = viewport.width; canvas.height = viewport.height;
@@ -266,6 +303,7 @@
             status(`Готово. Найдено позиций: ${items.length}`);
           }
         } else {
+          // Изображение -> OCR
           sourceKind = "image";
           status('Делаю OCR изображения…');
           const Tesseract = await ensureTesseract();
@@ -286,7 +324,7 @@
       }
     }
 
-    // ====== Cloudinary + Firestore + push (динамическая загрузка Firebase) ======
+    // ====== Cloudinary + Firestore + push ======
     async function uploadToCloudinary(file, taskId) {
       status('Загружаю файл в Cloudinary…');
       const form = new FormData();
