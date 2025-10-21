@@ -122,43 +122,176 @@
     const CLOUDINARY_UPLOAD_PRESET = "unsigned_tasks";
     const VERCEL_NOTIFY_PROXY_URL  = "/api/notify-taskCreated";
 
-    // ====== Парсеры ======
-    function parseDockeTablesFromText(fullText) {
-      const rx = /(?:^|\n)\s*\d+\s+([A-ZА-Я0-9-]{4,})\s+(.+?)\s+(\d[\d\s.,]*)\s*шт\s+(\d[\d\s.,]*)\s*шт\s*(?=\n|$)/gimu;
-      const items = [];
-      let m;
-      while ((m = rx.exec(fullText)) !== null) {
-        const article = m[1].trim();
-        const title   = m[2].replace(/\s+/g,' ').trim();
-        const qtyPacks= (m[3]||"").replace(',', '.').replace(/\s+/g,'').trim();
-        const qtyUnits= (m[4]||"").replace(',', '.').replace(/\s+/g,'').trim();
-        items.push({ title, article, qtyPacks, qtyUnits, _lowconf:false });
-      }
-      return items;
+    <script>
+// ====== Парсеры (обновлённые) ======
+const UNIT_CANON = {
+  // единицы → каноническая группа и нормализованный ярлык
+  "шт":   {group:"units", label:"шт"},
+  "штука":{group:"units", label:"шт"},
+  "штук": {group:"units", label:"шт"},
+  "упак": {group:"packs", label:"упак"},
+  "упаковка": {group:"packs", label:"упак"},
+  "упаковок": {group:"packs", label:"упак"},
+  "упаковки": {group:"packs", label:"упак"},
+  "кор":  {group:"packs", label:"упак"},
+  "короб":{group:"packs", label:"упак"},
+  "коробка":{group:"packs", label:"упак"},
+  "рул":  {group:"packs", label:"рул"},
+  "рулон":{group:"packs", label:"рул"},
+  "лист": {group:"units", label:"лист"},
+  "листа":{group:"units", label:"лист"},
+  "листы":{group:"units", label:"лист"},
+  "м":    {group:"units", label:"м"},
+  "м.п.": {group:"units", label:"м.п."},
+  "мп":   {group:"units", label:"м.п."},
+  "м2":   {group:"units", label:"м²"},
+  "м²":   {group:"units", label:"м²"},
+  "кг":   {group:"units", label:"кг"},
+  "пара": {group:"units", label:"пара"},
+  "пары": {group:"units", label:"пара"},
+  "компл":{group:"units", label:"компл"},
+  "компл.":{group:"units", label:"компл"}
+};
+
+// Быстрые фильтры «служебных» строк
+function looksLikeHeaderOrService(s){
+  return /^(итог|всего|документ|накладн|поставщик|склад|№|номер|стр\.?|страница|дата)\b/i.test(s)
+      || /\b(БИК|ИНН|КПП|ОКПО|тел\.?|email|подпись|печать)\b/i.test(s);
+}
+
+// нормализация числа: "1 000,5" → 1000.5 ; "1 000" (узкий пробел) тоже
+function normNumber(str){
+  if (!str) return null;
+  const s = String(str).replace(/[^\d.,\s]/g,'').replace(/\s+/g,'').replace(/\u202F/g,''); // убираем пробелы/узкие пробелы
+  if (!s) return null;
+  const withDot = s.replace(',', '.');
+  const n = parseFloat(withDot);
+  return Number.isFinite(n) ? n : null;
+}
+
+// распознать пары «число + единица» (может быть несколько на строке)
+const QTY_UNIT_RX = /(\d[\d\s.,]*)\s*(шт|штук|штука|упак(?:овка|овок|овки)?|кор(?:обка)?|рул(?:он)?|лист(?:[а-я]*)?|м2|м²|м\.п\.|мп|м|кг|пара|пары|компл\.?)/gi;
+
+// вытащить артикул в начале (если есть) и аккуратно отделить заголовок от хвостов с количеством
+function splitLineIntoParts(raw){
+  // Сначала убираем лишние пробелы
+  let s = raw.replace(/\s+/g,' ').trim();
+  if (!s) return null;
+  if (looksLikeHeaderOrService(s)) return null;
+
+  // Ищем все пары «кол-во + ед.» и берём крайние правые (они обычно в конце строки таблицы)
+  let m, matches = [];
+  while ((m = QTY_UNIT_RX.exec(s)) !== null) {
+    matches.push({from:m.index, to:QTY_UNIT_RX.lastIndex, num:m[1], unit:m[2]});
+  }
+  // Ничего не нашли — возможно «шт» в соседней колонке: тогда не трогаем числа без единицы
+  const qtyPairs = matches;
+
+  // Обрезаем хвост с кол-вами из текста названия
+  let titlePart = s;
+  if (qtyPairs.length){
+    const cutPos = qtyPairs[0].from; // с первой найденной пары до конца — это «хвост»
+    // Важно: требуем минимум ДВА пробела/разделитель перед первой парой, чтобы не отрезать номера внутри названия типа "Unodeck 8"
+    const before = s.slice(0, cutPos);
+    const sep = s.slice(cutPos-3, cutPos); // 3 символа до
+    if (/\s{2,}|[|;–—-]/.test(sep)) {
+      titlePart = before.trim();
+    } else {
+      // разделителя нет — оставляем название как есть (кол-ва возьмём, но название не режем)
+      titlePart = s;
     }
-    function parseTable(lines){
-      const headIdx = lines.findIndex(l => /артикул|товар|наименование|кол-во|количество/i.test(l));
-      const work = headIdx>=0 ? lines.slice(headIdx+1) : lines;
-      const items = [];
-      for (let raw of work) {
-        const s = raw.replace(/\s+/g,' ').trim(); if (!s) continue;
-        const m = s.match(/^(.*?)(\s+[-\d\s.,]+)(\s+[-\d\s.,]+)?$/);
-        let titlePart=s, qtyPacks="", qtyUnits="";
-        if (m) { titlePart=m[1].trim(); const t1=(m[2]||"").trim(), t2=(m[3]||"").trim(); if (t2){qtyPacks=t1; qtyUnits=t2;} else {qtyUnits=t1;} }
-        let article=""; const a = titlePart.match(/^([A-Za-zА-Яа-я0-9\-]{4,})\b[)\s-]?(.*)$/);
-        if (a) { article=a[1]; titlePart=(a[2]||"").trim(); }
-        const hasQty = /\d/.test(qtyPacks+qtyUnits);
-        if (!titlePart && !hasQty) continue;
-        items.push({ title:titlePart||"(без названия)", article, qtyPacks:(qtyPacks||"").replace(",",".").trim(), qtyUnits:(qtyUnits||"").replace(",",".").trim(), _lowconf:false });
-      }
-      return items;
+  }
+
+  // Попытаться снять артикул в начале названия
+  let article = "";
+  let restTitle = titlePart;
+  const a = restTitle.match(/^([A-Za-zА-Яа-я0-9][A-Za-zА-Яа-я0-9\-._]{3,})\b[)\s-]?(.*)$/);
+  if (a) {
+    article = a[1].trim();
+    restTitle = (a[2]||"").trim();
+    // If артикул слишком «общий» и совпал по ошибке (например «РАСХОДНАЯ»), отбрасываем
+    if (/^(РАСХОДНАЯ|ИТОГ|ВСЕГО)$/i.test(article)) {
+      article = "";
+      restTitle = titlePart;
     }
-    function parseFromOcr(ocrLines){
-      const lines = ocrLines.map(x=>x.trim()).filter(Boolean);
-      const items = parseTable(lines);
-      items.forEach(it => it._lowconf = true);
-      return items;
+  }
+
+  return { title: restTitle || titlePart, article, qtyPairs };
+}
+
+// Преобразовать массив qtyPairs в qtyPacks/qtyUnits и, если единица нестандартная — пометить в заголовке
+function foldQuantities(title, qtyPairs){
+  let packs = 0, units = 0;
+  let titleSuffixes = [];
+  for (const q of qtyPairs){
+    const unitRaw = (q.unit||"").toLowerCase();
+    // нормализация «м.п.»
+    const unitKey = unitRaw.replace(/\.|ы$/g,''); // убираем точки и мн. число у "пары"
+    const canon = UNIT_CANON[unitRaw] || UNIT_CANON[unitKey] || null;
+    const n = normNumber(q.num);
+    if (!Number.isFinite(n)) continue;
+
+    if (canon){
+      if (canon.group === "packs") packs += n; else units += n;
+      // если это не «шт»/«упак», добавим ярлык в название
+      if (!["шт","упак"].includes(canon.label)) titleSuffixes.push(`${n} ${canon.label}`);
+    } else {
+      // неизвестная единица — положим в units и пометим
+      units += n;
+      titleSuffixes.push(`${n} ${unitRaw}`);
     }
+  }
+  const finalTitle = titleSuffixes.length ? `${title} [${titleSuffixes.join(", ")}]` : title;
+  return { qtyPacks: packs||"", qtyUnits: units||"", title: finalTitle };
+}
+
+// Табличный парсер: по строкам, с учётом единиц
+function parseTable(lines){
+  const items = [];
+  for (const raw of lines){
+    const row = (raw||"").trim();
+    if (!row) continue;
+    const parts = splitLineIntoParts(row);
+    if (!parts) continue;
+
+    const { title, article, qtyPairs } = parts;
+    const folded = foldQuantities(title, qtyPairs);
+
+    // Если вообще не нашли пар «число+ед.» — пропускаем строку (скорее всего это текст/шапка)
+    if (folded.qtyPacks === "" && folded.qtyUnits === "") continue;
+
+    items.push({
+      title: folded.title || "(без названия)",
+      article: article || "",
+      qtyPacks: folded.qtyPacks === "" ? "" : String(folded.qtyPacks),
+      qtyUnits: folded.qtyUnits === "" ? "" : String(folded.qtyUnits),
+      _lowconf: false
+    });
+  }
+  return items;
+}
+
+// PDF с текстовым слоем — пытаемся парсить полноценные строки
+function parseDockeTablesFromText(fullText){
+  // разобьём на строки «как видит человек»
+  const lines = fullText
+    .replace(/[ \t]+/g, ' ')
+    .replace(/[ \t]*\n[ \t]*/g, '\n')
+    .split(/\n/g)
+    .map(s => s.trim())
+    .filter(Boolean);
+
+  return parseTable(lines);
+}
+
+// OCR → в те же функции (lowconf подсветим)
+function parseFromOcr(ocrLines){
+  const lines = (ocrLines||[]).map(x => (x||"").trim()).filter(Boolean);
+  const items = parseTable(lines);
+  items.forEach(it => it._lowconf = true);
+  return items;
+}
+</script>
 
     // merge одинаковых позиций
     function mergeSameItems(items) {
