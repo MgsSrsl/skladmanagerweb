@@ -29,7 +29,8 @@
   </style>
 
   <!-- pdf.js (text-layer / рендер страниц) -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.6.82/pdf.min.js" integrity="sha512-PoKqg8Bo4F6u3fT8XfIP0clJHnQ7bS1ZAnmzk1q5ViHc4y0a3mVvTKkq/3Z1kSZK3o7P9b+v6K1xAEbqZHDY7g==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <script import * as pdfjsLib from "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.6.82/build/pdf.min.mjs";
+pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.6.82/build/pdf.worker.min.mjs";></script>
 
   <!-- Tesseract.js (OCR rus+eng) -->
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
