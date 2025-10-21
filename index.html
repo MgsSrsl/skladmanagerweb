@@ -1,6 +1,89 @@
 <!doctype html>
 <html lang="ru">
 <head>
+  <!-- ==== UPLOAD WIDGET (button + drag&drop) ==== -->
+<style>
+  .uploader {border:2px dashed #4b9fff; border-radius:14px; padding:18px; background:#0b0f14; position:relative;}
+  .uploader * {user-select:none}
+  .uploader.dragover {border-color:#00d084; background:#0b0f14cc}
+  .uploader .hint {opacity:.8; font-size:14px; margin-top:8px}
+  .uploader .row {display:flex; gap:10px; flex-wrap:wrap; align-items:center}
+  .uploader button {cursor:pointer; padding:10px 14px; border-radius:10px; border:0; background:#4b9fff; color:#fff; font-weight:600}
+  /* критично: ничего не должно перекрывать зону */
+  .uploader, .uploader * {pointer-events:auto}
+</style>
+
+<div id="uploadBox" class="uploader">
+  <div class="row">
+    <button id="btnPickFiles" type="button">Выбрать файл(ы)</button>
+    <span class="hint">или перетащи PDF/изображения сюда</span>
+  </div>
+  <!-- скрытый input — но реальный, НЕ disabled, с multiple -->
+  <input id="fileInput" type="file" multiple accept="application/pdf,image/*" style="position:absolute; inset:auto; width:0; height:0; opacity:0;">
+</div>
+
+<script>
+(function(){
+  const dropZone = document.getElementById('uploadBox');
+  const fileInput = document.getElementById('fileInput');
+  const btnPick   = document.getElementById('btnPickFiles');
+
+  // ——— защита страницы: не даём браузеру «открыть» файл при дропе мимо зоны
+  ['dragenter','dragover','dragleave','drop'].forEach(ev=>{
+    document.addEventListener(ev, e => {
+      if (e.target === dropZone || dropZone.contains(e.target)) return; // в зоне — дальше обработаем
+      e.preventDefault(); e.stopPropagation();
+    }, false);
+  });
+
+  // ——— кнопка «Выбрать»
+  btnPick.addEventListener('click', () => fileInput.click());
+  fileInput.addEventListener('change', (e) => {
+    const files = e.target.files;
+    if (files && files.length) handleFiles(files);
+    // сбрасываем value, чтобы повторно выбирать тот же файл
+    fileInput.value = '';
+  });
+
+  // ——— drag&drop в зоне
+  let dragCounter = 0;
+  function onEnter(e){ e.preventDefault(); e.stopPropagation(); dragCounter++; dropZone.classList.add('dragover'); }
+  function onOver(e){ e.preventDefault(); e.stopPropagation(); }
+  function onLeave(e){ e.preventDefault(); e.stopPropagation(); dragCounter=Math.max(0,dragCounter-1); if(!dragCounter) dropZone.classList.remove('dragover'); }
+  function onDrop(e){
+    e.preventDefault(); e.stopPropagation(); dragCounter=0; dropZone.classList.remove('dragover');
+    const dt = e.dataTransfer;
+    if (dt && dt.files && dt.files.length) handleFiles(dt.files);
+  }
+  dropZone.addEventListener('dragenter', onEnter);
+  dropZone.addEventListener('dragover',  onOver);
+  dropZone.addEventListener('dragleave', onLeave);
+  dropZone.addEventListener('drop',      onDrop);
+
+  // ——— универсальный вход для твоего дальнейшего пайплайна
+  async function handleFiles(fileList){
+    // Преобразуем FileList в массив и фильтруем типы
+    const files = Array.from(fileList).filter(f => /pdf|image\//i.test(f.type) || /\.(pdf|png|jpe?g|webp)$/i.test(f.name));
+    if (!files.length) { alert('Поддерживаются PDF и изображения'); return; }
+
+    // ТУТ вызывали твою существующую логику:
+    //   - загрузка в Cloudinary
+    //   - pdf → text (pdf.js)
+    //   - ocr для картинок
+    //   - парсеры и т.д.
+    //
+    // Пример «хука»:
+    if (window.processPickedFiles) {
+      // если у тебя уже есть функция, просто передаём туда
+      window.processPickedFiles(files);
+    } else {
+      console.log('Файлы приняты:', files);
+      // TODO: замени на свою функцию загрузки/парсинга
+    }
+  }
+})();
+</script>
+<!-- ==== /UPLOAD WIDGET ==== -->
   <meta charset="utf-8" />
   <title>Создать задачу — СкладСборка</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
