@@ -57,7 +57,7 @@
           <div class="row" style="gap:8px; margin-top:8px">
             <button id="btnReparse" class="ghost">Перепарсить</button>
           </div>
-          <input id="fileInput" type="file" multiple accept=".pdf,.png,.jpg,.jpeg,.webp" />
+          <input id="fileInput" type="file" multiple accept=".pdf,.png,.jpg,.jpeg,.webp" style="display:none" />
           <div id="filesList" class="files"></div>
           <div id="status" class="status"></div>
         </div>
@@ -223,12 +223,45 @@
     const fmtSize = n => n>1e6 ? (n/1e6).toFixed(1)+' MB' : (n/1e3).toFixed(1)+' KB';
     const status = t => $('#status').textContent = t||'';
 
-    // ====== DnD + файл-UI ======
-    const drop = $('#drop');
-    const fi   = $('#fileInput');
-    $('#btnPick').addEventListener('click', () => fi.click());
-    $('#btnClearFiles').addEventListener('click', clearFiles);
-    $('#btnReparse').addEventListener('click', reparseAll);
+    // ====== DnD + файл-UI (фикс) ======
+const drop = document.querySelector('#drop');
+const fi   = document.querySelector('#fileInput');
+const btnPick = document.querySelector('#btnPick');
+
+btnPick.addEventListener('click', () => fi.click());
+document.querySelector('#btnClearFiles').addEventListener('click', clearFiles);
+document.querySelector('#btnReparse').addEventListener('click', reparseAll);
+
+// Глобально запрещаем «открытие файла» браузером, если дропнули мимо зоны.
+// Используем composedPath() — надёжнее, чем сравнение target/contains.
+function inDropZone(e){
+  const path = e.composedPath ? e.composedPath() : [];
+  return path.includes(drop);
+}
+['dragenter','dragover','dragleave','drop'].forEach(ev=>{
+  document.addEventListener(ev, e=>{
+    if (!inDropZone(e)) { e.preventDefault(); e.stopPropagation(); }
+  }, {capture:true, passive:false});
+});
+
+// Внутри зоны — визуал и приём файлов (счётчик против мигания)
+let dragCounter = 0;
+drop.addEventListener('dragenter', e=>{ e.preventDefault(); e.stopPropagation(); dragCounter++; drop.classList.add('drag'); });
+drop.addEventListener('dragover',  e=>{ e.preventDefault(); e.stopPropagation(); });
+drop.addEventListener('dragleave', e=>{ e.preventDefault(); e.stopPropagation(); dragCounter=Math.max(0,dragCounter-1); if(!dragCounter) drop.classList.remove('drag'); });
+drop.addEventListener('drop',      e=>{
+  e.preventDefault(); e.stopPropagation(); dragCounter=0; drop.classList.remove('drag');
+  if (e.dataTransfer?.files?.length) handleFiles(e.dataTransfer.files);
+});
+
+// Диалог выбора: после обработки сбрасываем value, чтобы можно было выбрать тот же файл снова
+fi.addEventListener('change', () => { if (fi.files?.length) handleFiles(fi.files); fi.value=''; });
+
+// Вставка из буфера (скриншоты)
+window.addEventListener('paste', (e)=>{
+  const items = e.clipboardData?.items; if (!items) return;
+  for (const it of items) if (it.kind==='file'){ handleFiles([it.getAsFile()]); break; }
+});
 
     // Глобально запрещаем «открытие файла» браузером, если дропнули мимо зоны
     ['dragenter','dragover','dragleave','drop'].forEach(ev=>{
