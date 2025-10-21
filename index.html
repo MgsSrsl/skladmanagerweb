@@ -5,52 +5,111 @@
   <title>Создать задачу — СкладСборка</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
-    body {
-      font-family: system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
-      margin:0; background:#0b0f14; color:#fff;
-      display:flex; flex-direction:column; align-items:center;
-      min-height:100vh; padding:30px;
+    :root { color-scheme: dark; }
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 0; background: #0b0f14; color: #fff; }
+    .container { max-width: 1100px; margin: 24px auto 64px; padding: 0 16px; }
+    h1 { margin: 0 0 16px; font-weight: 700; }
+    .card { background:#0d1422; border:1px solid #1f2a44; border-radius:14px; padding:16px; margin-bottom:16px; }
+    .row { display:flex; gap:12px; flex-wrap:wrap; align-items:center; }
+    .row > * { flex:1 1 auto }
+    .dropzone { border: 2px dashed #4b5563; border-radius: 14px; padding: 16px; background: #111827; text-align: center; transition: .2s; }
+    .dropzone.drag { background: #1f2937; border-color: #60a5fa; }
+    label { font-size: 14px; color: #9ca3af; display:block; margin: 12px 0 6px;}
+    input[type="text"], textarea {
+      width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid #374151; background: #0b1220; color: #fff;
     }
-    h1 {margin-bottom:10px;}
-    .container {width:100%; max-width:1100px;}
-    textarea,input,button,select {
-      font-family:inherit; font-size:15px;
-    }
-    input,textarea {
-      width:100%; box-sizing:border-box; padding:10px;
-      border-radius:8px; border:1px solid #444; background:#111; color:#fff;
-    }
-    button {
-      background:#4b9fff; color:#fff; border:0; border-radius:8px;
-      padding:10px 20px; cursor:pointer; font-weight:600;
-    }
-    button:disabled {opacity:.5; cursor:default;}
-
-    table {width:100%; border-collapse:collapse; margin-top:20px;}
-    th,td {border:1px solid #333; padding:6px 8px; text-align:left;}
-    th {background:#1b1f28;}
-    td.lowconf {color:#ff8080;}
-
-    /* === uploader === */
-    .uploader {border:2px dashed #4b9fff; border-radius:14px; padding:18px; background:#0b0f14; position:relative; margin:20px 0;}
-    .uploader * {user-select:none}
-    .uploader.dragover {border-color:#00d084; background:#0b0f14cc}
-    .uploader .hint {opacity:.8; font-size:14px; margin-top:8px}
-    .uploader .row {display:flex; gap:10px; flex-wrap:wrap; align-items:center}
-    .uploader button {cursor:pointer; padding:10px 14px; border-radius:10px; border:0; background:#4b9fff; color:#fff; font-weight:600}
-    .uploader, .uploader * {pointer-events:auto}
+    textarea { min-height: 80px; resize: vertical; }
+    button { background: #3b82f6; border: 0; color: #fff; padding: 10px 14px; border-radius: 10px; cursor: pointer; font-weight: 600; }
+    button.ghost { background:#0b1220; border:1px solid #374151; }
+    button[disabled] { opacity:.6; cursor: not-allowed }
+    .status { margin-top: 8px; font-size: 14px; color: #93c5fd; white-space: pre-wrap; }
+    .preview { margin-top: 10px; font-size: 13px; color: #cbd5e1; }
+    .files { margin-top: 10px; }
+    .fileRow { display:flex; align-items:center; gap:8px; margin:6px 0; padding:8px 10px; border:1px solid #1f2a44; border-radius:10px; background:#0b1220; }
+    .fileRow .name { flex:1 1 auto; }
+    .fileRow .size { font-size:12px; opacity:.75 }
+    .fileRow .tag { font-size:12px; opacity:.9 }
+    table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+    th, td { border: 1px solid #374151; padding: 6px 8px; }
+    th { background: #111827; text-align: left; color: #9ca3af; }
+    td input { width:100%; background:#0b1220; border:1px solid #283246; color:#fff; padding:6px 8px; border-radius:8px; }
+    td.lowconf input { color:#f87171 }
+    .muted { color:#9ca3af; font-size: 13px; }
   </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Создать задачу</h1>
 
-  <!-- pdf.js -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.6.82/pdf.min.js"></script>
-  <!-- Tesseract -->
-  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.0.5/dist/tesseract.min.js"></script>
-  <!-- Firebase -->
+    <div class="card">
+      <div class="row">
+        <div style="flex: 2">
+          <div class="dropzone" id="drop">
+            <div><b>Перетащите PDF/изображения сюда</b> или нажмите «Выбрать файл»</div>
+            <div class="muted" style="margin-top:4px">Поддержка: PDF, PNG, JPG, WEBP, вставка из буфера Ctrl+V</div>
+          </div>
+        </div>
+        <div style="flex: 1; min-width:260px;">
+          <div class="row" style="gap:8px">
+            <button id="btnPick">Выбрать файл</button>
+            <button id="btnClearFiles" class="ghost">Очистить</button>
+          </div>
+          <div class="row" style="gap:8px; margin-top:8px">
+            <button id="btnReparse" class="ghost">Перепарсить</button>
+          </div>
+          <input id="fileInput" type="file" multiple accept=".pdf,.png,.jpg,.jpeg,.webp" />
+          <div id="filesList" class="files"></div>
+          <div id="status" class="status"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <label>Заголовок</label>
+      <input id="title" type="text" placeholder="Например: Отгрузка #1234" />
+
+      <label>Комментарий</label>
+      <textarea id="comment" placeholder="Склад, заказ №, контрагент — можно написать сюда"></textarea>
+    </div>
+
+    <div class="card">
+      <label>Исполнители (кладовщики)</label>
+      <div id="workersBox" class="row" style="gap:8px"></div>
+      <div class="muted">Если никого не выбрать — будет самовывоз (одна задача без assignees).</div>
+    </div>
+
+    <div class="card">
+      <div class="row" style="align-items:center">
+        <div style="flex:2"><label>Позиции</label></div>
+        <div style="flex:1; text-align:right">
+          <label style="display:inline-flex; gap:8px; align-items:center">
+            <input id="mergeToggle" type="checkbox" checked />
+            <span class="muted">Склеивать одинаковые позиции</span>
+          </label>
+        </div>
+      </div>
+
+      <table>
+        <thead>
+          <tr><th>Артикул</th><th>Название</th><th>Упак</th><th>Шт</th></tr>
+        </thead>
+        <tbody id="itemsBody"></tbody>
+      </table>
+      <div id="totals" class="muted" style="margin-top:6px"></div>
+      <div id="sourcesInfo" class="muted" style="margin-top:6px"></div>
+    </div>
+
+    <div class="card">
+      <div class="row" style="gap:8px">
+        <button id="btnCreate">Создать задачу</button>
+        <div class="muted" style="flex:2">Задачи создаются в существующем Firestore, пуши — как в текущем приложении.</div>
+      </div>
+    </div>
+  </div>
+
   <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
-    import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
-
-    const firebaseConfig = {
+    // ====== Конфиги (твои реальные значения тут уже стоят/или подставь свои) ======
+    const FIREBASE_CONFIG = {
       apiKey: "AIzaSyAH58ZpWAp64mhM589KD6jXHcOlPqU0aYU",
       authDomain: "skladsborka.firebaseapp.com",
       projectId: "skladsborka",
@@ -58,173 +117,509 @@
       appId: "1:516526717198:web:REPLACE_ME_AFTER_WEB_APP_CREATED",
       messagingSenderId: "516526717198"
     };
-    const app = initializeApp(firebaseConfig);
-    window.db = getFirestore(app);
-  </script>
-</head>
+    const CLOUDINARY_CLOUD_NAME    = "dnx1taqp7";
+    const CLOUDINARY_UPLOAD_PRESET = "unsigned_tasks";
+    const VERCEL_NOTIFY_PROXY_URL  = "/api/notify-taskCreated";
 
-<body>
-<div class="container">
-  <h1>Создать задачу</h1>
-
-  <label>Название:</label>
-  <input id="title" placeholder="например: Расходная накладная №..." />
-
-  <label>Комментарий:</label>
-  <textarea id="comment" rows="3" placeholder="Дополнительная информация..."></textarea>
-
-  <!-- uploader -->
-  <div id="uploadBox" class="uploader">
-    <div class="row">
-      <button id="btnPickFiles" type="button">Выбрать файл(ы)</button>
-      <span class="hint">или перетащи PDF/изображения сюда</span>
-    </div>
-    <input id="fileInput" type="file" multiple accept="application/pdf,image/*"
-           style="position:absolute; inset:auto; width:0; height:0; opacity:0;">
-  </div>
-
-  <div id="fileList"></div>
-  <table id="tbl"><thead><tr>
-    <th>Артикул</th><th>Название</th><th>Упак</th><th>Шт</th>
-  </tr></thead><tbody></tbody></table>
-
-  <button id="btnSend" disabled>Создать задачу</button>
-</div>
-
-<script>
-const CLOUDINARY_UPLOAD_URL = "https://api.cloudinary.com/v1_1/YOUR_CLOUD_NAME/upload";
-const CLOUDINARY_UPLOAD_PRESET = "YOUR_UPLOAD_PRESET";
-
-// ===== парсер (новый) =====
-const UNIT_CANON = {
-  "шт":{g:"u",l:"шт"},"штук":{g:"u",l:"шт"},"штука":{g:"u",l:"шт"},
-  "упак":{g:"p",l:"упак"},"упаковка":{g:"p",l:"упак"},"упаковок":{g:"p",l:"упак"},"упаковки":{g:"p",l:"упак"},
-  "кор":{g:"p",l:"упак"},"короб":{g:"p",l:"упак"},"коробка":{g:"p",l:"упак"},
-  "рул":{g:"p",l:"рул"},"рулон":{g:"p",l:"рул"},
-  "лист":{g:"u",l:"лист"},"листа":{g:"u",l:"лист"},"листы":{g:"u",l:"лист"},
-  "м":{g:"u",l:"м"},"м.п.":{g:"u",l:"м.п."},"мп":{g:"u",l:"м.п."},
-  "м2":{g:"u",l:"м²"},"м²":{g:"u",l:"м²"},"кг":{g:"u",l:"кг"},
-  "пара":{g:"u",l:"пара"},"пары":{g:"u",l:"пара"},"компл":{g:"u",l:"компл"},"компл.":{g:"u",l:"компл"}
-};
-function looksLikeHeader(s){return /итог|всего|накладн|склад|поставщик|документ/i.test(s)}
-function normNum(t){return parseFloat(t.replace(/[^\d.,]/g,'').replace(',','.').replace(/\s+/g,''))||0;}
-const QTY_RX=/(\d[\d\s.,]*)\s*(шт|штук|штука|упак(?:овка|овок|овки)?|кор|коробка?|рул|рулон|лист(?:[а-я]*)?|м2|м²|м\.п\.|мп|м|кг|пара|пары|компл\.?)/gi;
-function parseLines(lines){
-  const out=[];
-  for(let raw of lines){
-    raw=raw.trim(); if(!raw||looksLikeHeader(raw))continue;
-    let m,arr=[]; while((m=QTY_RX.exec(raw))!==null)arr.push({n:normNum(m[1]),u:m[2].toLowerCase(),i:m.index});
-    if(!arr.length)continue;
-    let tcut=arr[0].i>0?raw.slice(0,arr[0].i).trim():raw;
-    let aMatch=tcut.match(/^([A-Za-zА-Яа-я0-9\-_.]{3,})\b[)\s-]?(.*)$/);
-    let art=aMatch?(aMatch[1]||""):"";
-    let ttl=aMatch?(aMatch[2]||tcut):tcut;
-    let pk=0,un=0,extra=[];
-    for(let q of arr){
-      let c=UNIT_CANON[q.u]||{}; let n=q.n;
-      if(c.g==="p")pk+=n; else un+=n;
-      if(!["шт","упак"].includes(c.l))extra.push(`${n} ${c.l||q.u}`);
+    // ====== Парсеры ======
+    const UNIT_CANON = {
+      "шт":{g:"u",l:"шт"},"штук":{g:"u",l:"шт"},"штука":{g:"u",l:"шт"},
+      "упак":{g:"p",l:"упак"},"упаковка":{g:"p",l:"упак"},"упаковок":{g:"p",l:"упак"},"упаковки":{g:"p",l:"упак"},
+      "кор":{g:"p",l:"упак"},"короб":{g:"p",l:"упак"},"коробка":{g:"p",l:"упак"},
+      "рул":{g:"p",l:"рул"},"рулон":{g:"p",l:"рул"},
+      "лист":{g:"u",l:"лист"},"листа":{g:"u",l:"лист"},"листы":{g:"u",l:"лист"},
+      "м":{g:"u",l:"м"},"м.п.":{g:"u",l:"м.п."},"мп":{g:"u",l:"м.п."},
+      "м2":{g:"u",l:"м²"},"м²":{g:"u",l:"м²"},"кг":{g:"u",l:"кг"},
+      "пара":{g:"u",l:"пара"},"пары":{g:"u",l:"пара"},
+      "компл":{g:"u",l:"компл"},"компл.":{g:"u",l:"компл"}
+    };
+    function looksLikeHeaderOrService(s){
+      return /^(итог|всего|документ|накладн|поставщик|склад|№|номер|стр\.?|страница|дата)\b/i.test(s)
+          || /\b(БИК|ИНН|КПП|ОКПО|тел\.?|email|подпись|печать)\b/i.test(s);
     }
-    if(extra.length)ttl+=` [${extra.join(", ")}]`;
-    out.push({article:art,title:ttl,qtyPacks:pk||"",qtyUnits:un||""});
-  }
-  return out;
-}
-function parsePdfText(text){return parseLines(text.split(/\n+/g));}
+    function normNumber(str){
+      if (!str) return null;
+      const s = String(str).replace(/\u202F/g,'').replace(/\s+/g,'').replace(/[^\d.,]/g,'');
+      if (!s) return null;
+      const n = parseFloat(s.replace(',', '.'));
+      return Number.isFinite(n) ? n : null;
+    }
+    const QTY_UNIT_RX = /(\d[\d\s.,]*)\s*(шт|штук|штука|упак(?:овка|овок|овки)?|кор(?:обка)?|рул(?:он)?|лист(?:[а-я]*)?|м2|м²|м\.п\.|мп|м|кг|пара|пары|компл\.?)/gi;
 
-// ===== uploader =====
-(function(){
-  const zone=document.getElementById('uploadBox');
-  const inp=document.getElementById('fileInput');
-  const btn=document.getElementById('btnPickFiles');
-  btn.onclick=()=>inp.click();
-  inp.onchange=e=>{if(e.target.files.length)handleFiles(e.target.files); inp.value='';};
-  ['dragenter','dragover','dragleave','drop'].forEach(ev=>{
-    document.addEventListener(ev,e=>{
-      if(e.target===zone||zone.contains(e.target))return;
-      e.preventDefault();e.stopPropagation();
-    },false);
-  });
-  let drag=0;
-  zone.addEventListener('dragenter',e=>{e.preventDefault();drag++;zone.classList.add('dragover');});
-  zone.addEventListener('dragover',e=>e.preventDefault());
-  zone.addEventListener('dragleave',e=>{e.preventDefault();if(--drag<=0)zone.classList.remove('dragover');});
-  zone.addEventListener('drop',e=>{
-    e.preventDefault();drag=0;zone.classList.remove('dragover');
-    if(e.dataTransfer.files.length)handleFiles(e.dataTransfer.files);
-  });
-})();
-
-async function handleFiles(list){
-  const arr=[...list]; if(!arr.length)return;
-  document.getElementById('btnSend').disabled=true;
-  let allItems=[];
-  for(const f of arr){
-    document.getElementById('fileList').innerHTML+=`<div>${f.name} — загрузка...</div>`;
-    // загрузка в Cloudinary
-    const fd=new FormData();
-    fd.append('upload_preset',CLOUDINARY_UPLOAD_PRESET);
-    fd.append('file',f);
-    const r=await fetch(CLOUDINARY_UPLOAD_URL,{method:'POST',body:fd});
-    const json=await r.json();
-    const url=json.secure_url;
-    document.getElementById('fileList').innerHTML+=`<div>✅ ${f.name} загружен</div>`;
-
-    let text="";
-    if(f.type==="application/pdf"||f.name.toLowerCase().endsWith(".pdf")){
-      const buf=await f.arrayBuffer();
-      const pdf=await pdfjsLib.getDocument({data:buf}).promise;
-      for(let i=1;i<=pdf.numPages;i++){
-        const pg=await pdf.getPage(i);
-        const ct=await pg.getTextContent();
-        text+=ct.items.map(x=>x.str).join(" ")+"\n";
+    function splitLineIntoParts(raw){
+      let s = raw.replace(/\s+/g,' ').trim();
+      if (!s || looksLikeHeaderOrService(s)) return null;
+      let m, matches=[];
+      while((m = QTY_UNIT_RX.exec(s)) !== null){
+        matches.push({from:m.index, to:QTY_UNIT_RX.lastIndex, num:m[1], unit:(m[2]||"").toLowerCase()});
       }
-    } else { // OCR
-      const {data:{text:txt}}=await Tesseract.recognize(f,"rus+eng");
-      text=txt;
+      let titlePart = s;
+      if (matches.length){
+        const cutPos = matches[0].from;
+        const sep = s.slice(Math.max(0, cutPos-3), cutPos);
+        if (/\s{2,}|[|;–—-]/.test(sep)) titlePart = s.slice(0, cutPos).trim();
+      }
+      let article = "", rest = titlePart;
+      const a = rest.match(/^([A-Za-zА-Яа-я0-9][A-Za-zА-Яа-я0-9\-._]{3,})\b[)\s-]?(.*)$/);
+      if (a){
+        article = a[1].trim();
+        rest = (a[2]||"").trim();
+        if (/^(РАСХОДНАЯ|ИТОГ|ВСЕГО)$/i.test(article)){ article=""; rest=titlePart; }
+      }
+      return { title: rest||titlePart, article, qtyPairs: matches };
     }
-    const items=parsePdfText(text);
-    allItems.push(...items);
-  }
-  renderTable(allItems);
-  window._items=allItems;
-  document.getElementById('btnSend').disabled=false;
-}
 
-function renderTable(items){
-  const tb=document.querySelector('#tbl tbody'); tb.innerHTML="";
-  for(const it of items){
-    const tr=document.createElement('tr');
-    tr.innerHTML=`<td>${it.article}</td><td>${it.title}</td><td>${it.qtyPacks}</td><td>${it.qtyUnits}</td>`;
-    tb.appendChild(tr);
-  }
-}
+    function foldQuantities(title, qtyPairs){
+      let packs=0, units=0, extras=[];
+      for (const q of qtyPairs){
+        let key = q.unit.replace(/\./g,'').replace(/ы$/,'');
+        const canon = UNIT_CANON[q.unit] || UNIT_CANON[key] || null;
+        const n = normNumber(q.num); if (!Number.isFinite(n)) continue;
+        if (canon){
+          if (canon.g === "p") packs += n; else units += n;
+          if (!["шт","упак"].includes(canon.l)) extras.push(`${n} ${canon.l}`);
+        } else {
+          units += n; extras.push(`${n} ${q.unit}`);
+        }
+      }
+      const finalTitle = extras.length ? `${title} [${extras.join(", ")}]` : title;
+      return { qtyPacks: packs||"", qtyUnits: units||"", title: finalTitle };
+    }
 
-// ===== Firestore запись =====
-document.getElementById('btnSend').onclick=async()=>{
-  const title=document.getElementById('title').value.trim();
-  if(!title){alert('Введите название');return;}
-  const comment=document.getElementById('comment').value.trim();
-  const items=window._items||[];
-  const filesDiv=document.getElementById('fileList');
-  const fileLinks=[...filesDiv.querySelectorAll('div')]
-      .filter(d=>d.textContent.includes('✅'))
-      .map(d=>d.textContent.replace('✅','').trim().split(' ')[0]);
+    function parseTable(lines){
+      const out=[];
+      for (const raw of lines){
+        const row = (raw||"").trim(); if (!row) continue;
+        const parts = splitLineIntoParts(row); if (!parts) continue;
+        const { title, article, qtyPairs } = parts;
+        const f = foldQuantities(title, qtyPairs);
+        if (f.qtyPacks==="" && f.qtyUnits==="") continue;
+        out.push({ title:f.title||"(без названия)", article:article||"", qtyPacks:String(f.qtyPacks||""), qtyUnits:String(f.qtyUnits||""), _lowconf:false });
+      }
+      return out;
+    }
 
-  const data={
-    title, comment,
-    createdAt: new Date(),
-    status: "new",
-    author: "unknown",
-    files: fileLinks,
-    items
-  };
-  try{
-    const docRef=await addDoc(collection(db,"tasks"),data);
-    alert("Задача создана ✅");
-    location.reload();
-  }catch(e){alert("Ошибка: "+e);}
-};
-</script>
+    function parseDockeTablesFromText(fullText){
+      const lines = fullText
+        .replace(/[ \t]+/g,' ')
+        .replace(/[ \t]*\n[ \t]*/g,'\n')
+        .split(/\n/g)
+        .map(s=>s.trim())
+        .filter(Boolean);
+      return parseTable(lines);
+    }
+
+    function parseFromOcr(ocrLines){
+      const lines = (ocrLines||[]).map(x => (x||"").trim()).filter(Boolean);
+      const items = parseTable(lines);
+      items.forEach(it => it._lowconf = true);
+      return items;
+    }
+
+    // ====== Мини-хелперы ======
+    const $ = (sel,root=document)=>root.querySelector(sel);
+    const $$= (sel,root=document)=>Array.from(root.querySelectorAll(sel));
+    const sleep = ms => new Promise(r=>setTimeout(r,ms));
+    const fmtSize = n => n>1e6 ? (n/1e6).toFixed(1)+' MB' : (n/1e3).toFixed(1)+' KB';
+    const status = t => $('#status').textContent = t||'';
+
+    // ====== DnD + файл-UI ======
+    const drop = $('#drop');
+    const fi   = $('#fileInput');
+    $('#btnPick').addEventListener('click', () => fi.click());
+    $('#btnClearFiles').addEventListener('click', clearFiles);
+    $('#btnReparse').addEventListener('click', reparseAll);
+
+    // Глобально запрещаем «открытие файла» браузером, если дропнули мимо зоны
+    ['dragenter','dragover','dragleave','drop'].forEach(ev=>{
+      document.addEventListener(ev, e=>{
+        const inZone = (e.target===drop) || drop.contains(e.target);
+        if (!inZone){ e.preventDefault(); e.stopPropagation(); }
+      }, false);
+    });
+
+    // Внутри зоны — визуал и приём файлов с защитой от мигания
+    let dragCounter = 0;
+    drop.addEventListener('dragenter', e=>{ e.preventDefault(); e.stopPropagation(); dragCounter++; drop.classList.add('drag'); });
+    drop.addEventListener('dragover',  e=>{ e.preventDefault(); e.stopPropagation(); });
+    drop.addEventListener('dragleave', e=>{ e.preventDefault(); e.stopPropagation(); dragCounter=Math.max(0,dragCounter-1); if(!dragCounter) drop.classList.remove('drag'); });
+    drop.addEventListener('drop',      e=>{
+      e.preventDefault(); e.stopPropagation(); dragCounter=0; drop.classList.remove('drag');
+      if (e.dataTransfer?.files?.length) handleFiles(e.dataTransfer.files);
+    });
+
+    // выбор файлов диалогом: после обработки сбрасываем значение, чтобы можно было выбрать тот же файл
+    fi.addEventListener('change', () => { if (fi.files?.length) handleFiles(fi.files); fi.value=''; });
+
+    // вставка из буфера (скриншоты)
+    window.addEventListener('paste', async (e)=>{
+      const items = e.clipboardData?.items; if (!items) return;
+      for (const it of items) { if (it.kind==='file'){ handleFiles([it.getAsFile()]); break; } }
+    });
+
+    let filesAll = [];         // выбранные файлы
+    let itemsParsedRaw = [];   // все позиции «как есть» со всех файлов
+    let itemsRendered = [];    // после склейки/правок
+
+    function clearFiles(){
+      filesAll = [];
+      itemsParsedRaw = [];
+      itemsRendered = [];
+      $('#filesList').innerHTML = "";
+      $('#itemsBody').innerHTML = "";
+      $('#totals').textContent = "";
+      $('#sourcesInfo').textContent = "";
+      status('');
+      updateCreateDisabled();
+    }
+
+    function renderFilesList(){
+      const box = $('#filesList'); box.innerHTML = "";
+      for (const f of filesAll) {
+        const row = document.createElement('div'); row.className='fileRow';
+        row.innerHTML = `<div class="name">${f.name}</div><div class="size">${fmtSize(f.size||0)}</div><div class="tag">${/\.(pdf)$/i.test(f.name) ? 'PDF' : 'IMG'}</div>`;
+        box.appendChild(row);
+      }
+    }
+
+    async function handleFiles(fileList){
+      const arr = Array.from(fileList || []).filter(Boolean);
+      if (!arr.length) return;
+      filesAll.push(...arr);
+      renderFilesList();
+      await reparseAll(); // АВТОПАРСИНГ всех файлов
+    }
+
+    // ====== Динамические импорты ======
+    let _pdfjsLib = null;
+    let _tesseract = null;
+    let _firebase = null;
+    let _app, _auth, _db;
+
+    async function ensurePdfJs() {
+      if (_pdfjsLib) return _pdfjsLib;
+      const m = await import("https://cdn.jsdelivr.net/npm/pdfjs-dist@4.6.82/build/pdf.mjs");
+      m.GlobalWorkerOptions.workerSrc = "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.6.82/build/pdf.worker.mjs";
+      _pdfjsLib = m; return m;
+    }
+    async function ensureTesseract() {
+      if (_tesseract) return _tesseract;
+      const m = await import("https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js");
+      _tesseract = m.default || m; return _tesseract;
+    }
+    async function ensureFirebase() {
+      if (_firebase) return _firebase;
+      const appMod  = await import("https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js");
+      const authMod = await import("https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js");
+      const fsMod   = await import("https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js");
+      _app = appMod.initializeApp(FIREBASE_CONFIG);
+      _auth = authMod.getAuth(_app);
+      _db   = fsMod.getFirestore(_app);
+      try { await authMod.signInAnonymously(_auth); } catch(e){ console.warn("Anon auth failed:", e); }
+      _firebase = { appMod, authMod, fsMod }; return _firebase;
+    }
+
+    // ====== PDF/IMG → текст → позиции ======
+    async function parseOneFileIntoRaw(file){
+      const isPdf = /\.pdf$/i.test(file.name) || file.type === 'application/pdf';
+      if (isPdf) {
+        const pdfjsLib = await ensurePdfJs();
+        const ab = await file.arrayBuffer();
+        const pdf = await pdfjsLib.getDocument({ data: ab }).promise;
+
+        let hasTextLayer = false;
+        try {
+          const p1  = await pdf.getPage(1);
+          const txt = await p1.getTextContent();
+          hasTextLayer = (txt?.items?.length>0);
+        } catch(_){}
+
+        if (hasTextLayer) {
+          const allPagesText = [];
+          for (let i=1;i<=pdf.numPages;i++){
+            const p = await pdf.getPage(i);
+            const tc = await p.getTextContent();
+            let pageText = tc.items.map(it => {
+              const s = (it.str || "");
+              return it.hasEOL ? (s + "\n") : s + " ";
+            }).join("");
+            pageText = pageText
+              .replace(/[ \t]+/g, ' ')
+              .replace(/[ \t]*\n[ \t]*/g, '\n')
+              .replace(/\n{2,}/g, '\n');
+            allPagesText.push(pageText);
+          }
+          const fullText = allPagesText.join("\n");
+          let parsed = parseDockeTablesFromText(fullText);
+          if (!parsed.length) {
+            const lines = fullText.split(/\n/g).map(s=>s.trim()).filter(Boolean);
+            parsed = parseTable(lines);
+          }
+          parsed.forEach(it => it._src = file.name);
+          return parsed;
+        } else {
+          // OCR PDF постранично
+          const tess = await ensureTesseract();
+          const parts = [];
+          for (let i=1;i<=pdf.numPages;i++){
+            const page = await pdf.getPage(i);
+            const viewport = page.getViewport({ scale: 2 });
+            const canvas = Object.assign(document.createElement('canvas'), { width: viewport.width, height: viewport.height });
+            const ctx = canvas.getContext('2d');
+            await page.render({ canvasContext: ctx, viewport }).promise;
+            const { data:{ text } } = await tess.recognize(canvas, "rus+eng");
+            const lines = text.split(/\n/g).map(s=>s.trim()).filter(Boolean);
+            const arr = parseFromOcr(lines);
+            arr.forEach(it => it._src = file.name + ` (стр. ${i})`);
+            parts.push(...arr);
+          }
+          return parts;
+        }
+      } else {
+        // OCR изображений
+        const tess = await ensureTesseract();
+        const { data:{ text } } = await tess.recognize(file, "rus+eng");
+        const lines = text.split(/\n/g).map(s=>s.trim()).filter(Boolean);
+        const arr = parseFromOcr(lines);
+        arr.forEach(it => it._src = file.name);
+        return arr;
+      }
+    }
+
+    // merge одинаковых позиций
+    function mergeSameItems(items) {
+      const map = new Map();
+      for (const it of items) {
+        const key = (it.article && it.article.trim())
+          ? it.article.trim().toUpperCase()
+          : (it.title || "").trim().toUpperCase();
+        if (!key) continue;
+        const p = parseFloat((it.qtyPacks||"").toString().replace(",", ".")) || 0;
+        const u = parseFloat((it.qtyUnits||"").toString().replace(",", ".")) || 0;
+
+        if (!map.has(key)) {
+          map.set(key, {
+            title: it.title || "",
+            article: it.article || "",
+            qtyPacks: p,
+            qtyUnits: u,
+            _lowconf: !!it._lowconf,
+            _src: new Set(it._src ? [it._src] : [])
+          });
+        } else {
+          const m = map.get(key);
+          m.qtyPacks += p; m.qtyUnits += u;
+          m._lowconf = m._lowconf || !!it._lowconf;
+          if (it._src) m._src.add(it._src);
+        }
+      }
+      return Array.from(map.values()).map(x => ({
+        title: x.title, article: x.article,
+        qtyPacks: x.qtyPacks ? String(x.qtyPacks) : "",
+        qtyUnits: x.qtyUnits ? String(x.qtyUnits) : "",
+        _lowconf: x._lowconf,
+        _src: Array.from(x._src || [])
+      }));
+    }
+
+    function renderItems(items){
+      const body = $('#itemsBody'); body.innerHTML = "";
+      for (const it of items) {
+        const tr = document.createElement('tr');
+        if (it._lowconf) tr.classList.add('lowconf');
+        tr.innerHTML = `
+          <td><input data-k="article" value="${(it.article||"").replaceAll('"','&quot;')}" /></td>
+          <td><input data-k="title"   value="${(it.title||"").replaceAll('"','&quot;')}" /></td>
+          <td><input data-k="qtyPacks" value="${(it.qtyPacks||"")}" /></td>
+          <td><input data-k="qtyUnits" value="${(it.qtyUnits||"")}" /></td>`;
+        body.appendChild(tr);
+      }
+      updateTotals();
+      body.querySelectorAll('input').forEach(inp=>inp.addEventListener('input', updateTotals));
+    }
+
+    function collectItemsFromTable() {
+      return [...document.querySelectorAll('#itemsBody tr')].map(tr=>{
+        const get = k => tr.querySelector(`input[data-k="${k}"]`).value.trim();
+        return { title:get('title'), article:get('article'), qtyPacks:get('qtyPacks'), qtyUnits:get('qtyUnits') };
+      }).filter(it => it.title || it.qtyPacks || it.qtyUnits);
+    }
+    function updateTotals(){
+      const items = collectItemsFromTable();
+      const sumP = items.reduce((s,it)=> s + (parseFloat((it.qtyPacks||"").replace(",","."))||0), 0);
+      const sumU = items.reduce((s,it)=> s + (parseFloat((it.qtyUnits||"").replace(",","."))||0), 0);
+      $('#totals').textContent = `Итого: упаковок ${sumP} • штук ${sumU}`;
+      updateCreateDisabled();
+    }
+
+    $('#mergeToggle').addEventListener('change', rerenderFromRaw);
+
+    // ====== Cloudinary ======
+    async function uploadAllToCloudinary(files){
+      const urls = [];
+      for (const f of files) {
+        const form = new FormData();
+        form.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
+        form.append('file', f);
+        const resp = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/auto/upload`, { method:'POST', body: form });
+        if (!resp.ok) throw new Error('Cloudinary upload failed');
+        const json = await resp.json();
+        urls.push(json.secure_url);
+      }
+      return urls;
+    }
+
+    // рендер + обновление
+    function renderFilesList(){/* уже выше */} // оставлено намеренно
+
+    async function parseOneFile(file) {
+      const arr = await parseOneFileIntoRaw(file);
+      return arr;
+    }
+
+    async function parseOneFileIntoRawWrapper(file) {
+      // заглушка — используем основную функцию
+      return parseOneFileIntoRaw(file);
+    }
+
+    async function reparseAll() {
+      $('#itemsBody').innerHTML = ""; $('#totals').textContent = ""; $('#sourcesInfo').textContent = "";
+      itemsParsedRaw = [];
+      if (!filesAll.length) { updateCreateDisabled(); status(''); return; }
+      let i=0;
+      for (const f of filesAll) {
+        i++;
+        status(`Парсинг ${i}/${filesAll.length}: ${f.name}`);
+        await parseOneFileIntoRaw(f);
+        await sleep(10);
+      }
+      rerenderFromRaw();
+      renderFilesList();
+      status(`Готово. Найдено позиций: ${itemsParsedRaw.length} из ${filesAll.length} файл(ов)`);
+    }
+
+    function rerenderFromRaw() {
+      const doMerge = $('#mergeToggle').checked;
+      itemsRendered = doMerge ? mergeSameItems(itemsParsedRaw) : [...itemsParsedRaw];
+      renderItems(itemsRendered);
+      const srcSet = new Set(itemsParsedRaw.map(x => x._src).filter(Boolean));
+      $('#sourcesInfo').textContent = srcSet.size ? `Файлы: ${Array.from(srcSet).join(', ')}` : '';
+    }
+
+    async function parseOneFileIntoRaw(file){
+      const parsed = await parseOneFile(file);
+      if (parsed?.length) {
+        parsed.forEach(it => itemsParsedRaw.push(it));
+      }
+    }
+
+    function updateCreateDisabled(){
+      const anyItems = (itemsRendered && itemsRendered.length>0);
+      $('#btnCreate').disabled = !anyItems || !$('#title').value.trim();
+    }
+    $('#title').addEventListener('input', updateCreateDisabled);
+
+    // ====== Firestore: пользователи + создание задач ======
+    let selectedWorkerIds = new Set();
+    let selectedWorkerNames = new Set();
+
+    async function loadUsers(){
+      const { fsMod } = await ensureFirebase();
+      const usersCol = fsMod.collection(_db, 'users');
+      const q = fsMod.query(usersCol, fsMod.where('role', '==', 'worker'));
+      const snap = await fsMod.getDocs(q);
+      const box = $('#workersBox'); box.innerHTML = "";
+      snap.forEach(doc => {
+        const u = doc.data(); const id = doc.id;
+        const btn = document.createElement('button');
+        btn.className = 'ghost';
+        btn.textContent = u.displayName || u.email || id;
+        btn.addEventListener('click', ()=>{
+          const on = btn.classList.toggle('active');
+          if (on) { selectedWorkerIds.add(id); selectedWorkerNames.add(btn.textContent); btn.style.borderColor='#3b82f6'; }
+          else    { selectedWorkerIds.delete(id); selectedWorkerNames.delete(btn.textContent); btn.style.borderColor='#374151'; }
+        });
+        box.appendChild(btn);
+      });
+    }
+
+    async function createTask(){
+      try {
+        const { fsMod } = await ensureFirebase();
+        const title = $('#title').value.trim();
+        if (!title) { alert('Введите заголовок'); return; }
+        const comment = $('#comment').value.trim();
+        const items = collectItemsFromTable();
+        if (!items.length) { alert('Нет позиций'); return; }
+
+        // разбивка: если выбран кладовщик(и) — по одному таску на каждого, иначе один таск (самовывоз)
+        const assigneeIds = Array.from(selectedWorkerIds);
+        const assigneeNames = Array.from(selectedWorkerNames);
+
+        // файлы -> Cloudinary
+        status('Загрузка файлов в Cloudinary...');
+        const urls = await uploadAllToCloudinary(filesAll);
+
+        const createdIds = [];
+        if (!assigneeIds.length){
+          // один таск
+          const data = {
+            title, comment,
+            status: 'new',
+            createdAt: new Date(),
+            author: 'unknown',
+            items,
+            files: urls,
+            assignees: [],
+            assigneeIds: []
+          };
+          const ref = await fsMod.addDoc(fsMod.collection(_db, 'tasks'), data);
+          createdIds.push(ref.id);
+        } else {
+          // по одному на каждого
+          for (let i=0;i<assigneeIds.length;i++){
+            const data = {
+              title, comment,
+              status: 'new',
+              createdAt: new Date(),
+              author: 'unknown',
+              items,
+              files: urls,
+              assignees: [ assigneeNames[i] ],
+              assigneeIds: [ assigneeIds[i] ]
+            };
+            const ref = await fsMod.addDoc(fsMod.collection(_db, 'tasks'), data);
+            createdIds.push(ref.id);
+          }
+        }
+
+        status(`Готово. Создано задач: ${createdIds.length}`);
+        alert(`Создано задач: ${createdIds.length}`);
+
+        // сброс
+        clearFiles();
+        $('#itemsBody').innerHTML = "";
+        $('#totals').textContent = "";
+        $('#title').value = "";
+        $('#comment').value = "";
+        selectedWorkerIds.clear(); selectedWorkerNames.clear();
+        updateCreateDisabled();
+      } catch (e) {
+        console.error(e);
+        alert('Ошибка: ' + (e?.message||e));
+        status('Ошибка');
+        updateCreateDisabled();
+      }
+    }
+
+    $('#btnCreate').addEventListener('click', createTask);
+
+    // ====== Инициализация ======
+    (async function init(){
+      await ensureFirebase();
+      await loadUsers();
+      updateCreateDisabled();
+    })();
+  </script>
 </body>
 </html>
