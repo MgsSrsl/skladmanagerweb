@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
   <meta charset="utf-8" />
-  <title>Создать задачу — СкладСборка (XLSX auto-header)</title>
+  <title>Создать задачу — СкладСборка (XLSX, qty→unit=next)</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
     :root { color-scheme: dark; }
@@ -40,18 +40,17 @@
     .hidden { display:none !important; }
     #fileInput { position: fixed; left: -9999px; top: -9999px; width: 1px; height: 1px; opacity: 0; }
   </style>
-  <!-- SheetJS для XLSX/CSV -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 </head>
 <body>
   <div class="container">
-    <h1>Создать задачу (XLSX/CSV, авто-поиск шапки)</h1>
+    <h1>Создать задачу (XLSX/CSV: ед. = столбец справа от «Кол-во»)</h1>
 
     <div class="card">
       <div class="dropzone" id="drop">
         <p><b>Перетащите XLSX/XLS/CSV (можно несколько)</b> или нажмите «Выбрать файлы».<br>
-        Поддерживаются заголовки (синонимы): <span class="kbd">No/№/Номер/#</span>, <span class="kbd">Article/Артикул/SKU/Код</span>, <span class="kbd">Title/Товар/Наименование</span>, <span class="kbd">Qty/Кол-во/Количество</span>, <span class="kbd">Unit/Ед.</span>, <span class="kbd">QtyPacks/Упаковок</span>, <span class="kbd">QtyUnits/Шт</span>.<br>
-        <small>Шапка может быть <u>не</u> в первой строке — найдём автоматически.</small></p>
+        Поддерживаем шапки (синонимы): <span class="kbd">No/№/#</span>, <span class="kbd">Артикул/SKU/Код</span>, <span class="kbd">Товар/Title</span>, <span class="kbd">Кол-во/Количество/Qty</span>, <span class="kbd">Ед./Unit</span>.<br>
+        <small>Если в шапке нет «Ед.» — берём столбец <u>сразу справа</u> от «Кол-во».</small></p>
         <div class="row" style="justify-content:center">
           <button id="btnPick" type="button" class="ghost">Выбрать файлы</button>
           <button id="btnClearFiles" type="button" class="ghost">Очистить список</button>
@@ -134,56 +133,31 @@
 
     // ====== Нормализация ======
     const UNIT_ALIASES = {
-      // базовые
       "шт":"шт","штук":"шт","штука":"шт","штуки":"шт","шт.":"шт",
       "лист":"лист","листа":"лист","листы":"лист",
-      "упак":"упак","упаковка":"упак","упаковки":"упак","упаковок":"упак","пак":"упак","пач":"упак",
-      // рулоны, коробки, комплекты
+      "упак":"упак","упаковка":"упак","упаковки":"упак","упаковок":"упак","уп":"упак","пак":"упак","пач":"упак",
       "рул":"рул","рулон":"рул","рул.":"рул",
       "кор":"кор","короб":"кор","коробка":"кор","коробок":"кор",
       "комп":"компл","компл":"компл","комплект":"компл",
       "пар":"пара","пара":"пара","пары":"пара",
-      // метры
       "м":"м","метр":"м","м.п.":"м.п","м.п":"м.п","пог.м":"м.п","погонный метр":"м.п",
       "м2":"м²","м^2":"м²","m2":"м²","м²":"м²",
-      // вес, объём
-      "кг":"кг","килограмм":"кг","г":"г","гр":"г","грамм":"г","л":"л","литр":"л","литра":"л","литров":"л"
+      "кг":"кг","килограмм":"кг","г":"г","гр":"г","грамм":"г",
+      "л":"л","литр":"л","литра":"л","литров":"л"
     };
     const normUnit = (u)=> UNIT_ALIASES[(u??"").toString().trim().toLowerCase()] || (u??"").toString().trim().toLowerCase();
 
-    // 🔹 Умная нормализация чисел
+    // умная нормализация чисел (1.000 → 1000, 1 234,56 → 1234.56)
     const normNum = (s) => {
       if (s == null) return "";
-      s = s.toString().trim()
-           .replace(/\u00A0/g, ' ')  // неразрывные пробелы
-           .replace(/\s+/g, ' ');
-      // "1.234.567,89" → "1234567.89"
+      s = s.toString().trim().replace(/\u00A0/g, ' ').replace(/\s+/g, ' ');
       if (/^\d{1,3}(\.\d{3})+(,\d+)?$/.test(s)) return s.replace(/\./g, '').replace(',', '.');
-      // "1 234 567,89" или "1 234 567.89" → "1234567.89"
       if (/^\d{1,3}( \d{3})+([.,]\d+)?$/.test(s)) return s.replace(/ /g, '').replace(',', '.');
-      // "1.000" → "1000"
       if (/^\d+\.\d{3}$/.test(s)) return s.replace(/\./g, '');
-      // "1,000" → "1000"
       if (/^\d+,\d{3}$/.test(s)) return s.replace(/,/g, '');
-      // обычный случай
       return s.replace(',', '.');
     };
     const toNum = (s)=> { const n = parseFloat(normNum(s)); return Number.isFinite(n) ? n : 0; };
-
-    // 🔹 Подсказки по названию → единица измерения
-    const TITLE_UNIT_HINTS = [
-      { re: /\b(лист|листы|плита|плиты|панел[ьяи]|панель|osb|гкл|гвл|цсп|фанера|профлист)\b/i, unit: "лист" },
-      { re: /\b(рулон|рул\.?|рул)\b/i, unit: "рул" },
-      { re: /\b(саморез|шуруп|дюбел|клипс|кляймер|гвозд|шурупы|крепеж)\b/i, unit: "шт" },
-      { re: /\b(краска|эмаль|праймер|грунтов|лак)\b/i, unit: "л" },
-      { re: /\b(пена|клей|шпатлев|шпакл|гермет)\b/i, unit: "кг" },
-      { re: /\b(труба|профиль|уголок|планка|добор|канал|рейка|наличник)\b/i, unit: "м.п" }
-    ];
-    function guessUnitFromText(title, article) {
-      const t = (title||"") + " " + (article||"");
-      for (const h of TITLE_UNIT_HINTS) { if (h.re.test(t)) return h.unit; }
-      return null;
-    }
 
     // ====== DnD / файлы ======
     const drop = $('#drop');
@@ -202,8 +176,8 @@
     drop.addEventListener('drop', e => { handleFiles(e.dataTransfer.files); });
     fi.addEventListener('change', () => handleFiles(fi.files));
 
-    let filesAll = [];        // исходные файлы
-    let itemsParsedRaw = [];  // собранные позиции
+    let filesAll = [];
+    let itemsParsedRaw = [];
     let itemsRendered = [];
 
     function clearFiles(){
@@ -243,15 +217,13 @@
       await reparseAll();
     }
 
-    // ====== XLSX/CSV → items (авто-поиск шапки в любой строке) ======
+    // ====== Шапки ======
     const HEADER_MAP = {
       rowNo:    ["no","№","#","номер","row","rowno"],
       article:  ["article","артикул","sku","код","code"],
       title:    ["title","товар","наименование","название","item","product","desc","description"],
       qty:      ["qty","количество","кол-во","amount"],
-      unit:     ["unit","ед.","ед","единица","uom"],
-      qtyPacks: ["qtypacks","упаковок","packs","pack"],
-      qtyUnits: ["qtyunits","шт","штук","pieces","pcs"]
+      unit:     ["unit","ед.","ед","единица","uom"]
     };
     function keyOf(colName){
       const s = (colName||"").toString().trim().toLowerCase();
@@ -263,28 +235,35 @@
       headerRow.forEach((h,i)=>{ const k = keyOf(h); if (k && !(k in map)) map[k] = i; });
       return map;
     }
+    // главный момент: если unit не нашли — берём столбец СПРАВА от qty
     function findHeaderRow(aoa){
+      let found = { idx:0, cols:{} };
       for (let i=0;i<Math.min(aoa.length, 50);i++){
         const row = aoa[i] || [];
         const cols = mapColumns(row);
-        const hasTitle = cols.title != null;
-        const count = Object.keys(cols).length;
-        if (hasTitle && count >= 2) return { idx:i, cols };
+        if (cols.title != null && Object.keys(cols).length >= 2) {
+          found = { idx:i, cols };
+          break;
+        }
       }
-      return { idx:0, cols: mapColumns(aoa[0] || []) };
+      if (!Object.keys(found.cols).length) found = { idx:0, cols: mapColumns(aoa[0] || []) };
+      if (found.cols.unit == null && found.cols.qty != null) {
+        found.cols.unit = found.cols.qty + 1; // ед. = сосед справа
+      }
+      return found;
     }
     function getCell(row, idx){ return (idx==null||idx<0) ? "" : (row[idx] ?? ""); }
 
+    // ====== Парсинг XLSX/CSV ======
     async function parseXlsxFile(file){
       const ab = await readAsArrayBuffer(file);
       const wb = XLSX.read(ab, { type:'array' });
-      const sheetName = wb.SheetNames[0];
-      const ws = wb.Sheets[sheetName];
-      const aoa = XLSX.utils.sheet_to_json(ws, { header:1, raw:false, defval:"" }); // AOA
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const aoa = XLSX.utils.sheet_to_json(ws, { header:1, raw:false, defval:"" });
       return parseAOA(aoa);
     }
     async function parseCsvFile(file){
-      const txt = await readAsText(file, 'utf-8'); // при кракозябрах можно сменить на windows-1251
+      const txt = await readAsText(file, 'utf-8');
       const wb = XLSX.read(txt, {type:'string'});
       const ws = wb.Sheets[wb.SheetNames[0]];
       const aoa = XLSX.utils.sheet_to_json(ws, { header:1, raw:false, defval:"" });
@@ -302,42 +281,14 @@
         const rowNoR  = (getCell(row, cols.rowNo)   || "").toString().trim();
         let qty       = (getCell(row, cols.qty)     || "").toString().trim();
         let unit      = (getCell(row, cols.unit)    || "").toString().trim();
-        let qtyPacks  = (getCell(row, cols.qtyPacks)|| "").toString().trim();
-        let qtyUnits  = (getCell(row, cols.qtyUnits)|| "").toString().trim();
 
-        if (!title && !qty && !qtyPacks && !qtyUnits) continue;
+        if (!title && !qty) continue;
 
-        // нормализация
         unit = normUnit(unit);
-        qty = normNum(qty);
-        qtyPacks = normNum(qtyPacks);
-        qtyUnits = normNum(qtyUnits);
-
-        // попытка угадать ед. по названию, если явно не задано
-        const unitGuess = guessUnitFromText(title, article);
-        if (!unit && unitGuess) unit = unitGuess;
-        if (unit === "шт" && unitGuess && unitGuess !== "шт" && !qtyPacks && !qtyUnits) {
-          unit = unitGuess;
-        }
-
-        // fallback-правила
-        if (!unit) {
-          if (qtyPacks) unit = "упак";
-          else if (qtyUnits) unit = "шт";
-        }
-        if (!unit && qty) {
-          unit = "шт";
-          if (!qtyUnits) qtyUnits = qty;
-        }
-
-        // согласование Qty + Unit
-        if (qty && unit) {
-          if (unit === "упак" && !qtyPacks) qtyPacks = qty;
-          if (unit !== "упак" && !qtyUnits) qtyUnits = qty;
-        }
+        qty  = normNum(qty);
 
         const rowNo = rowNoR || String(autoRow++);
-        out.push({ rowNo, title, article, qty, unit, qtyPacks, qtyUnits, _lowconf:false, _src:"" });
+        out.push({ rowNo, title, article, qty, unit, qtyPacks:"", qtyUnits:"", _src:"", _lowconf:false });
       }
       return out;
     }
@@ -367,11 +318,8 @@
     }
     async function parseOneFileIntoRaw(file, replaceRaw = false) {
       const arr = await parseOneFile(file);
-      if (replaceRaw) {
-        itemsParsedRaw = itemsParsedRaw.filter(x => x._src !== file.name).concat(arr);
-      } else {
-        itemsParsedRaw.push(...arr);
-      }
+      if (replaceRaw) itemsParsedRaw = itemsParsedRaw.filter(x => x._src !== file.name).concat(arr);
+      else itemsParsedRaw.push(...arr);
     }
     async function reparseAll() {
       $('#itemsBody').innerHTML = ""; $('#totals').textContent = ""; $('#sourcesInfo').textContent = "";
@@ -389,7 +337,7 @@
       status(`Готово. Найдено позиций: ${itemsParsedRaw.length} из ${filesAll.length} файл(ов)`);
     }
 
-    // ====== Merge (опционально) ======
+    // ====== Merge ======
     function mergeSameItemsKeepOrder(items) {
       const map = new Map();
       const order = [];
@@ -401,9 +349,7 @@
         else {
           const m = map.get(key);
           const add = (a,b)=> String((toNum(a)||0)+(toNum(b)||0)||"");
-          m.qtyPacks = add(m.qtyPacks, it.qtyPacks);
-          m.qtyUnits = add(m.qtyUnits, it.qtyUnits);
-          if ((m.unit||"") === (it.unit||"")) { m.qty = add(m.qty, it.qty); }
+          if ((m.unit||"") === (it.unit||"")) m.qty = add(m.qty, it.qty);
           m._lowconf = m._lowconf || it._lowconf;
         }
       }
@@ -420,7 +366,7 @@
           <td><input value="${it.rowNo||""}" data-k="rowNo" style="max-width:56px"></td>
           <td><input value="${it.title||""}"    data-k="title"></td>
           <td><input value="${it.article||""}"  data-k="article" style="max-width:220px"></td>
-          <td><input value="${it.qty||it.qtyUnits||""}" data-k="qty" style="max-width:110px"></td>
+          <td><input value="${it.qty||""}" data-k="qty" style="max-width:110px"></td>
           <td>
             <select data-k="unit" style="width:100%">
               ${["","шт","лист","упак","рул","кор","компл","пара","м","м.п","м²","кг","г","л"].map(u=>`<option value="${u}" ${(it.unit||"")===u?"selected":""}>${u}</option>`).join("")}
@@ -440,49 +386,25 @@
     function collectItemsFromTable() {
       return [...document.querySelectorAll('#itemsBody tr')].map(tr => {
         const get = k => (tr.querySelector(`[data-k="${k}"]`)?.value || "").trim();
-
-        const qtyRaw   = get('qty');
-        const title    = get('title');
-        const article  = get('article');
-
-        let unit      = normUnit(get('unit'));
-        let qtyPacks  = get('qtyPacks');
-        let qtyUnits  = get('qtyUnits');
-        const qty     = normNum(qtyRaw);
-
-        // попытка угадать ед. по названию
-        const unitGuess = guessUnitFromText(title, article);
-        if (!unit && unitGuess) unit = unitGuess;
-        if (unit === "шт" && unitGuess && unitGuess !== "шт" && !qtyPacks && !qtyUnits) {
-          unit = unitGuess;
-        }
-
-        // автоединица, если всё ещё пусто
-        if (!unit) {
-          if (qtyPacks) unit = "упак";
-          else if (qtyUnits) unit = "шт";
-          else if (qty) { unit = "шт"; qtyUnits = qtyUnits || qty; }
-        }
-
-        // согласование Qty + Unit
-        if (qty && unit) {
-          if (unit === "упак" && !qtyPacks) qtyPacks = qty;
-          if (unit !== "упак" && !qtyUnits) qtyUnits = qty;
-        }
-
-        return { rowNo: get('rowNo'), title, article, qty, unit, qtyPacks, qtyUnits };
-      }).filter(it => it.title || it.qty || it.qtyPacks || it.qtyUnits)
-        .sort((a, b) => (parseInt(a.rowNo || 0, 10)) - (parseInt(b.rowNo || 0, 10)));
+        return {
+          rowNo:    get('rowNo'),
+          title:    get('title'),
+          article:  get('article'),
+          qty:      normNum(get('qty')),
+          unit:     normUnit(get('unit')),
+          qtyPacks: normNum(get('qtyPacks')),
+          qtyUnits: normNum(get('qtyUnits'))
+        };
+      }).filter(it => it.title || it.qty)
+        .sort((a,b)=> (parseInt(a.rowNo||0,10)) - (parseInt(b.rowNo||0,10)));
     }
 
     function updateTotals(){
       const items = collectItemsFromTable();
       const sumQty = items.reduce((s,it)=> s + (toNum(it.qty)||0), 0);
-      const sumP = items.reduce((s,it)=> s + (toNum(it.qtyPacks)||0), 0);
-      const sumU = items.reduce((s,it)=> s + (toNum(it.qtyUnits)||0), 0);
       const unitsSet = new Set(items.map(i=>i.unit).filter(Boolean));
       const unitsStr = unitsSet.size ? ` • ед: ${[...unitsSet].join(', ')}` : '';
-      $('#totals').textContent = `Итого: qty ${sumQty}${unitsStr} • упаковок ${sumP} • штук ${sumU}`;
+      $('#totals').textContent = `Итого: qty ${sumQty}${unitsStr}`;
       updateCreateDisabled();
     }
 
@@ -584,7 +506,7 @@
         creatorId: "unknown",
         creatorName: "unknown",
         items: getSelectedItems(),
-        source: "web-xlsx-autoheader",
+        source: "web-xlsx-neighbor-unit",
         sourceMeta: { ua: navigator.userAgent, filesCount: filesAll.length },
         files: []
       };
@@ -629,7 +551,6 @@
         status(`Готово. Создано задач: ${createdIds.length}`);
         alert(`Создано задач: ${createdIds.length}`);
 
-        // сброс
         clearFiles();
         $('#itemsBody').innerHTML = "";
         $('#totals').textContent = "";
@@ -650,10 +571,9 @@
     (async function init(){
       await ensureFirebase();
       await loadUsers();
-      $('#mergeToggle').checked = false; // по умолчанию НЕ мерджим — порядок как в исходнике
+      $('#mergeToggle').checked = false;
       updateCreateDisabled();
     })();
   </script>
 </body>
 </html>
-
