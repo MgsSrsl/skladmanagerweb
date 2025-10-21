@@ -23,14 +23,16 @@
     button.ghost { background:#0b1220; border:1px solid #374151; }
     button[disabled] { opacity:.6; cursor: not-allowed }
     .status { margin-top: 8px; font-size: 14px; color: #93c5fd; white-space: pre-wrap; }
+    .preview { margin-top: 10px; font-size: 13px; color: #cbd5e1; }
     .files { margin-top: 10px; }
     .fileRow { display:flex; align-items:center; gap:8px; margin:6px 0; padding:8px; border:1px solid #1f2a44; border-radius:10px; background:#0b1220; }
     .fileRow .name { flex:1 1 auto; }
     .fileRow .size { font-size:12px; opacity:.75 }
+    .fileRow .tag { font-size:12px; opacity:.9 }
     table { width: 100%; border-collapse: collapse; margin-top: 8px; }
     th, td { border: 1px solid #374151; padding: 6px 8px; }
     th { background: #111827; color: #cbd5e1; position: sticky; top: 0; }
-    tr td input { width: 100%; border:0; outline: none; background: transparent; color: #fff; }
+    tr td input, tr td select { width: 100%; border:0; outline: none; background: transparent; color: #fff; }
     tr.lowconf td { background: #382e00; }
     .totals { display:flex; justify-content: space-between; align-items:center; gap:10px; margin-top: 6px; color:#cbd5e1 }
     .kbd { background:#111827; border:1px solid #374151; border-radius:6px; padding:0 6px; }
@@ -39,6 +41,7 @@
     .chip.active { background:#1e293b; border-color:#60a5fa; }
     .hidden { display:none !important; }
     #fileInput { position: fixed; left: -9999px; top: -9999px; width: 1px; height: 1px; opacity: 0; }
+    .narrow { max-width: 220px; }
   </style>
 </head>
 <body>
@@ -78,14 +81,23 @@
         <div style="flex:2"><label>Позиции</label></div>
         <div style="flex:1; text-align:right">
           <label style="display:inline-flex; gap:8px; align-items:center">
-            <input id="mergeToggle" type="checkbox" checked />
+            <input id="mergeToggle" type="checkbox" />
             <span class="muted">Склеивать одинаковые позиции</span>
           </label>
         </div>
       </div>
       <table>
         <thead>
-          <tr><th>Товар</th><th>Артикул</th><th>Упаковок</th><th>Шт</th><th></th></tr>
+          <tr>
+            <th style="width:56px">#</th>
+            <th>Товар</th>
+            <th class="narrow">Артикул</th>
+            <th style="width:110px">Кол-во</th>
+            <th style="width:90px">Ед.</th>
+            <th style="width:110px">Упаковок</th>
+            <th style="width:110px">Шт</th>
+            <th style="width:40px"></th>
+          </tr>
         </thead>
         <tbody id="itemsBody"></tbody>
       </table>
@@ -101,7 +113,7 @@
   </div>
 
   <script>
-    // ====== Утилиты ======
+    // ====== Базовые утилиты/статус ======
     const $ = s => document.querySelector(s);
     const status = t => { $('#status').textContent = t || ''; };
     const sleep = (ms)=> new Promise(r=>setTimeout(r,ms));
@@ -120,150 +132,163 @@
     const CLOUDINARY_UPLOAD_PRESET = "unsigned_tasks";
     const VERCEL_NOTIFY_PROXY_URL  = "/api/notify-taskCreated";
 
-    // ====== Ед. измерения ======
-    const PACK_UNITS = ['уп','упак','упаковка','упаковок','рул','рулон','паллет','палета','кор','короб','ящ','ящик'];
-    const UNIT_UNITS = ['шт','лист','комплект','м2','м3','м²','м³','п.м','п.м.','пог.м','кг','л'];
+    // ====== Нормализация чисел/единиц ======
+    const UNIT_ALIASES = {
+      "шт":"шт","штука":"шт","штук":"шт","штуки":"шт",
+      "лист":"лист","листа":"лист","листы":"лист",
+      "упак":"упак","упаковка":"упак","упаковки":"упак","упаковок":"упак","пак":"упак",
+      "м2":"м²","м²":"м²","м":"м","кг":"кг","л":"л"
+    };
+    const UNIT_RX = "(лист(?:а|ы)?|ш[тт]ук[аи]?|ш[тт]|упаков(?:ка|ки|ок)|упак|пак|м2|м²|м|кг|л)";
+    const normNumber = s => (s||"").toString().replace(/\s+/g,"").replace(",",".");
+    const parseFloatSafe = s => { const n = parseFloat(normNumber(s)); return isFinite(n)?n:0; };
+    const normUnit = u => UNIT_ALIASES[(u||"").toLowerCase()] || (u||"").toLowerCase();
 
-    // нормализация строки
-    const norm = s => (s||'')
-      .replace(/[ \t]+/g,' ')
-      .replace(/[ \t]*\n[ \t]*/g,'\n')
-      .replace(/\n{2,}/g,'\n')
-      .trim();
+    // ====== Парсеры ======
 
-    // снять справа хвост "<число> <ед.изм>"
-    function popRightQtyTail(s) {
-      const rx = /(?:^|[\s/])(\d[\d\s.,]*)\s*(шт|лист|рул(?:он)?|уп(?:аковка|аковок|ак)?|паллет(?:а)?|палета|кор(?:об)?|ящ(?:ик)?|комплект|м2|м3|м²|м³|п\.?м\.?|пог\.?м|кг|л)\.?$/i;
-      const m = s.match(rx);
-      if (!m) return { rest: s, tail: null };
-      const numRaw = (m[1]||'').replace(/\s+/g,'').replace(',', '.');
-      const unit = (m[2]||'').toLowerCase();
-      const rest = s.slice(0, m.index).replace(/[\/\s]+$/,'').trim();
-      return { rest, tail: { qty: numRaw, unit } };
-    }
-
-    // распределение хвостов в колонки
-    function tailsToQty(tails) {
-      let qtyPacks = "", qtyUnits = "";
-      for (const t of tails) {
-        const u = t.unit;
-        if (!qtyPacks && PACK_UNITS.includes(u)) { qtyPacks = t.qty; continue; }
-        if (!qtyUnits && (UNIT_UNITS.includes(u) || !PACK_UNITS.includes(u))) { qtyUnits = t.qty; continue; }
-      }
-      return { qtyPacks, qtyUnits };
-    }
-
-    // Парсер «по чанкам-строкам»: между строками, начинающимися с номера
-    function parseByRowChunks(fullText) {
-      const rawLines = norm(fullText).split(/\n+/);
-      const lines = rawLines
-        .map(s => s.replace(/\s+/g,' ').trim())
-        .filter(Boolean)
-        // выкинем заголовки/служебные
-        .filter(s => !/^(№|артикул|товар|наимен|кол-?во|колич|количество)/i.test(s));
-
-      const chunks = [];
-      let cur = null;
-
-      const startsRow = s => /^\d+[\s.)-]+/.test(s); // "1 ...", "2) ...", "3. ..."
-
-      for (const s of lines) {
-        if (startsRow(s)) {
-          if (cur) chunks.push(cur);
-          cur = [s];
-        } else {
-          if (cur) cur.push(s); // «90 лист», «Количество (упаковок)» и т.п. пойдут сюда
-        }
-      }
-      if (cur) chunks.push(cur);
+    // 1) «Реализация товаров/Расходная накладная» — как в твоих примерах:
+    //    №  Товар ...  <число> <ед>
+    //    (иногда артикул стоит сразу после номера)
+    function parseLinesLikeDocs(fullText) {
+      const rx = new RegExp(
+        "(?:^|\\n)\\s*(\\d+)\\s+" +                       // (1) номер строки
+        "(?:(?:([A-ZА-Я0-9-]{4,})\\s+))?" +              // (2) [опц] артикул в начале
+        "(.+?)\\s+" +                                    // (3) наименование (жадно до количества)
+        "(\\d[\\d\\s.,]*)\\s*" +                         // (4) количество
+        UNIT_RX +                                        // (5) единица
+        "(?=\\s*(?:\\n|$))", "gimu"
+      );
 
       const items = [];
-      for (const chunk of chunks) {
-        // склеим с разделителем, чтобы сохранить порядок ячеек
-        let text = chunk.join(' ').replace(/\s{2,}/g,' ').trim();
+      let m;
+      while ((m = rx.exec(fullText)) !== null) {
+        const rowNo   = parseInt(m[1],10);
+        const article = (m[2]||"").trim();
+        const title   = m[3].replace(/\s+/g," ").trim();
+        const qty     = normNumber(m[4]);
+        const unit    = normUnit(m[5]);
 
-        // уберём номер позиции и возможный артикул-колонку (если сразу после номера стоит код)
-        text = text.replace(/^\d+[\s.)-]+/, '');
-        // отдельная колонка «Артикул»: если токен похож на код, снимем его в поле article
-        let article = "";
-        const articleMatch = text.match(/^([A-ZА-Я0-9-]{4,})\b\s+(.*)$/);
-        if (articleMatch) {
-          // это может быть и частью названия — поэтому считаем артикулом, только если дальше явно идёт название
-          article = articleMatch[1];
-          text = articleMatch[2];
-        }
+        items.push({
+          rowNo,
+          title,
+          article,
+          qty,                 // основное «как в документе»
+          unit,                // «лист», «шт», «упак», «м²», …
+          // обратная совместимость:
+          qtyPacks: unit==="упак" ? qty : "",
+          qtyUnits: unit!=="упак" ? qty : "",
+          _lowconf:false
+        });
+      }
+      return items.sort((a,b)=> (a.rowNo||0)-(b.rowNo||0));
+    }
 
-        // снимем с правого края до 2 хвостов "<число> <ед.изм>"
-        const tails = [];
-        let tmp = text;
-        for (let k=0; k<2; k++) {
-          const { rest, tail } = popRightQtyTail(tmp);
-          if (!tail) break;
-          tails.unshift(tail);
-          tmp = rest;
-        }
-        if (!tails.length) {
-          // ничего количественного не нашли — пропустим
+    // 2) Таблички вида «Артикул/Товар/Упаковок/Шт» (если попадутся)
+    function parseStructuredTable(fullText) {
+      const lines = fullText.split(/\n/g).map(s=>s.trim()).filter(Boolean);
+      const headIdx = lines.findIndex(l => /артикул|товар|наименование|упаков|шт|кол-во|количество/i.test(l));
+      const work = headIdx>=0 ? lines.slice(headIdx+1) : lines;
+
+      const items = [];
+      let rowNo = 0;
+      for (const raw of work) {
+        const s = raw.replace(/\s+/g,' ').trim(); if (!s) continue;
+
+        // пробуем вариант: [артикул] [название...] [упаковок] [шт]
+        const m = s.match(/^([A-Za-zА-Яа-я0-9\-]{4,})\s+(.+?)\s+(\d[\d\s.,]*)\s*уп[а-я.]*\s+(\d[\d\s.,]*)\s*ш[тт]\.?$/i);
+        if (m) {
+          rowNo++;
+          items.push({
+            rowNo,
+            article: (m[1]||"").trim(),
+            title: (m[2]||"").trim(),
+            qtyPacks: normNumber(m[3]),
+            qtyUnits: normNumber(m[4]),
+            qty: normNumber(m[4]),
+            unit: "шт",
+            _lowconf:false
+          });
           continue;
         }
 
-        const { qtyPacks, qtyUnits } = tailsToQty(tails);
-        const title = tmp.replace(/\s{2,}/g,' ').trim() || "(без названия)";
+        // вариант: [название...] [число] [ед]
+        const m2 = s.match(/^(.+?)\s+(\d[\d\s.,]*)\s*([^\s]+)$/);
+        if (m2) {
+          rowNo++;
+          const maybeArt = (m2[1].match(/^([A-Za-zА-Яа-я0-9\-]{4,})\b\s*(.*)$/) || []);
+          const art = (maybeArt[1]||"").trim();
+          const name = ((maybeArt[2]||m2[1])||"").trim();
+          const qty = normNumber(m2[2]);
+          const unit = normUnit(m2[3]);
 
-        items.push({
-          title,
-          article,
-          qtyPacks,
-          qtyUnits,
-          _lowconf: false
-        });
-      }
-
-      return items;
-    }
-
-    // OCR-fallback: берём только строки с номерами, остальное приклеивается как часть чанка
-    function parseFromOcr(ocrLines) {
-      const full = ocrLines.map(x=>x.trim()).filter(Boolean).join("\n");
-      const items = parseByRowChunks(full);
-      items.forEach(it => it._lowconf = true);
-      return items;
-    }
-
-    // ====== merge одинаковых позиций ======
-    function mergeSameItems(items) {
-      const map = new Map();
-      for (const it of items) {
-        const key = (it.article && it.article.trim())
-          ? it.article.trim().toUpperCase()
-          : (it.title || "").trim().toUpperCase();
-        if (!key) continue;
-        const p = parseFloat((it.qtyPacks||"").toString().replace(",", ".")) || 0;
-        const u = parseFloat((it.qtyUnits||"").toString().replace(",", ".")) || 0;
-
-        if (!map.has(key)) {
-          map.set(key, {
-            title: it.title || "",
-            article: it.article || "",
-            qtyPacks: p,
-            qtyUnits: u,
-            _lowconf: !!it._lowconf,
-            _src: new Set(it._src ? [it._src] : [])
+          items.push({
+            rowNo,
+            article: art,
+            title: name,
+            qty,
+            unit,
+            qtyPacks: unit==="упак" ? qty : "",
+            qtyUnits: unit!=="упак" ? qty : "",
+            _lowconf:false
           });
-        } else {
-          const m = map.get(key);
-          m.qtyPacks += p; m.qtyUnits += u;
-          m._lowconf = m._lowconf || !!it._lowconf;
-          if (it._src) m._src.add(it._src);
         }
       }
-      return Array.from(map.values()).map(x => ({
-        title: x.title, article: x.article,
-        qtyPacks: x.qtyPacks ? String(x.qtyPacks) : "",
-        qtyUnits: x.qtyUnits ? String(x.qtyUnits) : "",
-        _lowconf: x._lowconf,
-        _src: Array.from(x._src || [])
-      }));
+      return items;
+    }
+
+    // 3) Общий OCR-фолбэк
+    function parseFromOcr(ocrLines){
+      const items = [];
+      let rowNo = 0;
+      for (const raw of ocrLines.map(x=>x.trim()).filter(Boolean)) {
+        // как выше: [№] [опц. артикул] [имя] [число] [ед]
+        const m = raw.match(new RegExp("^\\s*(?:\\d+\\s+)?(?:(?:([A-ZА-Я0-9-]{4,})\\s+))?(.+?)\\s+(\\d[\\d\\s.,]*)\\s*"+UNIT_RX+"\\s*$","i"));
+        if (m){
+          rowNo++;
+          items.push({
+            rowNo,
+            article:(m[1]||"").trim(),
+            title: (m[2]||"").trim(),
+            qty:   normNumber(m[3]),
+            unit:  normUnit(m[4]),
+            qtyPacks: (normUnit(m[4])==="упак") ? normNumber(m[3]) : "",
+            qtyUnits: (normUnit(m[4])!=="упак") ? normNumber(m[3]) : "",
+            _lowconf:true
+          });
+        }
+      }
+      return items;
+    }
+
+    // 4) Комбайнер: сначала «как в доке», потом структурная таблица, потом OCR-фолбэк
+    function parseAllText(fullText) {
+      let items = parseLinesLikeDocs(fullText);
+      if (!items.length) items = parseStructuredTable(fullText);
+      return items;
+    }
+
+    // merge одинаковых позиций (по артикулу → иначе по имени). Порядок берём по первому вхождению.
+    function mergeSameItemsKeepOrder(items) {
+      const map = new Map();
+      const order = [];
+      for (const it of items) {
+        const key = (it.article && it.article.trim())
+          ? "A#"+it.article.trim().toUpperCase()
+          : "T#"+(it.title||"").trim().toUpperCase();
+        if (!map.has(key)) { map.set(key, {...it}); order.push(key); }
+        else {
+          const m = map.get(key);
+          m.qtyPacks = String(parseFloatSafe(m.qtyPacks) + parseFloatSafe(it.qtyPacks) || "");
+          m.qtyUnits = String(parseFloatSafe(m.qtyUnits) + parseFloatSafe(it.qtyUnits) || "");
+          // если единица одинакова — аккумулируем qty
+          if ((m.unit||"") === (it.unit||"")) {
+            const sum = parseFloatSafe(m.qty) + parseFloatSafe(it.qty);
+            m.qty = sum ? String(sum) : m.qty;
+          }
+          m._lowconf = m._lowconf || it._lowconf;
+        }
+      }
+      return order.map(k => map.get(k));
     }
 
     // ====== Рендер таблицы ======
@@ -273,29 +298,65 @@
         const tr = document.createElement('tr');
         if (it._lowconf) tr.classList.add('lowconf');
         tr.innerHTML = `
+          <td><input class="narrow" value="${it.rowNo||""}" data-k="rowNo"></td>
           <td><input value="${it.title||""}"    data-k="title"></td>
           <td><input value="${it.article||""}"  data-k="article"></td>
-          <td><input value="${it.qtyPacks||""}" data-k="qtyPacks"></td>
-          <td><input value="${it.qtyUnits||""}" data-k="qtyUnits"></td>
+          <td><input value="${it.qty||it.qtyUnits||""}" data-k="qty"></td>
+          <td>
+            <select data-k="unit">
+              ${["","шт","лист","упак","м²","м","кг","л"].map(u=>`<option value="${u}" ${ (it.unit||"")===u ? "selected":"" }>${u}</option>`).join("")}
+            </select>
+          </td>
+          <td><input value="${it.qtyPacks||""}" data-k="qtyPacks" placeholder="если есть"></td>
+          <td><input value="${it.qtyUnits||""}" data-k="qtyUnits" placeholder="если есть"></td>
           <td><button type="button" class="rm">✕</button></td>
         `;
-        tr.querySelector('.rm').onclick = () => { tr.remove(); updateTotals(); };
-        tr.querySelectorAll('input').forEach(inp => inp.addEventListener('input', updateTotals));
+        tr.querySelector('.rm').onclick = () => { tr.remove(); renumberRows(); updateTotals(); };
+        tr.querySelectorAll('input,select').forEach(inp => inp.addEventListener('input', updateTotals));
         tbody.appendChild(tr);
       }
+      renumberRows();
       updateTotals();
     }
+    function renumberRows(){
+      let n=1;
+      document.querySelectorAll('#itemsBody tr').forEach(tr=>{
+        const rn = tr.querySelector('input[data-k="rowNo"]');
+        if (rn && !rn.value) rn.value = String(n);
+        n++;
+      });
+    }
     function collectItemsFromTable() {
-      return [...document.querySelectorAll('#itemsBody tr')].map(tr=>{
-        const get = k => tr.querySelector(`input[data-k="${k}"]`).value.trim();
-        return { title:get('title'), article:get('article'), qtyPacks:get('qtyPacks'), qtyUnits:get('qtyUnits') };
-      }).filter(it => it.title || it.qtyPacks || it.qtyUnits);
+      const arr = [...document.querySelectorAll('#itemsBody tr')].map(tr=>{
+        const get = k => (tr.querySelector(`[data-k="${k}"]`)?.value || "").trim();
+        const qty   = get('qty');
+        const unit  = get('unit');
+        let qtyPacks = get('qtyPacks');
+        let qtyUnits = get('qtyUnits');
+        // если явно выбрана единица, подстрахуем обратную совместимость
+        if (unit) {
+          if (unit === "упак") { qtyPacks = qtyPacks || qty; }
+          else { qtyUnits = qtyUnits || qty; }
+        }
+        return {
+          rowNo: get('rowNo'),
+          title: get('title'),
+          article: get('article'),
+          qty, unit,
+          qtyPacks, qtyUnits
+        };
+      }).filter(it => it.title || it.qty || it.qtyPacks || it.qtyUnits);
+      // сортировка по rowNo как по числу
+      return arr.sort((a,b)=> (parseInt(a.rowNo||0,10)) - (parseInt(b.rowNo||0,10)));
     }
     function updateTotals(){
       const items = collectItemsFromTable();
-      const sumP = items.reduce((s,it)=> s + (parseFloat((it.qtyPacks||"").replace(",","."))||0), 0);
-      const sumU = items.reduce((s,it)=> s + (parseFloat((it.qtyUnits||"").replace(",","."))||0), 0);
-      $('#totals').textContent = `Итого: упаковок ${sumP} • штук ${sumU}`;
+      const sumQty = items.reduce((s,it)=> s + (parseFloatSafe(it.qty)||0), 0);
+      const sumP = items.reduce((s,it)=> s + (parseFloatSafe(it.qtyPacks)||0), 0);
+      const sumU = items.reduce((s,it)=> s + (parseFloatSafe(it.qtyUnits)||0), 0);
+      const unitsSet = new Set(items.map(i=>i.unit).filter(Boolean));
+      const unitsStr = unitsSet.size ? ` • ед: ${[...unitsSet].join(', ')}` : '';
+      $('#totals').textContent = `Итого: qty ${sumQty}${unitsStr} • упаковок ${sumP} • штук ${sumU}`;
       updateCreateDisabled();
     }
 
@@ -320,9 +381,9 @@
       for (const it of items) { if (it.kind==='file'){ handleFiles([it.getAsFile()]); break; } }
     });
 
-    let filesAll = [];
-    let itemsParsedRaw = [];
-    let itemsRendered = [];
+    let filesAll = [];         // выбранные файлы
+    let itemsParsedRaw = [];   // все позиции «как есть» со всех файлов
+    let itemsRendered = [];    // после склейки/правок
 
     function clearFiles(){
       filesAll = [];
@@ -367,7 +428,7 @@
       if (!arr.length) return;
       filesAll.push(...arr);
       renderFilesList();
-      await reparseAll();
+      await reparseAll(); // АВТОПАРСИНГ всех файлов
     }
 
     // ====== Динамические импорты ======
@@ -399,11 +460,11 @@
       _firebase = { appMod, authMod, fsMod }; return _firebase;
     }
 
-    // ====== Чтение файла ======
+    // ====== Чтение файлов ======
     const readAsArrayBuffer = (f)=> new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(r.result); r.onerror=rej; r.readAsArrayBuffer(f); });
     const readAsDataURL    = (f)=> new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(r.result); r.onerror=rej; r.readAsDataURL(f); });
 
-    // ====== Парсинг файла → позиции ======
+    // ====== Парсинг одного файла → массив позиций ======
     async function parseOneFile(file){
       try {
         if (file.type === 'application/pdf' || /\.pdf$/i.test(file.name)) {
@@ -424,19 +485,26 @@
             for (let i=1;i<=pdf.numPages;i++){
               const p = await pdf.getPage(i);
               const tc = await p.getTextContent();
-              let pageText = tc.items.map(it => (it.str || "") + (it.hasEOL ? "\n" : " ")).join("");
-              pageText = norm(pageText);
+              let pageText = tc.items.map(it => {
+                const s = (it.str || "");
+                return it.hasEOL ? (s + "\n") : s + " ";
+              }).join("");
+              pageText = pageText
+                .replace(/[ \t]+/g, ' ')
+                .replace(/[ \t]*\n[ \t]*/g, '\n')
+                .replace(/\n{2,}/g, '\n');
               allPagesText.push(pageText);
             }
             const fullText = allPagesText.join("\n");
-
-            // новый парсер по чанкам (устойчив к разнесённым колонкам «90 лист»)
-            let parsed = parseByRowChunks(fullText);
+            let parsed = parseAllText(fullText);
+            if (!parsed.length) {
+              // ещё попытка: иногда таблица идёт кусками
+              parsed = parseStructuredTable(fullText);
+            }
             parsed.forEach(it => it._src = file.name);
             return parsed;
-
           } else {
-            // OCR PDF
+            // OCR PDF постранично
             const Tesseract = await ensureTesseract();
             const worker = await Tesseract.createWorker('rus+eng');
             const out = [];
@@ -451,7 +519,8 @@
               const dataUrl = canvas.toDataURL('image/png');
 
               const { data } = await worker.recognize(dataUrl);
-              const items = parseFromOcr((data.lines||[]).map(l=>l.text));
+              const lines = (data.lines || []).map(l => l.text);
+              const items = parseFromOcr(lines);
               items.forEach(it => { it._src = file.name; });
               out.push(...items);
             }
@@ -467,9 +536,10 @@
         const dataUrl = await readAsDataURL(file);
         const { data } = await worker.recognize(dataUrl);
         await worker.terminate();
-        const items = parseFromOcr((data.lines||[]).map(l=>l.text));
-        items.forEach(it => { it._src = file.name; });
-        return items;
+        const lines = (data.lines || []).map(l => l.text);
+        const parsed = parseFromOcr(lines);
+        parsed.forEach(it => { it._src = file.name; });
+        return parsed;
 
       } catch (e) {
         console.error(e);
@@ -478,6 +548,7 @@
       }
     }
 
+    // Вспомогательная: парсит один файл и кладёт в общий RAW (можно форснуть полную замену RAW)
     async function parseOneFileIntoRaw(file, replaceRaw = false) {
       const arr = await parseOneFile(file);
       if (replaceRaw) {
@@ -487,6 +558,7 @@
       }
     }
 
+    // Полный перепарсинг всех файлов
     async function reparseAll() {
       $('#itemsBody').innerHTML = ""; $('#totals').textContent = ""; $('#sourcesInfo').textContent = "";
       itemsParsedRaw = [];
@@ -505,7 +577,7 @@
 
     function rerenderFromRaw() {
       const doMerge = $('#mergeToggle').checked;
-      itemsRendered = doMerge ? mergeSameItems(itemsParsedRaw) : [...itemsParsedRaw];
+      itemsRendered = doMerge ? mergeSameItemsKeepOrder(itemsParsedRaw) : [...itemsParsedRaw];
       renderItems(itemsRendered);
       const srcSet = new Set(itemsParsedRaw.map(x => x._src).filter(Boolean));
       $('#sourcesInfo').textContent = srcSet.size ? `Файлы: ${Array.from(srcSet).join(', ')}` : '';
@@ -531,7 +603,7 @@
     }
 
     // ====== Users (кладовщики) ======
-    let usersAll = [];
+    let usersAll = [];                // {id, name, role}
     let selectedWorkerIds = new Set();
     let selectedWorkerNames = new Set();
 
@@ -592,7 +664,7 @@
         createdAt: fsMod.serverTimestamp(),
         creatorId: "unknown",
         creatorName: "unknown",
-        items: getSelectedItems(),
+        items: getSelectedItems(), // включает: rowNo, title, article, qty, unit, qtyPacks, qtyUnits
         source: "web-multi",
         sourceMeta: { ua: navigator.userAgent, filesCount: filesAll.length },
         files: []
@@ -670,6 +742,8 @@
     (async function init(){
       await ensureFirebase();
       await loadUsers();
+      // По умолчанию НЕ мерджим, чтобы сохранить порядок как в документе
+      $('#mergeToggle').checked = false;
       updateCreateDisabled();
     })();
   </script>
