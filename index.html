@@ -9,11 +9,17 @@
     body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 0; background: #0b0f14; color: #fff; }
     .container { max-width: 1100px; margin: 24px auto 64px; padding: 0 16px; }
     h1 { margin: 0 0 16px; font-weight: 700; }
-    .card { background:#0d1422; border:1px solid #1f2a44; border-radius:14px; padding:16px; margin-bottom:16px; }
+    .card { background:#0d1422; border:1px solid #1f2a44; border-radius:14px; padding:16px; margin-bottom:16px; position:relative; }
     .row { display:flex; gap:12px; flex-wrap:wrap; align-items:center; }
     .row > * { flex:1 1 auto }
-    .dropzone { border: 2px dashed #4b5563; border-radius: 14px; padding: 16px; background: #111827; text-align: center; transition: .2s; }
+    .dropzone { border: 2px dashed #4b5563; border-radius: 14px; padding: 16px; background: #111827; text-align: center; transition: .2s; position:relative; z-index:50; }
     .dropzone.drag { background: #1f2937; border-color: #60a5fa; }
+    /* Оверлей-инпут ловит клик по всей зоне и поверх всего */
+    #fileInputOverlay {
+      position: absolute; inset: 0;
+      opacity: 0; cursor: pointer; z-index: 60;
+      width: 100%; height: 100%; pointer-events: auto;
+    }
     label { font-size: 14px; color: #9ca3af; display:block; margin: 12px 0 6px;}
     input[type="text"], textarea {
       width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid #374151; background: #0b1220; color: #fff;
@@ -33,7 +39,7 @@
     th, td { border: 1px solid #374151; padding: 6px 8px; }
     th { background: #111827; text-align: left; color: #9ca3af; }
     td input { width:100%; background:#0b1220; border:1px solid #283246; color:#fff; padding:6px 8px; border-radius:8px; }
-    td.lowconf input { color:#f87171 }
+    tr.lowconf td input { color:#f87171 }
     .muted { color:#9ca3af; font-size: 13px; }
   </style>
 </head>
@@ -47,6 +53,8 @@
           <div class="dropzone" id="drop">
             <div><b>Перетащите PDF/изображения сюда</b> или нажмите «Выбрать файл»</div>
             <div class="muted" style="margin-top:4px">Поддержка: PDF, PNG, JPG, WEBP, вставка из буфера Ctrl+V</div>
+            <!-- Оверлей-инпут поверх зоны -->
+            <input id="fileInputOverlay" type="file" multiple accept=".pdf,.png,.jpg,.jpeg,.webp">
           </div>
         </div>
         <div style="flex: 1; min-width:260px;">
@@ -57,7 +65,6 @@
           <div class="row" style="gap:8px; margin-top:8px">
             <button id="btnReparse" class="ghost">Перепарсить</button>
           </div>
-          <input id="fileInput" type="file" multiple accept=".pdf,.png,.jpg,.jpeg,.webp" style="display:none" />
           <div id="filesList" class="files"></div>
           <div id="status" class="status"></div>
         </div>
@@ -108,7 +115,7 @@
   </div>
 
   <script type="module">
-    // ====== Конфиги (твои реальные значения тут уже стоят/или подставь свои) ======
+    // ====== Конфиги ======
     const FIREBASE_CONFIG = {
       apiKey: "AIzaSyAH58ZpWAp64mhM589KD6jXHcOlPqU0aYU",
       authDomain: "skladsborka.firebaseapp.com",
@@ -117,11 +124,11 @@
       appId: "1:516526717198:web:REPLACE_ME_AFTER_WEB_APP_CREATED",
       messagingSenderId: "516526717198"
     };
-    const CLOUDINARY_CLOUD_NAME    = "dnx1taqp7";
-    const CLOUDINARY_UPLOAD_PRESET = "unsigned_tasks";
-    const VERCEL_NOTIFY_PROXY_URL  = "/api/notify-taskCreated";
+    // Подставь свои значения Cloudinary:
+    const CLOUDINARY_CLOUD_NAME    = "YOUR_CLOUD_NAME";
+    const CLOUDINARY_UPLOAD_PRESET = "YOUR_UPLOAD_PRESET";
 
-    // ====== Парсеры ======
+    // ====== Парсер единиц (умный) ======
     const UNIT_CANON = {
       "шт":{g:"u",l:"шт"},"штук":{g:"u",l:"шт"},"штука":{g:"u",l:"шт"},
       "упак":{g:"p",l:"упак"},"упаковка":{g:"p",l:"упак"},"упаковок":{g:"p",l:"упак"},"упаковки":{g:"p",l:"упак"},
@@ -129,7 +136,7 @@
       "рул":{g:"p",l:"рул"},"рулон":{g:"p",l:"рул"},
       "лист":{g:"u",l:"лист"},"листа":{g:"u",l:"лист"},"листы":{g:"u",l:"лист"},
       "м":{g:"u",l:"м"},"м.п.":{g:"u",l:"м.п."},"мп":{g:"u",l:"м.п."},
-      "м2":{g:"u",l:"м²"},"м²":{g:"u",l:"м²"},"кг":{g:"u",l:"кг"},
+      "м2":{g:"u",l:"м²"},"м²":{g:"u",l:"м²"}, "кг":{g:"u",l:"кг"},
       "пара":{g:"u",l:"пара"},"пары":{g:"u",l:"пара"},
       "компл":{g:"u",l:"компл"},"компл.":{g:"u",l:"компл"}
     };
@@ -168,7 +175,6 @@
       }
       return { title: rest||titlePart, article, qtyPairs: matches };
     }
-
     function foldQuantities(title, qtyPairs){
       let packs=0, units=0, extras=[];
       for (const q of qtyPairs){
@@ -185,7 +191,6 @@
       const finalTitle = extras.length ? `${title} [${extras.join(", ")}]` : title;
       return { qtyPacks: packs||"", qtyUnits: units||"", title: finalTitle };
     }
-
     function parseTable(lines){
       const out=[];
       for (const raw of lines){
@@ -198,7 +203,6 @@
       }
       return out;
     }
-
     function parseDockeTablesFromText(fullText){
       const lines = fullText
         .replace(/[ \t]+/g,' ')
@@ -208,7 +212,6 @@
         .filter(Boolean);
       return parseTable(lines);
     }
-
     function parseFromOcr(ocrLines){
       const lines = (ocrLines||[]).map(x => (x||"").trim()).filter(Boolean);
       const items = parseTable(lines);
@@ -216,62 +219,35 @@
       return items;
     }
 
-    // ====== Мини-хелперы ======
-    const $ = (sel,root=document)=>root.querySelector(sel);
-    const $$= (sel,root=document)=>Array.from(root.querySelectorAll(sel));
+    // ====== Хелперы ======
+    const $  = (s,r=document)=>r.querySelector(s);
+    const $$ = (s,r=document)=>Array.from(r.querySelectorAll(s));
     const sleep = ms => new Promise(r=>setTimeout(r,ms));
     const fmtSize = n => n>1e6 ? (n/1e6).toFixed(1)+' MB' : (n/1e3).toFixed(1)+' KB';
     const status = t => $('#status').textContent = t||'';
 
-    // ====== DnD + файл-UI (фикс) ======
-const drop = document.querySelector('#drop');
-const fi   = document.querySelector('#fileInput');
-const btnPick = document.querySelector('#btnPick');
+    // ====== DnD + кнопки (оверлей-инпут) ======
+    const drop    = $('#drop');
+    const fiOver  = $('#fileInputOverlay');
+    const btnPick = $('#btnPick');
 
-btnPick.addEventListener('click', () => fi.click());
-document.querySelector('#btnClearFiles').addEventListener('click', clearFiles);
-document.querySelector('#btnReparse').addEventListener('click', reparseAll);
+    btnPick.addEventListener('click', () => fiOver.click());
 
-// Глобально запрещаем «открытие файла» браузером, если дропнули мимо зоны.
-// Используем composedPath() — надёжнее, чем сравнение target/contains.
-function inDropZone(e){
-  const path = e.composedPath ? e.composedPath() : [];
-  return path.includes(drop);
-}
-['dragenter','dragover','dragleave','drop'].forEach(ev=>{
-  document.addEventListener(ev, e=>{
-    if (!inDropZone(e)) { e.preventDefault(); e.stopPropagation(); }
-  }, {capture:true, passive:false});
-});
-
-// Внутри зоны — визуал и приём файлов (счётчик против мигания)
-let dragCounter = 0;
-drop.addEventListener('dragenter', e=>{ e.preventDefault(); e.stopPropagation(); dragCounter++; drop.classList.add('drag'); });
-drop.addEventListener('dragover',  e=>{ e.preventDefault(); e.stopPropagation(); });
-drop.addEventListener('dragleave', e=>{ e.preventDefault(); e.stopPropagation(); dragCounter=Math.max(0,dragCounter-1); if(!dragCounter) drop.classList.remove('drag'); });
-drop.addEventListener('drop',      e=>{
-  e.preventDefault(); e.stopPropagation(); dragCounter=0; drop.classList.remove('drag');
-  if (e.dataTransfer?.files?.length) handleFiles(e.dataTransfer.files);
-});
-
-// Диалог выбора: после обработки сбрасываем value, чтобы можно было выбрать тот же файл снова
-fi.addEventListener('change', () => { if (fi.files?.length) handleFiles(fi.files); fi.value=''; });
-
-// Вставка из буфера (скриншоты)
-window.addEventListener('paste', (e)=>{
-  const items = e.clipboardData?.items; if (!items) return;
-  for (const it of items) if (it.kind==='file'){ handleFiles([it.getAsFile()]); break; }
-});
-
-    // Глобально запрещаем «открытие файла» браузером, если дропнули мимо зоны
-    ['dragenter','dragover','dragleave','drop'].forEach(ev=>{
-      document.addEventListener(ev, e=>{
-        const inZone = (e.target===drop) || drop.contains(e.target);
-        if (!inZone){ e.preventDefault(); e.stopPropagation(); }
-      }, false);
+    fiOver.addEventListener('change', () => {
+      if (fiOver.files?.length) handleFiles(fiOver.files);
+      fiOver.value = ''; // разрешает выбрать те же файлы повторно
     });
 
-    // Внутри зоны — визуал и приём файлов с защитой от мигания
+    function inDropZone(e){
+      const path = e.composedPath ? e.composedPath() : [];
+      return path.includes(drop);
+    }
+    ['dragenter','dragover','dragleave','drop'].forEach(ev=>{
+      document.addEventListener(ev, e=>{
+        if (!inDropZone(e)) { e.preventDefault(); e.stopPropagation(); }
+      }, {capture:true, passive:false});
+    });
+
     let dragCounter = 0;
     drop.addEventListener('dragenter', e=>{ e.preventDefault(); e.stopPropagation(); dragCounter++; drop.classList.add('drag'); });
     drop.addEventListener('dragover',  e=>{ e.preventDefault(); e.stopPropagation(); });
@@ -281,23 +257,18 @@ window.addEventListener('paste', (e)=>{
       if (e.dataTransfer?.files?.length) handleFiles(e.dataTransfer.files);
     });
 
-    // выбор файлов диалогом: после обработки сбрасываем значение, чтобы можно было выбрать тот же файл
-    fi.addEventListener('change', () => { if (fi.files?.length) handleFiles(fi.files); fi.value=''; });
-
-    // вставка из буфера (скриншоты)
-    window.addEventListener('paste', async (e)=>{
+    window.addEventListener('paste', (e)=>{
       const items = e.clipboardData?.items; if (!items) return;
-      for (const it of items) { if (it.kind==='file'){ handleFiles([it.getAsFile()]); break; } }
+      for (const it of items) if (it.kind==='file'){ handleFiles([it.getAsFile()]); break; }
     });
 
-    let filesAll = [];         // выбранные файлы
-    let itemsParsedRaw = [];   // все позиции «как есть» со всех файлов
-    let itemsRendered = [];    // после склейки/правок
+    // ====== Состояние и отрисовка ======
+    let filesAll = [];
+    let itemsParsedRaw = [];
+    let itemsRendered = [];
 
     function clearFiles(){
-      filesAll = [];
-      itemsParsedRaw = [];
-      itemsRendered = [];
+      filesAll = []; itemsParsedRaw = []; itemsRendered = [];
       $('#filesList').innerHTML = "";
       $('#itemsBody').innerHTML = "";
       $('#totals').textContent = "";
@@ -305,6 +276,8 @@ window.addEventListener('paste', (e)=>{
       status('');
       updateCreateDisabled();
     }
+    $('#btnClearFiles').addEventListener('click', clearFiles);
+    $('#btnReparse').addEventListener('click', reparseAll);
 
     function renderFilesList(){
       const box = $('#filesList'); box.innerHTML = "";
@@ -320,15 +293,11 @@ window.addEventListener('paste', (e)=>{
       if (!arr.length) return;
       filesAll.push(...arr);
       renderFilesList();
-      await reparseAll(); // АВТОПАРСИНГ всех файлов
+      await reparseAll(); // автопарсинг сразу после выбора
     }
 
     // ====== Динамические импорты ======
-    let _pdfjsLib = null;
-    let _tesseract = null;
-    let _firebase = null;
-    let _app, _auth, _db;
-
+    let _pdfjsLib=null, _tesseract=null, _app=null, _auth=null, _db=null, _fs=null, _authMod=null;
     async function ensurePdfJs() {
       if (_pdfjsLib) return _pdfjsLib;
       const m = await import("https://cdn.jsdelivr.net/npm/pdfjs-dist@4.6.82/build/pdf.mjs");
@@ -341,85 +310,91 @@ window.addEventListener('paste', (e)=>{
       _tesseract = m.default || m; return _tesseract;
     }
     async function ensureFirebase() {
-      if (_firebase) return _firebase;
+      if (_db) return { _db, _fs };
       const appMod  = await import("https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js");
-      const authMod = await import("https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js");
-      const fsMod   = await import("https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js");
+      _authMod      = await import("https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js");
+      _fs           = await import("https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js");
       _app = appMod.initializeApp(FIREBASE_CONFIG);
-      _auth = authMod.getAuth(_app);
-      _db   = fsMod.getFirestore(_app);
-      try { await authMod.signInAnonymously(_auth); } catch(e){ console.warn("Anon auth failed:", e); }
-      _firebase = { appMod, authMod, fsMod }; return _firebase;
+      _auth = _authMod.getAuth(_app);
+      _db   = _fs.getFirestore(_app);
+      try { await _authMod.signInAnonymously(_auth); } catch(e){ console.warn("Anon auth failed:", e); }
+      return { _db, _fs };
     }
 
     // ====== PDF/IMG → текст → позиции ======
+    async function extractTextFromPdfFile(file){
+      const pdfjsLib = await ensurePdfJs();
+      const ab = await file.arrayBuffer();
+      const pdf = await pdfjsLib.getDocument({ data: ab }).promise;
+
+      // Есть ли текстовый слой?
+      let hasTextLayer = false;
+      try {
+        const p1  = await pdf.getPage(1);
+        const txt = await p1.getTextContent();
+        hasTextLayer = (txt?.items?.length>0);
+      } catch(_){}
+
+      if (hasTextLayer) {
+        const allPagesText = [];
+        for (let i=1;i<=pdf.numPages;i++){
+          const p = await pdf.getPage(i);
+          const tc = await p.getTextContent();
+          let pageText = tc.items.map(it => (it.str||"") + (it.hasEOL ? "\n" : " ")).join("");
+          pageText = pageText.replace(/[ \t]+/g,' ').replace(/[ \t]*\n[ \t]*/g,'\n').replace(/\n{2,}/g,'\n');
+          allPagesText.push(pageText);
+        }
+        return allPagesText.join("\n");
+      } else {
+        // PDF без текста — рендер → OCR
+        const tess = await ensureTesseract();
+        let full = "";
+        for (let i=1;i<=pdf.numPages;i++){
+          const page = await pdf.getPage(i);
+          const viewport = page.getViewport({ scale: 2 });
+          const canvas = Object.assign(document.createElement('canvas'), { width: viewport.width, height: viewport.height });
+          const ctx = canvas.getContext('2d');
+          await page.render({ canvasContext: ctx, viewport }).promise;
+          const { data:{ text } } = await tess.recognize(canvas, "rus+eng");
+          full += text + "\n";
+        }
+        return full;
+      }
+    }
+
     async function parseOneFileIntoRaw(file){
       const isPdf = /\.pdf$/i.test(file.name) || file.type === 'application/pdf';
       if (isPdf) {
-        const pdfjsLib = await ensurePdfJs();
-        const ab = await file.arrayBuffer();
-        const pdf = await pdfjsLib.getDocument({ data: ab }).promise;
-
-        let hasTextLayer = false;
-        try {
-          const p1  = await pdf.getPage(1);
-          const txt = await p1.getTextContent();
-          hasTextLayer = (txt?.items?.length>0);
-        } catch(_){}
-
-        if (hasTextLayer) {
-          const allPagesText = [];
-          for (let i=1;i<=pdf.numPages;i++){
-            const p = await pdf.getPage(i);
-            const tc = await p.getTextContent();
-            let pageText = tc.items.map(it => {
-              const s = (it.str || "");
-              return it.hasEOL ? (s + "\n") : s + " ";
-            }).join("");
-            pageText = pageText
-              .replace(/[ \t]+/g, ' ')
-              .replace(/[ \t]*\n[ \t]*/g, '\n')
-              .replace(/\n{2,}/g, '\n');
-            allPagesText.push(pageText);
-          }
-          const fullText = allPagesText.join("\n");
-          let parsed = parseDockeTablesFromText(fullText);
-          if (!parsed.length) {
-            const lines = fullText.split(/\n/g).map(s=>s.trim()).filter(Boolean);
-            parsed = parseTable(lines);
-          }
-          parsed.forEach(it => it._src = file.name);
-          return parsed;
-        } else {
-          // OCR PDF постранично
-          const tess = await ensureTesseract();
-          const parts = [];
-          for (let i=1;i<=pdf.numPages;i++){
-            const page = await pdf.getPage(i);
-            const viewport = page.getViewport({ scale: 2 });
-            const canvas = Object.assign(document.createElement('canvas'), { width: viewport.width, height: viewport.height });
-            const ctx = canvas.getContext('2d');
-            await page.render({ canvasContext: ctx, viewport }).promise;
-            const { data:{ text } } = await tess.recognize(canvas, "rus+eng");
-            const lines = text.split(/\n/g).map(s=>s.trim()).filter(Boolean);
-            const arr = parseFromOcr(lines);
-            arr.forEach(it => it._src = file.name + ` (стр. ${i})`);
-            parts.push(...arr);
-          }
-          return parts;
-        }
+        const text = await extractTextFromPdfFile(file);
+        const parsed = parseDockeTablesFromText(text);
+        parsed.forEach(it => it._src = file.name);
+        return parsed;
       } else {
-        // OCR изображений
         const tess = await ensureTesseract();
         const { data:{ text } } = await tess.recognize(file, "rus+eng");
-        const lines = text.split(/\n/g).map(s=>s.trim()).filter(Boolean);
-        const arr = parseFromOcr(lines);
+        const arr = parseFromOcr(text.split(/\n/g));
         arr.forEach(it => it._src = file.name);
         return arr;
       }
     }
 
-    // merge одинаковых позиций
+    async function reparseAll() {
+      $('#itemsBody').innerHTML = ""; $('#totals').textContent = ""; $('#sourcesInfo').textContent = "";
+      itemsParsedRaw = [];
+      if (!filesAll.length) { updateCreateDisabled(); status(''); return; }
+      let i=0;
+      for (const f of filesAll) {
+        i++;
+        status(`Парсинг ${i}/${filesAll.length}: ${f.name}`);
+        const res = await parseOneFileIntoRaw(f);
+        if (res?.length) itemsParsedRaw.push(...res);
+        await sleep(10);
+      }
+      rerenderFromRaw();
+      renderFilesList();
+      status(`Готово. Найдено позиций: ${itemsParsedRaw.length} из ${filesAll.length} файл(ов)`);
+    }
+
     function mergeSameItems(items) {
       const map = new Map();
       for (const it of items) {
@@ -484,8 +459,20 @@ window.addEventListener('paste', (e)=>{
       $('#totals').textContent = `Итого: упаковок ${sumP} • штук ${sumU}`;
       updateCreateDisabled();
     }
-
     $('#mergeToggle').addEventListener('change', rerenderFromRaw);
+    function rerenderFromRaw() {
+      const doMerge = $('#mergeToggle').checked;
+      itemsRendered = doMerge ? mergeSameItems(itemsParsedRaw) : [...itemsParsedRaw];
+      renderItems(itemsRendered);
+      const srcSet = new Set(itemsParsedRaw.map(x => x._src).filter(Boolean));
+      $('#sourcesInfo').textContent = srcSet.size ? `Файлы: ${Array.from(srcSet).join(', ')}` : '';
+    }
+
+    function updateCreateDisabled(){
+      const anyItems = (itemsRendered && itemsRendered.length>0);
+      $('#btnCreate').disabled = !anyItems || !$('#title').value.trim();
+    }
+    $('#title').addEventListener('input', updateCreateDisabled);
 
     // ====== Cloudinary ======
     async function uploadAllToCloudinary(files){
@@ -502,71 +489,22 @@ window.addEventListener('paste', (e)=>{
       return urls;
     }
 
-    // рендер + обновление
-    function renderFilesList(){/* уже выше */} // оставлено намеренно
-
-    async function parseOneFile(file) {
-      const arr = await parseOneFileIntoRaw(file);
-      return arr;
-    }
-
-    async function parseOneFileIntoRawWrapper(file) {
-      // заглушка — используем основную функцию
-      return parseOneFileIntoRaw(file);
-    }
-
-    async function reparseAll() {
-      $('#itemsBody').innerHTML = ""; $('#totals').textContent = ""; $('#sourcesInfo').textContent = "";
-      itemsParsedRaw = [];
-      if (!filesAll.length) { updateCreateDisabled(); status(''); return; }
-      let i=0;
-      for (const f of filesAll) {
-        i++;
-        status(`Парсинг ${i}/${filesAll.length}: ${f.name}`);
-        await parseOneFileIntoRaw(f);
-        await sleep(10);
-      }
-      rerenderFromRaw();
-      renderFilesList();
-      status(`Готово. Найдено позиций: ${itemsParsedRaw.length} из ${filesAll.length} файл(ов)`);
-    }
-
-    function rerenderFromRaw() {
-      const doMerge = $('#mergeToggle').checked;
-      itemsRendered = doMerge ? mergeSameItems(itemsParsedRaw) : [...itemsParsedRaw];
-      renderItems(itemsRendered);
-      const srcSet = new Set(itemsParsedRaw.map(x => x._src).filter(Boolean));
-      $('#sourcesInfo').textContent = srcSet.size ? `Файлы: ${Array.from(srcSet).join(', ')}` : '';
-    }
-
-    async function parseOneFileIntoRaw(file){
-      const parsed = await parseOneFile(file);
-      if (parsed?.length) {
-        parsed.forEach(it => itemsParsedRaw.push(it));
-      }
-    }
-
-    function updateCreateDisabled(){
-      const anyItems = (itemsRendered && itemsRendered.length>0);
-      $('#btnCreate').disabled = !anyItems || !$('#title').value.trim();
-    }
-    $('#title').addEventListener('input', updateCreateDisabled);
-
     // ====== Firestore: пользователи + создание задач ======
     let selectedWorkerIds = new Set();
     let selectedWorkerNames = new Set();
 
     async function loadUsers(){
-      const { fsMod } = await ensureFirebase();
-      const usersCol = fsMod.collection(_db, 'users');
-      const q = fsMod.query(usersCol, fsMod.where('role', '==', 'worker'));
-      const snap = await fsMod.getDocs(q);
+      const { _db, _fs } = await ensureFirebase();
+      const usersCol = _fs.collection(_db, 'users');
+      const q = _fs.query(usersCol, _fs.where('role', '==', 'worker'));
+      const snap = await _fs.getDocs(q);
       const box = $('#workersBox'); box.innerHTML = "";
       snap.forEach(doc => {
         const u = doc.data(); const id = doc.id;
         const btn = document.createElement('button');
         btn.className = 'ghost';
         btn.textContent = u.displayName || u.email || id;
+        btn.style.borderColor='#374151';
         btn.addEventListener('click', ()=>{
           const on = btn.classList.toggle('active');
           if (on) { selectedWorkerIds.add(id); selectedWorkerNames.add(btn.textContent); btn.style.borderColor='#3b82f6'; }
@@ -578,50 +516,39 @@ window.addEventListener('paste', (e)=>{
 
     async function createTask(){
       try {
-        const { fsMod } = await ensureFirebase();
+        const { _db, _fs } = await ensureFirebase();
         const title = $('#title').value.trim();
         if (!title) { alert('Введите заголовок'); return; }
         const comment = $('#comment').value.trim();
         const items = collectItemsFromTable();
         if (!items.length) { alert('Нет позиций'); return; }
 
-        // разбивка: если выбран кладовщик(и) — по одному таску на каждого, иначе один таск (самовывоз)
-        const assigneeIds = Array.from(selectedWorkerIds);
-        const assigneeNames = Array.from(selectedWorkerNames);
-
         // файлы -> Cloudinary
         status('Загрузка файлов в Cloudinary...');
         const urls = await uploadAllToCloudinary(filesAll);
 
+        const assigneeIds = Array.from(selectedWorkerIds);
+        const assigneeNames = Array.from(selectedWorkerNames);
         const createdIds = [];
+
         if (!assigneeIds.length){
-          // один таск
           const data = {
-            title, comment,
-            status: 'new',
-            createdAt: new Date(),
-            author: 'unknown',
-            items,
-            files: urls,
-            assignees: [],
-            assigneeIds: []
+            title, comment, status: 'new',
+            createdAt: new Date(), author: 'unknown',
+            items, files: urls, assignees: [], assigneeIds: []
           };
-          const ref = await fsMod.addDoc(fsMod.collection(_db, 'tasks'), data);
+          const ref = await _fs.addDoc(_fs.collection(_db, 'tasks'), data);
           createdIds.push(ref.id);
         } else {
-          // по одному на каждого
           for (let i=0;i<assigneeIds.length;i++){
             const data = {
-              title, comment,
-              status: 'new',
-              createdAt: new Date(),
-              author: 'unknown',
-              items,
-              files: urls,
+              title, comment, status: 'new',
+              createdAt: new Date(), author: 'unknown',
+              items, files: urls,
               assignees: [ assigneeNames[i] ],
               assigneeIds: [ assigneeIds[i] ]
             };
-            const ref = await fsMod.addDoc(fsMod.collection(_db, 'tasks'), data);
+            const ref = await _fs.addDoc(_fs.collection(_db, 'tasks'), data);
             createdIds.push(ref.id);
           }
         }
