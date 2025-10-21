@@ -1,837 +1,230 @@
 <!doctype html>
 <html lang="ru">
 <head>
-  <!-- ==== UPLOAD WIDGET (button + drag&drop) ==== -->
-<style>
-  .uploader {border:2px dashed #4b9fff; border-radius:14px; padding:18px; background:#0b0f14; position:relative;}
-  .uploader * {user-select:none}
-  .uploader.dragover {border-color:#00d084; background:#0b0f14cc}
-  .uploader .hint {opacity:.8; font-size:14px; margin-top:8px}
-  .uploader .row {display:flex; gap:10px; flex-wrap:wrap; align-items:center}
-  .uploader button {cursor:pointer; padding:10px 14px; border-radius:10px; border:0; background:#4b9fff; color:#fff; font-weight:600}
-  /* критично: ничего не должно перекрывать зону */
-  .uploader, .uploader * {pointer-events:auto}
-</style>
-
-<div id="uploadBox" class="uploader">
-  <div class="row">
-    <button id="btnPickFiles" type="button">Выбрать файл(ы)</button>
-    <span class="hint">или перетащи PDF/изображения сюда</span>
-  </div>
-  <!-- скрытый input — но реальный, НЕ disabled, с multiple -->
-  <input id="fileInput" type="file" multiple accept="application/pdf,image/*" style="position:absolute; inset:auto; width:0; height:0; opacity:0;">
-</div>
-
-<script>
-(function(){
-  const dropZone = document.getElementById('uploadBox');
-  const fileInput = document.getElementById('fileInput');
-  const btnPick   = document.getElementById('btnPickFiles');
-
-  // ——— защита страницы: не даём браузеру «открыть» файл при дропе мимо зоны
-  ['dragenter','dragover','dragleave','drop'].forEach(ev=>{
-    document.addEventListener(ev, e => {
-      if (e.target === dropZone || dropZone.contains(e.target)) return; // в зоне — дальше обработаем
-      e.preventDefault(); e.stopPropagation();
-    }, false);
-  });
-
-  // ——— кнопка «Выбрать»
-  btnPick.addEventListener('click', () => fileInput.click());
-  fileInput.addEventListener('change', (e) => {
-    const files = e.target.files;
-    if (files && files.length) handleFiles(files);
-    // сбрасываем value, чтобы повторно выбирать тот же файл
-    fileInput.value = '';
-  });
-
-  // ——— drag&drop в зоне
-  let dragCounter = 0;
-  function onEnter(e){ e.preventDefault(); e.stopPropagation(); dragCounter++; dropZone.classList.add('dragover'); }
-  function onOver(e){ e.preventDefault(); e.stopPropagation(); }
-  function onLeave(e){ e.preventDefault(); e.stopPropagation(); dragCounter=Math.max(0,dragCounter-1); if(!dragCounter) dropZone.classList.remove('dragover'); }
-  function onDrop(e){
-    e.preventDefault(); e.stopPropagation(); dragCounter=0; dropZone.classList.remove('dragover');
-    const dt = e.dataTransfer;
-    if (dt && dt.files && dt.files.length) handleFiles(dt.files);
-  }
-  dropZone.addEventListener('dragenter', onEnter);
-  dropZone.addEventListener('dragover',  onOver);
-  dropZone.addEventListener('dragleave', onLeave);
-  dropZone.addEventListener('drop',      onDrop);
-
-  // ——— универсальный вход для твоего дальнейшего пайплайна
-  async function handleFiles(fileList){
-    // Преобразуем FileList в массив и фильтруем типы
-    const files = Array.from(fileList).filter(f => /pdf|image\//i.test(f.type) || /\.(pdf|png|jpe?g|webp)$/i.test(f.name));
-    if (!files.length) { alert('Поддерживаются PDF и изображения'); return; }
-
-    // ТУТ вызывали твою существующую логику:
-    //   - загрузка в Cloudinary
-    //   - pdf → text (pdf.js)
-    //   - ocr для картинок
-    //   - парсеры и т.д.
-    //
-    // Пример «хука»:
-    if (window.processPickedFiles) {
-      // если у тебя уже есть функция, просто передаём туда
-      window.processPickedFiles(files);
-    } else {
-      console.log('Файлы приняты:', files);
-      // TODO: замени на свою функцию загрузки/парсинга
-    }
-  }
-})();
-</script>
-<!-- ==== /UPLOAD WIDGET ==== -->
   <meta charset="utf-8" />
   <title>Создать задачу — СкладСборка</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
-    :root { color-scheme: dark; }
-    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 0; background: #0b0f14; color: #fff; }
-    .container { max-width: 1100px; margin: 24px auto 64px; padding: 0 16px; }
-    h1 { margin: 0 0 16px; font-weight: 700; }
-    .card { background:#0d1422; border:1px solid #1f2a44; border-radius:14px; padding:16px; margin-bottom:16px; }
-    .row { display:flex; gap:12px; flex-wrap:wrap; align-items:center; }
-    .row > * { flex:1 1 auto }
-    .dropzone { border: 2px dashed #4b5563; border-radius: 14px; padding: 22px; background: #111827; text-align: center; transition: .2s; }
-    .dropzone.drag { background: #1f2937; border-color: #60a5fa; }
-    label { font-size: 14px; color: #9ca3af; display:block; margin: 12px 0 6px;}
-    input[type="text"], textarea {
-      width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid #374151; background: #0b1220; color: #fff;
+    body {
+      font-family: system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
+      margin:0; background:#0b0f14; color:#fff;
+      display:flex; flex-direction:column; align-items:center;
+      min-height:100vh; padding:30px;
     }
-    textarea { min-height: 80px; resize: vertical; }
-    button { background: #3b82f6; border: 0; color: #fff; padding: 10px 14px; border-radius: 10px; cursor: pointer; font-weight: 600; }
-    button.ghost { background:#0b1220; border:1px solid #374151; }
-    button[disabled] { opacity:.6; cursor: not-allowed }
-    .status { margin-top: 8px; font-size: 14px; color: #93c5fd; white-space: pre-wrap; }
-    .preview { margin-top: 10px; font-size: 13px; color: #cbd5e1; }
-    .files { margin-top: 10px; }
-    .fileRow { display:flex; align-items:center; gap:8px; margin:6px 0; padding:8px; border:1px solid #1f2a44; border-radius:10px; background:#0b1220; }
-    .fileRow .name { flex:1 1 auto; }
-    .fileRow .size { font-size:12px; opacity:.75 }
-    .fileRow .tag { font-size:12px; opacity:.9 }
-    table { width: 100%; border-collapse: collapse; margin-top: 8px; }
-    th, td { border: 1px solid #374151; padding: 6px 8px; }
-    th { background: #111827; color: #cbd5e1; position: sticky; top: 0; }
-    tr td input { width: 100%; border:0; outline: none; background: transparent; color: #fff; }
-    tr.lowconf td { background: #382e00; }
-    .totals { display:flex; justify-content: space-between; align-items:center; gap:10px; margin-top: 6px; color:#cbd5e1 }
-    .kbd { background:#111827; border:1px solid #374151; border-radius:6px; padding:0 6px; }
-    .muted { color:#9ca3af; font-size:13px }
-    .chip { border:1px solid #374151; background:#0b1220; padding:8px 10px; border-radius:999px; cursor:pointer; }
-    .chip.active { background:#1e293b; border-color:#60a5fa; }
-    .hidden { display:none !important; }
-    #fileInput { position: fixed; left: -9999px; top: -9999px; width: 1px; height: 1px; opacity: 0; }
+    h1 {margin-bottom:10px;}
+    .container {width:100%; max-width:1100px;}
+    textarea,input,button,select {
+      font-family:inherit; font-size:15px;
+    }
+    input,textarea {
+      width:100%; box-sizing:border-box; padding:10px;
+      border-radius:8px; border:1px solid #444; background:#111; color:#fff;
+    }
+    button {
+      background:#4b9fff; color:#fff; border:0; border-radius:8px;
+      padding:10px 20px; cursor:pointer; font-weight:600;
+    }
+    button:disabled {opacity:.5; cursor:default;}
+
+    table {width:100%; border-collapse:collapse; margin-top:20px;}
+    th,td {border:1px solid #333; padding:6px 8px; text-align:left;}
+    th {background:#1b1f28;}
+    td.lowconf {color:#ff8080;}
+
+    /* === uploader === */
+    .uploader {border:2px dashed #4b9fff; border-radius:14px; padding:18px; background:#0b0f14; position:relative; margin:20px 0;}
+    .uploader * {user-select:none}
+    .uploader.dragover {border-color:#00d084; background:#0b0f14cc}
+    .uploader .hint {opacity:.8; font-size:14px; margin-top:8px}
+    .uploader .row {display:flex; gap:10px; flex-wrap:wrap; align-items:center}
+    .uploader button {cursor:pointer; padding:10px 14px; border-radius:10px; border:0; background:#4b9fff; color:#fff; font-weight:600}
+    .uploader, .uploader * {pointer-events:auto}
   </style>
-</head>
-<body>
-  <div class="container">
-    <h1>Создать задачу</h1>
 
-    <div class="card">
-      <div class="dropzone" id="drop">
-        <p><b>Перетащите PDF/изображения (можно несколько)</b> или нажмите «Выбрать файлы». Можно вставить скрин через <span class="kbd">Ctrl+V</span>.</p>
-        <div class="row" style="justify-content:center">
-          <button id="btnPick" type="button" class="ghost">Выбрать файлы</button>
-          <button id="btnClearFiles" type="button" class="ghost">Очистить список</button>
-          <button id="btnReparse" type="button" class="ghost">Перепарсить</button>
-        </div>
-        <input id="fileInput" type="file" multiple accept=".pdf,.png,.jpg,.jpeg,.webp" />
-        <div id="filesList" class="files"></div>
-        <div id="status" class="status"></div>
-      </div>
-    </div>
+  <!-- pdf.js -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.6.82/pdf.min.js"></script>
+  <!-- Tesseract -->
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.0.5/dist/tesseract.min.js"></script>
+  <!-- Firebase -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
+    import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
 
-    <div class="card">
-      <label>Заголовок</label>
-      <input id="title" type="text" placeholder="Например: Отгрузка #1234" />
-
-      <label>Комментарий</label>
-      <textarea id="comment" placeholder="Склад, заказ №, контрагент — можно написать сюда"></textarea>
-    </div>
-
-    <div class="card">
-      <label>Исполнители (кладовщики)</label>
-      <div id="workersBox" class="row" style="gap:8px"></div>
-      <div class="muted">Если никого не выбрать — будет самовывоз (одна задача без assignees).</div>
-    </div>
-
-    <div class="card">
-      <div class="row" style="align-items:center">
-        <div style="flex:2"><label>Позиции</label></div>
-        <div style="flex:1; text-align:right">
-          <label style="display:inline-flex; gap:8px; align-items:center">
-            <input id="mergeToggle" type="checkbox" checked />
-            <span class="muted">Склеивать одинаковые позиции</span>
-          </label>
-        </div>
-      </div>
-      <table>
-        <thead>
-          <tr><th>Товар</th><th>Артикул</th><th>Упаковок</th><th>Шт</th><th></th></tr>
-        </thead>
-        <tbody id="itemsBody"></tbody>
-      </table>
-      <div class="totals">
-        <div id="sourcesInfo" class="muted"></div>
-        <div id="totals"></div>
-      </div>
-    </div>
-
-    <div class="card" style="display:flex;gap:10px;justify-content:flex-end">
-      <button id="btnCreate" type="button" disabled>Создать задачу</button>
-    </div>
-  </div>
-
-  <script>
-    // ====== Базовые утилиты/статус ======
-    const $ = s => document.querySelector(s);
-    const status = t => { $('#status').textContent = t || ''; };
-    const sleep = (ms)=> new Promise(r=>setTimeout(r,ms));
-    window.addEventListener('error', e => console.error('Global error:', e.error || e.message));
-    window.addEventListener('unhandledrejection', e => console.error('Unhandled promise:', e.reason));
-
-    // ====== Конфиг ======
-    const FIREBASE_CONFIG = {
+    const firebaseConfig = {
       apiKey: "AIzaSyAH58ZpWAp64mhM589KD6jXHcOlPqU0aYU",
-      authDomain: "skladsborka-6c2a7.firebaseapp.com",
-      projectId: "skladsborka-6c2a7",
-      storageBucket: "skladsborka-6c2a7.appspot.com",
+      authDomain: "skladsborka.firebaseapp.com",
+      projectId: "skladsborka",
+      storageBucket: "skladsborka.appspot.com",
+      appId: "1:516526717198:web:REPLACE_ME_AFTER_WEB_APP_CREATED",
       messagingSenderId: "516526717198"
     };
-    const CLOUDINARY_CLOUD_NAME    = "dnx1taqp7";
-    const CLOUDINARY_UPLOAD_PRESET = "unsigned_tasks";
-    const VERCEL_NOTIFY_PROXY_URL  = "/api/notify-taskCreated";
-
-    <script>
-// ====== Парсеры (обновлённые) ======
-const UNIT_CANON = {
-  // единицы → каноническая группа и нормализованный ярлык
-  "шт":   {group:"units", label:"шт"},
-  "штука":{group:"units", label:"шт"},
-  "штук": {group:"units", label:"шт"},
-  "упак": {group:"packs", label:"упак"},
-  "упаковка": {group:"packs", label:"упак"},
-  "упаковок": {group:"packs", label:"упак"},
-  "упаковки": {group:"packs", label:"упак"},
-  "кор":  {group:"packs", label:"упак"},
-  "короб":{group:"packs", label:"упак"},
-  "коробка":{group:"packs", label:"упак"},
-  "рул":  {group:"packs", label:"рул"},
-  "рулон":{group:"packs", label:"рул"},
-  "лист": {group:"units", label:"лист"},
-  "листа":{group:"units", label:"лист"},
-  "листы":{group:"units", label:"лист"},
-  "м":    {group:"units", label:"м"},
-  "м.п.": {group:"units", label:"м.п."},
-  "мп":   {group:"units", label:"м.п."},
-  "м2":   {group:"units", label:"м²"},
-  "м²":   {group:"units", label:"м²"},
-  "кг":   {group:"units", label:"кг"},
-  "пара": {group:"units", label:"пара"},
-  "пары": {group:"units", label:"пара"},
-  "компл":{group:"units", label:"компл"},
-  "компл.":{group:"units", label:"компл"}
-};
-
-// Быстрые фильтры «служебных» строк
-function looksLikeHeaderOrService(s){
-  return /^(итог|всего|документ|накладн|поставщик|склад|№|номер|стр\.?|страница|дата)\b/i.test(s)
-      || /\b(БИК|ИНН|КПП|ОКПО|тел\.?|email|подпись|печать)\b/i.test(s);
-}
-
-// нормализация числа: "1 000,5" → 1000.5 ; "1 000" (узкий пробел) тоже
-function normNumber(str){
-  if (!str) return null;
-  const s = String(str).replace(/[^\d.,\s]/g,'').replace(/\s+/g,'').replace(/\u202F/g,''); // убираем пробелы/узкие пробелы
-  if (!s) return null;
-  const withDot = s.replace(',', '.');
-  const n = parseFloat(withDot);
-  return Number.isFinite(n) ? n : null;
-}
-
-// распознать пары «число + единица» (может быть несколько на строке)
-const QTY_UNIT_RX = /(\d[\d\s.,]*)\s*(шт|штук|штука|упак(?:овка|овок|овки)?|кор(?:обка)?|рул(?:он)?|лист(?:[а-я]*)?|м2|м²|м\.п\.|мп|м|кг|пара|пары|компл\.?)/gi;
-
-// вытащить артикул в начале (если есть) и аккуратно отделить заголовок от хвостов с количеством
-function splitLineIntoParts(raw){
-  // Сначала убираем лишние пробелы
-  let s = raw.replace(/\s+/g,' ').trim();
-  if (!s) return null;
-  if (looksLikeHeaderOrService(s)) return null;
-
-  // Ищем все пары «кол-во + ед.» и берём крайние правые (они обычно в конце строки таблицы)
-  let m, matches = [];
-  while ((m = QTY_UNIT_RX.exec(s)) !== null) {
-    matches.push({from:m.index, to:QTY_UNIT_RX.lastIndex, num:m[1], unit:m[2]});
-  }
-  // Ничего не нашли — возможно «шт» в соседней колонке: тогда не трогаем числа без единицы
-  const qtyPairs = matches;
-
-  // Обрезаем хвост с кол-вами из текста названия
-  let titlePart = s;
-  if (qtyPairs.length){
-    const cutPos = qtyPairs[0].from; // с первой найденной пары до конца — это «хвост»
-    // Важно: требуем минимум ДВА пробела/разделитель перед первой парой, чтобы не отрезать номера внутри названия типа "Unodeck 8"
-    const before = s.slice(0, cutPos);
-    const sep = s.slice(cutPos-3, cutPos); // 3 символа до
-    if (/\s{2,}|[|;–—-]/.test(sep)) {
-      titlePart = before.trim();
-    } else {
-      // разделителя нет — оставляем название как есть (кол-ва возьмём, но название не режем)
-      titlePart = s;
-    }
-  }
-
-  // Попытаться снять артикул в начале названия
-  let article = "";
-  let restTitle = titlePart;
-  const a = restTitle.match(/^([A-Za-zА-Яа-я0-9][A-Za-zА-Яа-я0-9\-._]{3,})\b[)\s-]?(.*)$/);
-  if (a) {
-    article = a[1].trim();
-    restTitle = (a[2]||"").trim();
-    // If артикул слишком «общий» и совпал по ошибке (например «РАСХОДНАЯ»), отбрасываем
-    if (/^(РАСХОДНАЯ|ИТОГ|ВСЕГО)$/i.test(article)) {
-      article = "";
-      restTitle = titlePart;
-    }
-  }
-
-  return { title: restTitle || titlePart, article, qtyPairs };
-}
-
-// Преобразовать массив qtyPairs в qtyPacks/qtyUnits и, если единица нестандартная — пометить в заголовке
-function foldQuantities(title, qtyPairs){
-  let packs = 0, units = 0;
-  let titleSuffixes = [];
-  for (const q of qtyPairs){
-    const unitRaw = (q.unit||"").toLowerCase();
-    // нормализация «м.п.»
-    const unitKey = unitRaw.replace(/\.|ы$/g,''); // убираем точки и мн. число у "пары"
-    const canon = UNIT_CANON[unitRaw] || UNIT_CANON[unitKey] || null;
-    const n = normNumber(q.num);
-    if (!Number.isFinite(n)) continue;
-
-    if (canon){
-      if (canon.group === "packs") packs += n; else units += n;
-      // если это не «шт»/«упак», добавим ярлык в название
-      if (!["шт","упак"].includes(canon.label)) titleSuffixes.push(`${n} ${canon.label}`);
-    } else {
-      // неизвестная единица — положим в units и пометим
-      units += n;
-      titleSuffixes.push(`${n} ${unitRaw}`);
-    }
-  }
-  const finalTitle = titleSuffixes.length ? `${title} [${titleSuffixes.join(", ")}]` : title;
-  return { qtyPacks: packs||"", qtyUnits: units||"", title: finalTitle };
-}
-
-// Табличный парсер: по строкам, с учётом единиц
-function parseTable(lines){
-  const items = [];
-  for (const raw of lines){
-    const row = (raw||"").trim();
-    if (!row) continue;
-    const parts = splitLineIntoParts(row);
-    if (!parts) continue;
-
-    const { title, article, qtyPairs } = parts;
-    const folded = foldQuantities(title, qtyPairs);
-
-    // Если вообще не нашли пар «число+ед.» — пропускаем строку (скорее всего это текст/шапка)
-    if (folded.qtyPacks === "" && folded.qtyUnits === "") continue;
-
-    items.push({
-      title: folded.title || "(без названия)",
-      article: article || "",
-      qtyPacks: folded.qtyPacks === "" ? "" : String(folded.qtyPacks),
-      qtyUnits: folded.qtyUnits === "" ? "" : String(folded.qtyUnits),
-      _lowconf: false
-    });
-  }
-  return items;
-}
-
-// PDF с текстовым слоем — пытаемся парсить полноценные строки
-function parseDockeTablesFromText(fullText){
-  // разобьём на строки «как видит человек»
-  const lines = fullText
-    .replace(/[ \t]+/g, ' ')
-    .replace(/[ \t]*\n[ \t]*/g, '\n')
-    .split(/\n/g)
-    .map(s => s.trim())
-    .filter(Boolean);
-
-  return parseTable(lines);
-}
-
-// OCR → в те же функции (lowconf подсветим)
-function parseFromOcr(ocrLines){
-  const lines = (ocrLines||[]).map(x => (x||"").trim()).filter(Boolean);
-  const items = parseTable(lines);
-  items.forEach(it => it._lowconf = true);
-  return items;
-}
-</script>
-
-    // merge одинаковых позиций
-    function mergeSameItems(items) {
-      const map = new Map();
-      for (const it of items) {
-        const key = (it.article && it.article.trim())
-          ? it.article.trim().toUpperCase()
-          : (it.title || "").trim().toUpperCase();
-        if (!key) continue;
-        const p = parseFloat((it.qtyPacks||"").toString().replace(",", ".")) || 0;
-        const u = parseFloat((it.qtyUnits||"").toString().replace(",", ".")) || 0;
-
-        if (!map.has(key)) {
-          map.set(key, {
-            title: it.title || "",
-            article: it.article || "",
-            qtyPacks: p,
-            qtyUnits: u,
-            _lowconf: !!it._lowconf,
-            _src: new Set(it._src ? [it._src] : [])
-          });
-        } else {
-          const m = map.get(key);
-          m.qtyPacks += p; m.qtyUnits += u;
-          m._lowconf = m._lowconf || !!it._lowconf;
-          if (it._src) m._src.add(it._src);
-        }
-      }
-      return Array.from(map.values()).map(x => ({
-        title: x.title, article: x.article,
-        qtyPacks: x.qtyPacks ? String(x.qtyPacks) : "",
-        qtyUnits: x.qtyUnits ? String(x.qtyUnits) : "",
-        _lowconf: x._lowconf,
-        _src: Array.from(x._src || [])
-      }));
-    }
-
-    // ====== Рендер таблицы ======
-    function renderItems(items) {
-      const tbody = $('#itemsBody'); tbody.innerHTML = "";
-      for (const it of items) {
-        const tr = document.createElement('tr');
-        if (it._lowconf) tr.classList.add('lowconf');
-        tr.innerHTML = `
-          <td><input value="${it.title||""}"    data-k="title"></td>
-          <td><input value="${it.article||""}"  data-k="article"></td>
-          <td><input value="${it.qtyPacks||""}" data-k="qtyPacks"></td>
-          <td><input value="${it.qtyUnits||""}" data-k="qtyUnits"></td>
-          <td><button type="button" class="rm">✕</button></td>
-        `;
-        tr.querySelector('.rm').onclick = () => { tr.remove(); updateTotals(); };
-        tr.querySelectorAll('input').forEach(inp => inp.addEventListener('input', updateTotals));
-        tbody.appendChild(tr);
-      }
-      updateTotals();
-    }
-    function collectItemsFromTable() {
-      return [...document.querySelectorAll('#itemsBody tr')].map(tr=>{
-        const get = k => tr.querySelector(`input[data-k="${k}"]`).value.trim();
-        return { title:get('title'), article:get('article'), qtyPacks:get('qtyPacks'), qtyUnits:get('qtyUnits') };
-      }).filter(it => it.title || it.qtyPacks || it.qtyUnits);
-    }
-    function updateTotals(){
-      const items = collectItemsFromTable();
-      const sumP = items.reduce((s,it)=> s + (parseFloat((it.qtyPacks||"").replace(",","."))||0), 0);
-      const sumU = items.reduce((s,it)=> s + (parseFloat((it.qtyUnits||"").replace(",","."))||0), 0);
-      $('#totals').textContent = `Итого: упаковок ${sumP} • штук ${sumU}`;
-      updateCreateDisabled();
-    }
-
-    // ====== DnD + файл-UI ======
-    const drop = $('#drop');
-    const fi   = $('#fileInput');
-    $('#btnPick').addEventListener('click', () => fi.click());
-    $('#btnClearFiles').addEventListener('click', clearFiles);
-    $('#btnReparse').addEventListener('click', reparseAll);
-    ['dragenter','dragover'].forEach(ev=>{
-      document.addEventListener(ev, e=>{ e.preventDefault(); });
-      drop.addEventListener(ev, e=>{ e.preventDefault(); drop.classList.add('drag'); });
-    });
-    ['dragleave','drop'].forEach(ev=>{
-      document.addEventListener(ev, e=>{ e.preventDefault(); });
-      drop.addEventListener(ev, e=>{ e.preventDefault(); drop.classList.remove('drag'); });
-    });
-    drop.addEventListener('drop', e => { handleFiles(e.dataTransfer.files); });
-    fi.addEventListener('change', () => handleFiles(fi.files));
-    window.addEventListener('paste', async (e)=>{
-      const items = e.clipboardData?.items; if (!items) return;
-      for (const it of items) { if (it.kind==='file'){ handleFiles([it.getAsFile()]); break; } }
-    });
-
-    let filesAll = [];         // выбранные файлы
-    let itemsParsedRaw = [];   // все позиции «как есть» со всех файлов
-    let itemsRendered = [];    // после склейки/правок
-
-    function clearFiles(){
-      filesAll = [];
-      itemsParsedRaw = [];
-      itemsRendered = [];
-      $('#filesList').innerHTML = "";
-      $('#itemsBody').innerHTML = "";
-      $('#totals').textContent = "";
-      $('#sourcesInfo').textContent = "";
-      status('');
-      updateCreateDisabled();
-    }
-
-    function renderFilesList() {
-      const box = $('#filesList'); box.innerHTML = "";
-      if (!filesAll.length) return;
-      let idx=0;
-      for (const f of filesAll) {
-        const row = document.createElement('div');
-        row.className = 'fileRow';
-        const name = document.createElement('div'); name.className='name'; name.textContent = f.name;
-        const size = document.createElement('div'); size.className='size'; size.textContent = (f.size/1024/1024).toFixed(2)+' MB';
-        const btnDel = document.createElement('button'); btnDel.type='button'; btnDel.className='ghost'; btnDel.textContent='Удалить';
-        const btnRe = document.createElement('button'); btnRe.type='button'; btnRe.className='ghost'; btnRe.textContent='Распарсить этот';
-        const thisIndex = idx++;
-        btnDel.onclick = async () => {
-          filesAll.splice(thisIndex,1);
-          await reparseAll();
-        };
-        btnRe.onclick = async () => {
-          await parseOneFileIntoRaw(f, true);
-          rerenderFromRaw();
-        };
-        row.appendChild(name); row.appendChild(size);
-        row.appendChild(btnRe); row.appendChild(btnDel);
-        box.appendChild(row);
-      }
-    }
-
-    async function handleFiles(fileList){
-      const arr = Array.from(fileList || []).filter(Boolean);
-      if (!arr.length) return;
-      filesAll.push(...arr);
-      renderFilesList();
-      await reparseAll(); // АВТОПАРСИНГ всех файлов
-    }
-
-    // ====== Динамические импорты ======
-    let _pdfjsLib = null;
-    let _tesseract = null;
-    let _firebase = null;
-    let _app, _auth, _db;
-
-    async function ensurePdfJs() {
-      if (_pdfjsLib) return _pdfjsLib;
-      const m = await import("https://cdn.jsdelivr.net/npm/pdfjs-dist@4.6.82/build/pdf.mjs");
-      m.GlobalWorkerOptions.workerSrc = "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.6.82/build/pdf.worker.mjs";
-      _pdfjsLib = m; return m;
-    }
-    async function ensureTesseract() {
-      if (_tesseract) return _tesseract;
-      const m = await import("https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js");
-      _tesseract = m.default || m; return _tesseract;
-    }
-    async function ensureFirebase() {
-      if (_firebase) return _firebase;
-      const appMod  = await import("https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js");
-      const authMod = await import("https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js");
-      const fsMod   = await import("https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js");
-      _app = appMod.initializeApp(FIREBASE_CONFIG);
-      _auth = authMod.getAuth(_app);
-      _db   = fsMod.getFirestore(_app);
-      try { await authMod.signInAnonymously(_auth); } catch(e){ console.warn("Anon auth failed:", e); }
-      _firebase = { appMod, authMod, fsMod }; return _firebase;
-    }
-
-    // ====== Чтение файлов ======
-    const readAsArrayBuffer = (f)=> new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(r.result); r.onerror=rej; r.readAsArrayBuffer(f); });
-    const readAsDataURL    = (f)=> new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(r.result); r.onerror=rej; r.readAsDataURL(f); });
-
-    // ====== Парсинг одного файла → массив позиций ======
-    async function parseOneFile(file){
-      try {
-        if (file.type === 'application/pdf' || /\.pdf$/i.test(file.name)) {
-          status(`Читаю PDF: ${file.name}`);
-          const pdfjsLib = await ensurePdfJs();
-          const ab = await readAsArrayBuffer(file);
-          const pdf = await pdfjsLib.getDocument({ data: ab }).promise;
-
-          let hasTextLayer = false;
-          try {
-            const p1  = await pdf.getPage(1);
-            const txt = await p1.getTextContent();
-            hasTextLayer = (txt?.items?.length>0);
-          } catch(_){}
-
-          if (hasTextLayer) {
-            const allPagesText = [];
-            for (let i=1;i<=pdf.numPages;i++){
-              const p = await pdf.getPage(i);
-              const tc = await p.getTextContent();
-              let pageText = tc.items.map(it => {
-                const s = (it.str || "");
-                return it.hasEOL ? (s + "\n") : s + " ";
-              }).join("");
-              pageText = pageText
-                .replace(/[ \t]+/g, ' ')
-                .replace(/[ \t]*\n[ \t]*/g, '\n')
-                .replace(/\n{2,}/g, '\n');
-              allPagesText.push(pageText);
-            }
-            const fullText = allPagesText.join("\n");
-            let parsed = parseDockeTablesFromText(fullText);
-            if (!parsed.length) {
-              const lines = fullText.split(/\n/g).map(s=>s.trim()).filter(Boolean);
-              parsed = parseTable(lines);
-            }
-            parsed.forEach(it => it._src = file.name);
-            return parsed;
-          } else {
-            // OCR PDF постранично
-            const Tesseract = await ensureTesseract();
-            const worker = await Tesseract.createWorker('rus+eng');
-            const out = [];
-            for (let i=1;i<=pdf.numPages;i++){
-              status(`OCR ${file.name} — стр. ${i}/${pdf.numPages}`);
-              const page = await pdf.getPage(i);
-              const viewport = page.getViewport({ scale: 3.0 });
-              const canvas = document.createElement('canvas');
-              const ctx = canvas.getContext('2d');
-              canvas.width = viewport.width; canvas.height = viewport.height;
-              await page.render({ canvasContext: ctx, viewport }).promise;
-              const dataUrl = canvas.toDataURL('image/png');
-
-              const { data } = await worker.recognize(dataUrl);
-              const lines = (data.lines || []).map(l => l.text);
-              const items = parseFromOcr(lines);
-              items.forEach(it => { it._src = file.name; });
-              out.push(...items);
-            }
-            await worker.terminate();
-            return out;
-          }
-        }
-
-        // Картинка -> OCR
-        status(`OCR изображения: ${file.name}`);
-        const Tesseract = await ensureTesseract();
-        const worker = await Tesseract.createWorker('rus+eng');
-        const dataUrl = await readAsDataURL(file);
-        const { data } = await worker.recognize(dataUrl);
-        await worker.terminate();
-        const lines = (data.lines || []).map(l => l.text);
-        const parsed = parseFromOcr(lines);
-        parsed.forEach(it => { it._src = file.name; });
-        return parsed;
-
-      } catch (e) {
-        console.error(e);
-        status('Ошибка обработки ' + file.name + ': ' + (e?.message||e));
-        return [];
-      }
-    }
-
-    // Вспомогательная: парсит один файл и кладёт в общий RAW (можно форснуть полную замену RAW)
-    async function parseOneFileIntoRaw(file, replaceRaw = false) {
-      const arr = await parseOneFile(file);
-      if (replaceRaw) {
-        // очищаем только позиции, пришедшие из этого файла, и записываем заново
-        itemsParsedRaw = itemsParsedRaw.filter(x => x._src !== file.name).concat(arr);
-      } else {
-        itemsParsedRaw.push(...arr);
-      }
-    }
-
-    // Полный перепарсинг всех файлов
-    async function reparseAll() {
-      $('#itemsBody').innerHTML = ""; $('#totals').textContent = ""; $('#sourcesInfo').textContent = "";
-      itemsParsedRaw = [];
-      if (!filesAll.length) { updateCreateDisabled(); status(''); return; }
-      let i=0;
-      for (const f of filesAll) {
-        i++;
-        status(`Парсинг ${i}/${filesAll.length}: ${f.name}`);
-        await parseOneFileIntoRaw(f);
-        // небольшой «breathing room», чтобы UI не залип
-        await sleep(10);
-      }
-      rerenderFromRaw();
-      renderFilesList();
-      status(`Готово. Найдено позиций: ${itemsParsedRaw.length} из ${filesAll.length} файл(ов)`);
-    }
-
-    function rerenderFromRaw() {
-      const doMerge = $('#mergeToggle').checked;
-      itemsRendered = doMerge ? mergeSameItems(itemsParsedRaw) : [...itemsParsedRaw];
-      renderItems(itemsRendered);
-      // покажем источники
-      const srcSet = new Set(itemsParsedRaw.map(x => x._src).filter(Boolean));
-      $('#sourcesInfo').textContent = srcSet.size ? `Файлы: ${Array.from(srcSet).join(', ')}` : '';
-    }
-
-    $('#mergeToggle').addEventListener('change', rerenderFromRaw);
-
-    // ====== Cloudinary ======
-    async function uploadToCloudinary(file, taskId) {
-      const form = new FormData();
-      form.append('file', file);
-      form.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
-      form.append('folder', `tasks/${taskId}`);
-      const resp = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/auto/upload`, { method:'POST', body: form });
-      if (!resp.ok) throw new Error('Cloudinary upload failed: ' + resp.status);
-      const j = await resp.json();
-      return { url: j.secure_url, publicId: j.public_id, type: j.resource_type || 'raw', name: file.name || 'file' };
-    }
-    async function uploadAllToCloudinary(taskId) {
-      const out = [];
-      for (const f of filesAll) out.push(await uploadToCloudinary(f, taskId));
-      return out;
-    }
-
-    // ====== Users (кладовщики) ======
-    let usersAll = [];                // {id, name, role}
-    let selectedWorkerIds = new Set();
-    let selectedWorkerNames = new Set();
-
-    function renderWorkers() {
-      const box = $('#workersBox'); box.innerHTML = "";
-      const workers = usersAll.filter(u => (u.role||"").toLowerCase() === "кладовщик");
-      (workers.length ? workers : usersAll).forEach(u => {
-        const btn = document.createElement('button');
-        btn.type = "button";
-        btn.textContent = u.name || u.id;
-        btn.className = "chip";
-        let active = false;
-        function setActive(a){ active = a; if (a) btn.classList.add('active'); else btn.classList.remove('active'); }
-        btn.onclick = () => {
-          if (!active) { selectedWorkerIds.add(u.id); selectedWorkerNames.add(u.name || u.id); }
-          else         { selectedWorkerIds.delete(u.id); selectedWorkerNames.delete(u.name || u.id); }
-          setActive(!active);
-        };
-        box.appendChild(btn);
-      });
-    }
-
-    async function loadUsers() {
-      try {
-        const { fsMod } = await ensureFirebase();
-        const snap = await fsMod.getDocs(fsMod.collection(_db, 'users'));
-        usersAll = snap.docs.map(d => ({
-          id: d.id,
-          name: d.get('name') || d.get('displayName') || d.id,
-          role: (d.get('role') || "").toString()
-        }));
-        renderWorkers();
-      } catch (e) {
-        console.error("loadUsers failed:", e);
-        $('#workersBox').innerHTML = '<div class="muted">Не удалось загрузить пользователей</div>';
-      }
-    }
-
-    // ====== Создание задач (creator = "unknown") ======
-    function getSelectedItems(){ return collectItemsFromTable(); }
-
-    function updateCreateDisabled() {
-      const okItems = getSelectedItems().length > 0;
-      const okFiles = filesAll.length > 0;
-      $('#btnCreate').disabled = !(okItems && okFiles);
-    }
-
-    async function createOneTaskFor(fsMod, title, comment, assigneeId, assigneeName, isPickup) {
-      const docRef = fsMod.doc(fsMod.collection(_db, 'tasks'));
-      const taskId = docRef.id;
-
-      const data = {
-        title, comment,
-        assignees: assigneeId ? [assigneeId] : [],
-        assigneeNames: assigneeName ? [assigneeName] : [],
-        isPickup: !!isPickup,
-        status: "assigned",
-        createdAt: fsMod.serverTimestamp(),
-        creatorId: "unknown",
-        creatorName: "unknown",
-        items: getSelectedItems(),
-        source: "web-multi",
-        sourceMeta: { ua: navigator.userAgent, filesCount: filesAll.length },
-        files: []
-      };
-
-      await fsMod.setDoc(docRef, data);
-      const fileRecs = await uploadAllToCloudinary(taskId);
-      await fsMod.updateDoc(docRef, { files: fileRecs });
-
-      try {
-        await fetch(VERCEL_NOTIFY_PROXY_URL, {
-          method:'POST',
-          headers:{'Content-Type':'application/json'},
-          body: JSON.stringify({ taskId, assigneeIds: assigneeId ? [assigneeId] : [] })
-        });
-      } catch(e) { console.warn('notify failed', e); }
-
-      return taskId;
-    }
-
-    async function createTask() {
-      try {
-        const title = $('#title').value.trim();
-        const comment = $('#comment').value.trim();
-        if (!title) { alert('Введите заголовок'); return; }
-        const items = getSelectedItems();
-        if (!items.length) { alert('Нет позиций'); return; }
-        if (!filesAll.length) { alert('Добавьте файл(ы)'); return; }
-
-        $('#btnCreate').disabled = true;
-        status('Создаю задачу(и)…');
-
-        const { fsMod } = await ensureFirebase();
-
-        const workerIds = Array.from(selectedWorkerIds);
-        const workerNames = Array.from(selectedWorkerNames);
-
-        const createdIds = [];
-        if (workerIds.length === 0) {
-          const id = await createOneTaskFor(fsMod, title, comment, null, null, true);
-          createdIds.push(id);
-        } else {
-          for (let i=0;i<workerIds.length;i++){
-            const id = await createOneTaskFor(
-              fsMod, title, comment,
-              workerIds[i], workerNames[i] || workerIds[i],
-              false
-            );
-            createdIds.push(id);
-          }
-        }
-
-        status(`Готово. Создано задач: ${createdIds.length}`);
-        alert(`Создано задач: ${createdIds.length}`);
-
-        // сброс
-        clearFiles();
-        $('#itemsBody').innerHTML = "";
-        $('#totals').textContent = "";
-        $('#title').value = "";
-        $('#comment').value = "";
-        selectedWorkerIds.clear(); selectedWorkerNames.clear();
-        updateCreateDisabled();
-      } catch (e) {
-        console.error(e);
-        alert('Ошибка: ' + (e?.message||e));
-        status('Ошибка');
-        updateCreateDisabled();
-      }
-    }
-
-    $('#btnCreate').addEventListener('click', createTask);
-
-    // ====== Инициализация ======
-    (async function init(){
-      await ensureFirebase();
-      await loadUsers();
-      updateCreateDisabled();
-    })();
+    const app = initializeApp(firebaseConfig);
+    window.db = getFirestore(app);
   </script>
+</head>
+
+<body>
+<div class="container">
+  <h1>Создать задачу</h1>
+
+  <label>Название:</label>
+  <input id="title" placeholder="например: Расходная накладная №..." />
+
+  <label>Комментарий:</label>
+  <textarea id="comment" rows="3" placeholder="Дополнительная информация..."></textarea>
+
+  <!-- uploader -->
+  <div id="uploadBox" class="uploader">
+    <div class="row">
+      <button id="btnPickFiles" type="button">Выбрать файл(ы)</button>
+      <span class="hint">или перетащи PDF/изображения сюда</span>
+    </div>
+    <input id="fileInput" type="file" multiple accept="application/pdf,image/*"
+           style="position:absolute; inset:auto; width:0; height:0; opacity:0;">
+  </div>
+
+  <div id="fileList"></div>
+  <table id="tbl"><thead><tr>
+    <th>Артикул</th><th>Название</th><th>Упак</th><th>Шт</th>
+  </tr></thead><tbody></tbody></table>
+
+  <button id="btnSend" disabled>Создать задачу</button>
+</div>
+
+<script>
+const CLOUDINARY_UPLOAD_URL = "https://api.cloudinary.com/v1_1/YOUR_CLOUD_NAME/upload";
+const CLOUDINARY_UPLOAD_PRESET = "YOUR_UPLOAD_PRESET";
+
+// ===== парсер (новый) =====
+const UNIT_CANON = {
+  "шт":{g:"u",l:"шт"},"штук":{g:"u",l:"шт"},"штука":{g:"u",l:"шт"},
+  "упак":{g:"p",l:"упак"},"упаковка":{g:"p",l:"упак"},"упаковок":{g:"p",l:"упак"},"упаковки":{g:"p",l:"упак"},
+  "кор":{g:"p",l:"упак"},"короб":{g:"p",l:"упак"},"коробка":{g:"p",l:"упак"},
+  "рул":{g:"p",l:"рул"},"рулон":{g:"p",l:"рул"},
+  "лист":{g:"u",l:"лист"},"листа":{g:"u",l:"лист"},"листы":{g:"u",l:"лист"},
+  "м":{g:"u",l:"м"},"м.п.":{g:"u",l:"м.п."},"мп":{g:"u",l:"м.п."},
+  "м2":{g:"u",l:"м²"},"м²":{g:"u",l:"м²"},"кг":{g:"u",l:"кг"},
+  "пара":{g:"u",l:"пара"},"пары":{g:"u",l:"пара"},"компл":{g:"u",l:"компл"},"компл.":{g:"u",l:"компл"}
+};
+function looksLikeHeader(s){return /итог|всего|накладн|склад|поставщик|документ/i.test(s)}
+function normNum(t){return parseFloat(t.replace(/[^\d.,]/g,'').replace(',','.').replace(/\s+/g,''))||0;}
+const QTY_RX=/(\d[\d\s.,]*)\s*(шт|штук|штука|упак(?:овка|овок|овки)?|кор|коробка?|рул|рулон|лист(?:[а-я]*)?|м2|м²|м\.п\.|мп|м|кг|пара|пары|компл\.?)/gi;
+function parseLines(lines){
+  const out=[];
+  for(let raw of lines){
+    raw=raw.trim(); if(!raw||looksLikeHeader(raw))continue;
+    let m,arr=[]; while((m=QTY_RX.exec(raw))!==null)arr.push({n:normNum(m[1]),u:m[2].toLowerCase(),i:m.index});
+    if(!arr.length)continue;
+    let tcut=arr[0].i>0?raw.slice(0,arr[0].i).trim():raw;
+    let aMatch=tcut.match(/^([A-Za-zА-Яа-я0-9\-_.]{3,})\b[)\s-]?(.*)$/);
+    let art=aMatch?(aMatch[1]||""):"";
+    let ttl=aMatch?(aMatch[2]||tcut):tcut;
+    let pk=0,un=0,extra=[];
+    for(let q of arr){
+      let c=UNIT_CANON[q.u]||{}; let n=q.n;
+      if(c.g==="p")pk+=n; else un+=n;
+      if(!["шт","упак"].includes(c.l))extra.push(`${n} ${c.l||q.u}`);
+    }
+    if(extra.length)ttl+=` [${extra.join(", ")}]`;
+    out.push({article:art,title:ttl,qtyPacks:pk||"",qtyUnits:un||""});
+  }
+  return out;
+}
+function parsePdfText(text){return parseLines(text.split(/\n+/g));}
+
+// ===== uploader =====
+(function(){
+  const zone=document.getElementById('uploadBox');
+  const inp=document.getElementById('fileInput');
+  const btn=document.getElementById('btnPickFiles');
+  btn.onclick=()=>inp.click();
+  inp.onchange=e=>{if(e.target.files.length)handleFiles(e.target.files); inp.value='';};
+  ['dragenter','dragover','dragleave','drop'].forEach(ev=>{
+    document.addEventListener(ev,e=>{
+      if(e.target===zone||zone.contains(e.target))return;
+      e.preventDefault();e.stopPropagation();
+    },false);
+  });
+  let drag=0;
+  zone.addEventListener('dragenter',e=>{e.preventDefault();drag++;zone.classList.add('dragover');});
+  zone.addEventListener('dragover',e=>e.preventDefault());
+  zone.addEventListener('dragleave',e=>{e.preventDefault();if(--drag<=0)zone.classList.remove('dragover');});
+  zone.addEventListener('drop',e=>{
+    e.preventDefault();drag=0;zone.classList.remove('dragover');
+    if(e.dataTransfer.files.length)handleFiles(e.dataTransfer.files);
+  });
+})();
+
+async function handleFiles(list){
+  const arr=[...list]; if(!arr.length)return;
+  document.getElementById('btnSend').disabled=true;
+  let allItems=[];
+  for(const f of arr){
+    document.getElementById('fileList').innerHTML+=`<div>${f.name} — загрузка...</div>`;
+    // загрузка в Cloudinary
+    const fd=new FormData();
+    fd.append('upload_preset',CLOUDINARY_UPLOAD_PRESET);
+    fd.append('file',f);
+    const r=await fetch(CLOUDINARY_UPLOAD_URL,{method:'POST',body:fd});
+    const json=await r.json();
+    const url=json.secure_url;
+    document.getElementById('fileList').innerHTML+=`<div>✅ ${f.name} загружен</div>`;
+
+    let text="";
+    if(f.type==="application/pdf"||f.name.toLowerCase().endsWith(".pdf")){
+      const buf=await f.arrayBuffer();
+      const pdf=await pdfjsLib.getDocument({data:buf}).promise;
+      for(let i=1;i<=pdf.numPages;i++){
+        const pg=await pdf.getPage(i);
+        const ct=await pg.getTextContent();
+        text+=ct.items.map(x=>x.str).join(" ")+"\n";
+      }
+    } else { // OCR
+      const {data:{text:txt}}=await Tesseract.recognize(f,"rus+eng");
+      text=txt;
+    }
+    const items=parsePdfText(text);
+    allItems.push(...items);
+  }
+  renderTable(allItems);
+  window._items=allItems;
+  document.getElementById('btnSend').disabled=false;
+}
+
+function renderTable(items){
+  const tb=document.querySelector('#tbl tbody'); tb.innerHTML="";
+  for(const it of items){
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td>${it.article}</td><td>${it.title}</td><td>${it.qtyPacks}</td><td>${it.qtyUnits}</td>`;
+    tb.appendChild(tr);
+  }
+}
+
+// ===== Firestore запись =====
+document.getElementById('btnSend').onclick=async()=>{
+  const title=document.getElementById('title').value.trim();
+  if(!title){alert('Введите название');return;}
+  const comment=document.getElementById('comment').value.trim();
+  const items=window._items||[];
+  const filesDiv=document.getElementById('fileList');
+  const fileLinks=[...filesDiv.querySelectorAll('div')]
+      .filter(d=>d.textContent.includes('✅'))
+      .map(d=>d.textContent.replace('✅','').trim().split(' ')[0]);
+
+  const data={
+    title, comment,
+    createdAt: new Date(),
+    status: "new",
+    author: "unknown",
+    files: fileLinks,
+    items
+  };
+  try{
+    const docRef=await addDoc(collection(db,"tasks"),data);
+    alert("Задача создана ✅");
+    location.reload();
+  }catch(e){alert("Ошибка: "+e);}
+};
+</script>
 </body>
 </html>
