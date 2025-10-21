@@ -5,17 +5,24 @@
   <title>Создать задачу — СкладСборка</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
+    :root { color-scheme: dark; }
     body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 0; background: #0b0f14; color: #fff; }
     .container { max-width: 1100px; margin: 24px auto 64px; padding: 0 16px; }
     h1 { margin: 0 0 16px; font-weight: 700; }
+    .card { background:#0d1422; border:1px solid #1f2a44; border-radius:14px; padding:16px; margin-bottom:16px; }
+    .row { display:flex; gap:12px; flex-wrap:wrap; align-items:center; }
+    .row > * { flex:1 1 auto }
     .dropzone { border: 2px dashed #4b5563; border-radius: 14px; padding: 22px; background: #111827; text-align: center; transition: .2s; }
     .dropzone.drag { background: #1f2937; border-color: #60a5fa; }
-    label { font-size: 14px; color: #9ca3af; display:block; margin-top: 14px;}
-    input[type="text"], textarea { width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid #374151; background: #0b1220; color: #fff; }
+    label { font-size: 14px; color: #9ca3af; display:block; margin: 12px 0 6px;}
+    input[type="text"], input[type="email"], input[type="password"], textarea {
+      width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid #374151; background: #0b1220; color: #fff;
+    }
     textarea { min-height: 80px; resize: vertical; }
     button { background: #3b82f6; border: 0; color: #fff; padding: 10px 14px; border-radius: 10px; cursor: pointer; font-weight: 600; }
+    button.ghost { background:#0b1220; border:1px solid #374151; }
     button[disabled] { opacity:.6; cursor: not-allowed }
-    .status { margin-top: 12px; font-size: 14px; color: #93c5fd; }
+    .status { margin-top: 8px; font-size: 14px; color: #93c5fd; }
     .preview { margin-top: 10px; font-size: 13px; color: #9ca3af; }
     table { width: 100%; border-collapse: collapse; margin-top: 8px; }
     th, td { border: 1px solid #374151; padding: 6px 8px; }
@@ -24,6 +31,12 @@
     tr.lowconf td { background: #382e00; }
     .totals { text-align: right; margin-top: 6px; color:#cbd5e1 }
     .kbd { background:#111827; border:1px solid #374151; border-radius:6px; padding:0 6px; }
+    .muted { color:#9ca3af; font-size:13px }
+    .bad { color:#fecaca }
+    .good { color:#86efac }
+    .chip { border:1px solid #374151; background:#0b1220; padding:8px 10px; border-radius:999px; cursor:pointer; }
+    .chip.active { background:#1e293b; border-color:#60a5fa; }
+    .hidden { display:none !important; }
     /* скрытый, но кликабельный input (не display:none) */
     #fileInput { position: fixed; left: -9999px; top: -9999px; width: 1px; height: 1px; opacity: 0; }
   </style>
@@ -32,33 +45,51 @@
   <div class="container">
     <h1>Создать задачу</h1>
 
-    <div class="dropzone" id="drop">
-      <p><b>Перетащите PDF/изображение</b> или нажмите «Выбрать файл». Можно вставить скрин через <span class="kbd">Ctrl+V</span>.</p>
-      <button id="btnPick" type="button">Выбрать файл</button>
-      <input id="fileInput" type="file" accept=".pdf,.png,.jpg,.jpeg,.webp" />
-      <div id="preview" class="preview"></div>
-      <div id="status" class="status"></div>
+    <div class="card">
+      <div class="dropzone" id="drop">
+        <p><b>Перетащите PDF/изображение</b> или нажмите «Выбрать файл». Можно вставить скрин через <span class="kbd">Ctrl+V</span>.</p>
+        <button id="btnPick" type="button" class="ghost">Выбрать файл</button>
+        <input id="fileInput" type="file" accept=".pdf,.png,.jpg,.jpeg,.webp" />
+        <div id="preview" class="preview"></div>
+        <div id="status" class="status"></div>
+      </div>
     </div>
 
-    <label>Заголовок</label>
-    <input id="title" type="text" placeholder="Например: Отгрузка #1234" />
+    <div class="card">
+      <label>Заголовок</label>
+      <input id="title" type="text" placeholder="Например: Отгрузка #1234" />
 
-    <label>Комментарий</label>
-    <textarea id="comment" placeholder="Склад, заказ №, контрагент — можно написать сюда"></textarea>
+      <label>Комментарий</label>
+      <textarea id="comment" placeholder="Склад, заказ №, контрагент — можно написать сюда"></textarea>
+    </div>
 
-    <label>Исполнители (UID через запятую)</label>
-    <input id="assignees" type="text" placeholder="uid1, uid2" />
+    <div class="card">
+      <div class="row">
+        <div style="flex:1">
+          <label>Автор (кто создаёт)</label>
+          <select id="authorSelect" style="width:100%;padding:10px 12px;border-radius:10px;border:1px solid #374151;background:#0b1220;color:#fff"></select>
+          <div class="muted" id="authorHint">Загружаю список…</div>
+        </div>
+        <div style="flex:2">
+          <label>Исполнители (кладовщики)</label>
+          <div id="workersBox" class="row" style="gap:8px"></div>
+          <div class="muted">Если никого не выбрать — будет самовывоз (одна задача без assignees).</div>
+        </div>
+      </div>
+    </div>
 
-    <label>Позиции</label>
-    <table>
-      <thead>
-        <tr><th>Товар</th><th>Артикул</th><th>Упаковок</th><th>Шт</th><th></th></tr>
-      </thead>
-      <tbody id="itemsBody"></tbody>
-    </table>
-    <div class="totals" id="totals"></div>
+    <div class="card">
+      <label>Позиции</label>
+      <table>
+        <thead>
+          <tr><th>Товар</th><th>Артикул</th><th>Упаковок</th><th>Шт</th><th></th></tr>
+        </thead>
+        <tbody id="itemsBody"></tbody>
+      </table>
+      <div class="totals" id="totals"></div>
+    </div>
 
-    <div style="margin-top:14px">
+    <div class="card" style="display:flex;gap:10px;justify-content:flex-end">
       <button id="btnCreate" type="button" disabled>Создать задачу</button>
     </div>
   </div>
@@ -83,8 +114,6 @@
     const VERCEL_NOTIFY_PROXY_URL  = "/api/notify-taskCreated";
 
     // ====== Парсеры ======
-    // Специализированный парсер под строки вида:
-    //  1  PSHB-1035  Docke PREMIUM// H-профиль (Банан)  8 шт  8 шт
     function parseDockeTablesFromText(fullText) {
       const rx = /(?:^|\n)\s*\d+\s+([A-ZА-Я0-9-]{4,})\s+(.+?)\s+(\d[\d\s.,]*)\s*шт\s+(\d[\d\s.,]*)\s*шт\s*(?=\n|$)/gimu;
       const items = [];
@@ -98,8 +127,6 @@
       }
       return items;
     }
-
-    // Универсальный запасной парсер «по строкам»
     function parseTable(lines){
       const headIdx = lines.findIndex(l => /артикул|товар|наименование|кол-во|количество/i.test(l));
       const work = headIdx>=0 ? lines.slice(headIdx+1) : lines;
@@ -117,7 +144,6 @@
       }
       return items;
     }
-
     function parseFromOcr(ocrLines){
       const lines = ocrLines.map(x=>x.trim()).filter(Boolean);
       const items = parseTable(lines);
@@ -144,25 +170,24 @@
       }
       updateTotals();
     }
-
     function collectItemsFromTable() {
       return [...document.querySelectorAll('#itemsBody tr')].map(tr=>{
         const get = k => tr.querySelector(`input[data-k="${k}"]`).value.trim();
         return { title:get('title'), article:get('article'), qtyPacks:get('qtyPacks'), qtyUnits:get('qtyUnits') };
       }).filter(it => it.title || it.qtyPacks || it.qtyUnits);
     }
-
     function updateTotals(){
       const items = collectItemsFromTable();
       const sumP = items.reduce((s,it)=> s + (parseFloat((it.qtyPacks||"").replace(",","."))||0), 0);
       const sumU = items.reduce((s,it)=> s + (parseFloat((it.qtyUnits||"").replace(",","."))||0), 0);
       $('#totals').textContent = `Итого: упаковок ${sumP} • штук ${sumU}`;
-      $('#btnCreate').disabled = items.length===0;
+      // включение кнопки делаем отдельно через updateCreateDisabled()
     }
 
-    // ====== DnD + Кнопка + Paste: навешиваем моментально ======
+    // ====== DnD + Кнопка + Paste ======
     const drop = $('#drop');
     const fi   = $('#fileInput');
+    let inputFile=null, sourceKind="", parsedItems=[];
 
     $('#btnPick').addEventListener('click', () => fi.click());
     fi.addEventListener('change', () => handleFiles(fi.files));
@@ -216,8 +241,6 @@
     const readAsArrayBuffer = (f)=> new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(r.result); r.onerror=rej; r.readAsArrayBuffer(f); });
     const readAsDataURL    = (f)=> new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(r.result); r.onerror=rej; r.readAsDataURL(f); });
 
-    let inputFile=null, sourceKind="", items=[];
-
     async function handleFiles(fileList){
       if (!fileList || !fileList.length) return;
       const f = fileList[0];
@@ -226,8 +249,9 @@
       $('#btnCreate').disabled = true;
       $('#itemsBody').innerHTML = "";
       $('#totals').textContent = "";
-      items = [];
+      parsedItems = [];
       await processFile(f);
+      updateCreateDisabled();
     }
 
     async function processFile(file){
@@ -247,7 +271,6 @@
           } catch(_){}
 
           if (hasTextLayer) {
-            // Сбор текста постранично с учетом hasEOL
             sourceKind = "pdf-text";
             const allPagesText = [];
             for (let i=1;i<=pdf.numPages;i++){
@@ -264,28 +287,22 @@
               allPagesText.push(pageText);
             }
             const fullText = allPagesText.join("\n");
-
-            // Сначала пробуем «умный» парсер под накладные
             let parsed = parseDockeTablesFromText(fullText);
-
-            // Если ничего не нашли — fallback к универсальному
             if (!parsed.length) {
               const lines = fullText.split(/\n/g).map(s=>s.trim()).filter(Boolean);
               parsed = parseTable(lines);
             }
-
-            items = parsed;
-            renderItems(items);
-            status(`Готово. Найдено позиций: ${items.length}`);
+            parsedItems = parsed;
+            renderItems(parsedItems);
+            status(`Готово. Найдено позиций: ${parsedItems.length}`);
           } else {
-            // OCR страниц
             sourceKind = "pdf-scan";
-            items = [];
+            parsedItems = [];
             const Tesseract = await ensureTesseract();
             for (let i=1;i<=pdf.numPages;i++){
               status(`Делаю OCR… стр. ${i}/${pdf.numPages}`);
               const page = await pdf.getPage(i);
-              const viewport = page.getViewport({ scale: 3.0 }); // чуть лучше качество
+              const viewport = page.getViewport({ scale: 3.0 });
               const canvas = document.createElement('canvas');
               const ctx = canvas.getContext('2d');
               canvas.width = viewport.width; canvas.height = viewport.height;
@@ -297,10 +314,10 @@
               await worker.terminate();
 
               const lines = data.lines.map(l => l.text);
-              items.push(...parseFromOcr(lines));
+              parsedItems.push(...parseFromOcr(lines));
             }
-            renderItems(items);
-            status(`Готово. Найдено позиций: ${items.length}`);
+            renderItems(parsedItems);
+            status(`Готово. Найдено позиций: ${parsedItems.length}`);
           }
         } else {
           // Изображение -> OCR
@@ -312,11 +329,10 @@
           const { data } = await worker.recognize(dataUrl);
           await worker.terminate();
           const lines = data.lines.map(l => l.text);
-          items = parseFromOcr(lines);
-          renderItems(items);
-          status(`Готово. Найдено позиций: ${items.length}`);
+          parsedItems = parseFromOcr(lines);
+          renderItems(parsedItems);
+          status(`Готово. Найдено позиций: ${parsedItems.length}`);
         }
-        $('#btnCreate').disabled = collectItemsFromTable().length===0;
       } catch (e) {
         console.error(e);
         status('Ошибка обработки файла: ' + (e?.message||e));
@@ -324,7 +340,7 @@
       }
     }
 
-    // ====== Cloudinary + Firestore + push ======
+    // ====== Cloudinary ======
     async function uploadToCloudinary(file, taskId) {
       status('Загружаю файл в Cloudinary…');
       const form = new FormData();
@@ -337,47 +353,168 @@
       return { url: j.secure_url, publicId: j.public_id, type: j.resource_type || 'raw', name: file.name || 'file' };
     }
 
+    // ====== Users UI (Автор + Исполнители) ======
+    let usersAll = [];           // {id, name, role}
+    let selectedWorkerIds = new Set();
+    let selectedWorkerNames = new Set();
+    let selectedAuthor = null;   // {id, name}
+
+    function renderUsersUI() {
+      const authorSel = document.getElementById('authorSelect');
+      const workersBox = document.getElementById('workersBox');
+      const authorHint = document.getElementById('authorHint');
+
+      const authors = usersAll.filter(u => (u.role||"").toLowerCase() !== "кладовщик");
+      const workers = usersAll.filter(u => (u.role||"").toLowerCase() === "кладовщик");
+
+      // — автор
+      authorSel.innerHTML = "";
+      const optEmpty = document.createElement('option');
+      optEmpty.value = ""; optEmpty.textContent = "— выбрать —";
+      authorSel.appendChild(optEmpty);
+      (authors.length ? authors : usersAll).forEach(u => {
+        const o = document.createElement('option');
+        o.value = u.id; o.textContent = u.name || u.id;
+        authorSel.appendChild(o);
+      });
+      authorSel.onchange = () => {
+        const u = usersAll.find(x => x.id === authorSel.value);
+        selectedAuthor = u ? { id: u.id, name: (u.name || u.id) } : null;
+        authorHint.textContent = selectedAuthor ? `Выбран: ${selectedAuthor.name}` : "Автор не выбран";
+        updateCreateDisabled();
+      };
+
+      // — исполнители
+      workersBox.innerHTML = "";
+      (workers.length ? workers : usersAll).forEach(u => {
+        const btn = document.createElement('button');
+        btn.type = "button";
+        btn.textContent = u.name || u.id;
+        btn.className = "chip";
+        let active = false;
+        function setActive(a){
+          active = a;
+          if (active) btn.classList.add('active'); else btn.classList.remove('active');
+        }
+        btn.onclick = () => {
+          if (!active) { selectedWorkerIds.add(u.id); selectedWorkerNames.add(u.name || u.id); }
+          else         { selectedWorkerIds.delete(u.id); selectedWorkerNames.delete(u.name || u.id); }
+          setActive(!active);
+          updateCreateDisabled();
+        };
+        setActive(false);
+        workersBox.appendChild(btn);
+      });
+
+      authorHint.textContent = "Выберите автора";
+    }
+
+    async function loadUsers() {
+      try {
+        const { fsMod } = await ensureFirebase();
+        const snap = await fsMod.getDocs(fsMod.collection(_db, 'users'));
+        usersAll = snap.docs.map(d => ({
+          id: d.id,
+          name: d.get('name') || d.get('displayName') || d.id,
+          role: (d.get('role') || "").toString()
+        }));
+        renderUsersUI();
+      } catch (e) {
+        console.error("loadUsers failed:", e);
+        document.getElementById('authorHint').textContent = "Не удалось загрузить пользователей";
+      }
+    }
+
+    // ====== Создание задач ======
+    function getSelectedItems() { return collectItemsFromTable(); }
+
+    function updateCreateDisabled() {
+      const okItems = getSelectedItems().length > 0;
+      const okFile  = !!inputFile;
+      const okAuthor= !!selectedAuthor;
+      document.getElementById('btnCreate').disabled = !(okItems && okFile && okAuthor);
+    }
+
+    async function createOneTaskFor(
+      fsMod, title, comment,
+      assigneeId, assigneeName,
+      isPickup, creatorId, creatorName
+    ) {
+      const docRef = fsMod.doc(fsMod.collection(_db, 'tasks'));
+      const taskId = docRef.id;
+
+      const data = {
+        title, comment,
+        assignees: assigneeId ? [assigneeId] : [],
+        assigneeNames: assigneeName ? [assigneeName] : [],
+        isPickup: !!isPickup,
+        status: "assigned",
+        createdAt: fsMod.serverTimestamp(),
+        creatorId, creatorName,
+        items: getSelectedItems(),
+        source: sourceKind || "web",
+        sourceMeta: { ua: navigator.userAgent },
+        files: []
+      };
+
+      await fsMod.setDoc(docRef, data);
+
+      const fileRec = await uploadToCloudinary(inputFile, taskId);
+      await fsMod.updateDoc(docRef, { files: [fileRec] });
+
+      try {
+        await fetch(VERCEL_NOTIFY_PROXY_URL, {
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ taskId, assigneeIds: assigneeId ? [assigneeId] : [] })
+        });
+      } catch(e) { console.warn('notify failed', e); }
+
+      return taskId;
+    }
+
     async function createTask() {
       try {
         const title = $('#title').value.trim();
         const comment = $('#comment').value.trim();
-        const assigneesRaw = $('#assignees').value.trim();
         if (!title) { alert('Введите заголовок'); return; }
-        const selectedItems = collectItemsFromTable();
-        if (!selectedItems.length) { alert('Нет позиций'); return; }
+        if (!selectedAuthor) { alert('Выберите автора'); return; }
+        const items = getSelectedItems();
+        if (!items.length) { alert('Нет позиций'); return; }
         if (!inputFile) { alert('Не выбран файл'); return; }
 
         $('#btnCreate').disabled = true;
-        status('Создаю задачу…');
+        status('Создаю задачу(и)…');
 
-        const { appMod, authMod, fsMod } = await ensureFirebase();
+        const { fsMod } = await ensureFirebase();
 
-        const assigneeIds = assigneesRaw ? assigneesRaw.split(/[,;\s]+/).filter(Boolean) : [];
+        const creatorId = selectedAuthor.id;
+        const creatorName = selectedAuthor.name;
 
-        const docRef = await fsMod.addDoc(fsMod.collection(_db, 'tasks'), {
-          title, comment, status:'new',
-          assignees: assigneeIds,
-          assigneeNames: [],
-          items: selectedItems,
-          source: sourceKind,
-          sourceMeta: { ua: navigator.userAgent },
-          createdAt: fsMod.serverTimestamp()
-        });
-        const taskId = docRef.id;
+        const workerIds = Array.from(selectedWorkerIds);
+        const workerNames = Array.from(selectedWorkerNames);
 
-        const fileRec = await uploadToCloudinary(inputFile, taskId);
-        await fsMod.updateDoc(docRef, { files: [fileRec] });
+        const createdIds = [];
+        if (workerIds.length === 0) {
+          const id = await createOneTaskFor(
+            fsMod, title, comment,
+            null, null,
+            true, creatorId, creatorName
+          );
+          createdIds.push(id);
+        } else {
+          for (let i=0;i<workerIds.length;i++){
+            const id = await createOneTaskFor(
+              fsMod, title, comment,
+              workerIds[i], workerNames[i] || workerIds[i],
+              false, creatorId, creatorName
+            );
+            createdIds.push(id);
+          }
+        }
 
-        status('Пишу задачу… ок. Шлю пуш…');
-        const r = await fetch(VERCEL_NOTIFY_PROXY_URL, {
-          method:'POST',
-          headers:{'Content-Type':'application/json'},
-          body: JSON.stringify({ taskId, assigneeIds })
-        });
-        if (!r.ok) throw new Error('Notify failed: ' + r.status);
-
-        status(`Готово: задача ${taskId}`);
-        alert('Задача создана');
+        status(`Готово. Создано задач: ${createdIds.length}`);
+        alert(`Создано задач: ${createdIds.length}`);
 
         // сброс формы
         $('#itemsBody').innerHTML = "";
@@ -385,21 +522,26 @@
         $('#preview').textContent = "";
         $('#title').value="";
         $('#comment').value="";
-        $('#assignees').value="";
-        $('#btnCreate').disabled = true;
-        inputFile=null; sourceKind=""; items=[];
+        inputFile=null; sourceKind="";
+        selectedWorkerIds.clear(); selectedWorkerNames.clear();
+        document.getElementById('authorSelect').selectedIndex = 0; selectedAuthor=null;
+        updateCreateDisabled();
       } catch (e) {
         console.error(e);
         alert('Ошибка: ' + (e?.message||e));
         status('Ошибка');
-      } finally {
-        $('#btnCreate').disabled = collectItemsFromTable().length===0;
+        updateCreateDisabled();
       }
     }
 
     document.getElementById('btnCreate').addEventListener('click', createTask);
+
+    // Инициализация
+    (async function init(){
+      await ensureFirebase();
+      loadUsers();
+    })();
   </script>
 </body>
 </html>
-
 
