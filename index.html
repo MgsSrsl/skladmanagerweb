@@ -122,17 +122,93 @@
     const CLOUDINARY_UPLOAD_PRESET = "unsigned_tasks";
     const VERCEL_NOTIFY_PROXY_URL  = "/api/notify-taskCreated";
 
-    // ====== Парсеры ======
+    // ====== НОВЫЙ ЖЁСТКИЙ ПАРСЕР ДЛЯ ДОКЕ ======
+    // Единицы, которые считаем "упаковками"
+    const PACK_UNITS = ['уп','упак','упаковка','упаковок','рул','рулон','паллет','палета','паллетa','кор','короб','ящ','ящик'];
+    // Единицы, которые считаем "штучными"
+    const UNIT_UNITS = ['шт','лист','комплект','м2','м3','м²','м³','п.м','п.м.','пог.м','кг','л'];
+
+    // Вспомогательная: снимет справа один "хвост" вида "<число> <единица>".
+    function popRightQtyTail(s) {
+      const rx = /(?:^|[\s/])(\d[\d\s.,]*)\s*(шт|лист|рул(?:он)?|уп(?:аковка|аковок|ак)?|паллет(?:а)?|палета|кор(?:об)?|ящ(?:ик)?|комплект|м2|м3|м²|м³|п\.?м\.?|пог\.?м|кг|л)\.?$/i;
+      const m = s.match(rx);
+      if (!m) return { rest: s, tail: null };
+      const numRaw = (m[1]||'').replace(/\s+/g,'').replace(',', '.');
+      const unit = (m[2]||'').toLowerCase();
+      const rest = s.slice(0, m.index).replace(/[\/\s]+$/,'').trim();
+      return { rest, tail: { qty: numRaw, unit } };
+    }
+
+    // Преобразует массив хвостов в qtyPacks/qtyUnits
+    function tailsToQty(tails) {
+      let qtyPacks = "", qtyUnits = "";
+      for (const t of tails) {
+        const u = t.unit;
+        if (!qtyPacks && PACK_UNITS.includes(u)) { qtyPacks = t.qty; continue; }
+        if (!qtyUnits && (UNIT_UNITS.includes(u) || !PACK_UNITS.includes(u))) { qtyUnits = t.qty; continue; }
+      }
+      // если нашли только одно значение — кладём в "Шт"
+      if (!qtyUnits && qtyPacks && !PACK_UNITS.includes('шт')) {
+        // оставляем как есть: упаковки показаны отдельно
+      }
+      return { qtyPacks, qtyUnits: qtyUnits || (!qtyPacks ? "" : qtyUnits) };
+    }
+
+    // Жёстко разбираем строки вида "№  Товар  Количество"
+    function parseDockeLinesStrict(fullText) {
+      const lines = fullText.split(/\n+/).map(s => s.replace(/\s+/g,' ').trim()).filter(Boolean);
+
+      // Ищем начало табличного блока
+      const startIdx = lines.findIndex(l => /^№\b.*товар.*кол/i.test(l));
+      const work = startIdx >= 0 ? lines.slice(startIdx + 1) : lines;
+
+      const items = [];
+      for (let raw of work) {
+        if (!/^\d+[\s.)-]+/.test(raw)) continue; // только строки, начинающиеся с номера позиции
+        let s = raw.replace(/^\d+[\s.)-]+/, '').trim();
+
+        // Снимаем справа до 2 "хвостов" количество+единица
+        const tails = [];
+        let tmp = s;
+        for (let k=0; k<2; k++) {
+          const { rest, tail } = popRightQtyTail(tmp);
+          if (!tail) break;
+          tails.unshift(tail); // чтобы порядок слева-направо сохранился
+          tmp = rest;
+        }
+
+        // Если вообще нет количеств — пропускаем
+        if (!tails.length) continue;
+
+        // Оставшееся слева — чистое название товара (с цифрами в размерностях)
+        const title = tmp.replace(/\s{2,}/g,' ').trim();
+
+        // Раскладываем количества по колонкам
+        const { qtyPacks, qtyUnits } = tailsToQty(tails);
+
+        items.push({
+          title: title || "(без названия)",
+          article: "",           // артикул в таких накладных часто не указан
+          qtyPacks: qtyPacks,
+          qtyUnits: qtyUnits,
+          _lowconf: false
+        });
+      }
+      return items;
+    }
+
+    // ====== Прежние универсальные парсеры (оставляем как fallback) ======
     function parseDockeTablesFromText(fullText) {
-      const rx = /(?:^|\n)\s*\d+\s+([A-ZА-Я0-9-]{4,})\s+(.+?)\s+(\d[\d\s.,]*)\s*шт\s+(\d[\d\s.,]*)\s*шт\s*(?=\n|$)/gimu;
+      // старая регулярка — оставляем как запасной вариант
+      const rx = /(?:^|\n)\s*\d+\s+([A-ZА-Я0-9-]{4,})\s+(.+?)\s+(\d[\d\s.,]*)\s*(шт|лист|рул|уп|упак|паллет)?\s+(\d[\d\s.,]*)\s*(шт|лист|рул|уп|упак|паллет)?\s*(?=\n|$)/gimu;
       const items = [];
       let m;
       while ((m = rx.exec(fullText)) !== null) {
-        const article = m[1].trim();
-        const title   = m[2].replace(/\s+/g,' ').trim();
-        const qtyPacks= (m[3]||"").replace(',', '.').replace(/\s+/g,'').trim();
-        const qtyUnits= (m[4]||"").replace(',', '.').replace(/\s+/g,'').trim();
-        items.push({ title, article, qtyPacks, qtyUnits, _lowconf:false });
+        const article = (m[1]||"").trim();
+        const title   = (m[2]||"").replace(/\s+/g,' ').trim();
+        const q1      = (m[3]||"").replace(',', '.').replace(/\s+/g,'').trim();
+        const q2      = (m[5]||"").replace(',', '.').replace(/\s+/g,'').trim();
+        items.push({ title, article, qtyPacks:q1, qtyUnits:q2, _lowconf:false });
       }
       return items;
     }
@@ -365,13 +441,20 @@
               allPagesText.push(pageText);
             }
             const fullText = allPagesText.join("\n");
-            let parsed = parseDockeTablesFromText(fullText);
+
+            // 1) Жёсткий парсер под доковскую верстку
+            let parsed = parseDockeLinesStrict(fullText);
+            // 2) Если ничего не нашли — пробуем запасные варианты
+            if (!parsed.length) {
+              parsed = parseDockeTablesFromText(fullText);
+            }
             if (!parsed.length) {
               const lines = fullText.split(/\n/g).map(s=>s.trim()).filter(Boolean);
               parsed = parseTable(lines);
             }
             parsed.forEach(it => it._src = file.name);
             return parsed;
+
           } else {
             // OCR PDF постранично
             const Tesseract = await ensureTesseract();
@@ -421,7 +504,6 @@
     async function parseOneFileIntoRaw(file, replaceRaw = false) {
       const arr = await parseOneFile(file);
       if (replaceRaw) {
-        // очищаем только позиции, пришедшие из этого файла, и записываем заново
         itemsParsedRaw = itemsParsedRaw.filter(x => x._src !== file.name).concat(arr);
       } else {
         itemsParsedRaw.push(...arr);
@@ -438,7 +520,6 @@
         i++;
         status(`Парсинг ${i}/${filesAll.length}: ${f.name}`);
         await parseOneFileIntoRaw(f);
-        // небольшой «breathing room», чтобы UI не залип
         await sleep(10);
       }
       rerenderFromRaw();
@@ -450,7 +531,6 @@
       const doMerge = $('#mergeToggle').checked;
       itemsRendered = doMerge ? mergeSameItems(itemsParsedRaw) : [...itemsParsedRaw];
       renderItems(itemsRendered);
-      // покажем источники
       const srcSet = new Set(itemsParsedRaw.map(x => x._src).filter(Boolean));
       $('#sourcesInfo').textContent = srcSet.size ? `Файлы: ${Array.from(srcSet).join(', ')}` : '';
     }
