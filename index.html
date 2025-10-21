@@ -118,6 +118,18 @@
     const sleep = (ms)=> new Promise(r=>setTimeout(r,ms));
     const readAsArrayBuffer = (f)=> new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(r.result); r.onerror=rej; r.readAsArrayBuffer(f); });
     const readAsText = (f, enc='utf-8')=> new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(r.result); r.onerror=rej; r.readAsText(f, enc); });
+// слово похоже на единицу измерения?
+function isUnitWord(s){
+  const v = (s??"").toString().trim().toLowerCase();
+  if (!v) return false;
+  const ALIAS = {
+    "шт":1,"штук":1,"штука":1,"штуки":1,"шт.":1,
+    "уп":1,"уп.":1,"упак":1,"упаковка":1,"упаковки":1,"упаковок":1,"пак":1,"пач":1,
+    "лист":1,"рул":1,"рулон":1,"кор":1,"короб":1,"коробка":1,"компл":1,"комплект":1,"пара":1,
+    "м":1,"м.п":1,"м.п.":1,"м2":1,"м^2":1,"м²":1,"кг":1,"г":1,"гр":1,"л":1
+  };
+  return !!ALIAS[v];
+}
 
     // ====== Конфиг ======
     const FIREBASE_CONFIG = {
@@ -277,16 +289,32 @@
       for (let r=headIdx+1; r<aoa.length; r++){
         const row = aoa[r] || [];
         const title   = (getCell(row, cols.title)   || "").toString().trim();
-        const article = (getCell(row, cols.article) || "").toString().trim();
-        const rowNoR  = (getCell(row, cols.rowNo)   || "").toString().trim();
-        let qty       = (getCell(row, cols.qty)     || "").toString().trim();
-        let unit      = (getCell(row, cols.unit)    || "").toString().trim();
+const article = (getCell(row, cols.article) || "").toString().trim();
+const rowNoR  = (getCell(row, cols.rowNo)   || "").toString().trim();
+let qty       = (getCell(row, cols.qty)     || "").toString().trim();
 
-        if (!title && !qty) continue;
+// 1) пробуем взять unit из колонки по шапке
+let unitIdx = cols.unit;
+let unitRaw = (getCell(row, unitIdx) || "").toString().trim();
 
-        unit = normUnit(unit);
-        qty  = normNum(qty);
+// 2) если пусто — построчно берём соседа справа от qty
+if (!unitRaw && cols.qty != null) {
+  const right = cols.qty + 1;
+  const left  = cols.qty - 1;
+  const candR = (getCell(row, right) || "").toString().trim();
+  if (isUnitWord(candR)) unitRaw = candR;
+  // если справа не единица — пробуем слева
+  if (!unitRaw) {
+    const candL = (getCell(row, left) || "").toString().trim();
+    if (isUnitWord(candL)) unitRaw = candL;
+  }
+}
 
+let unit = unitRaw;
+
+// нормализация
+unit = normUnit(unit);
+qty  = normNum(qty);
         const rowNo = rowNoR || String(autoRow++);
         out.push({ rowNo, title, article, qty, unit, qtyPacks:"", qtyUnits:"", _src:"", _lowconf:false });
       }
