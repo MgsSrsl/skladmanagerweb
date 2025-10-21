@@ -8,7 +8,7 @@
     body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 0; background: #0b0f14; color: #fff; }
     .container { max-width: 1100px; margin: 24px auto 64px; padding: 0 16px; }
     h1 { margin: 0 0 16px; font-weight: 700; }
-    .dropzone { border: 2px dashed #4b5563; border-radius: 14px; padding: 22px; background: #111827; text-align: center; }
+    .dropzone { border: 2px dashed #4b5563; border-radius: 14px; padding: 22px; background: #111827; text-align: center; transition: .2s; }
     .dropzone.drag { background: #1f2937; border-color: #60a5fa; }
     label { font-size: 14px; color: #9ca3af; display:block; margin-top: 14px;}
     input[type="text"], textarea { width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid #374151; background: #0b1220; color: #fff; }
@@ -24,7 +24,8 @@
     tr.lowconf td { background: #382e00; }
     .totals { text-align: right; margin-top: 6px; color:#cbd5e1 }
     .kbd { background:#111827; border:1px solid #374151; border-radius:6px; padding:0 6px; }
-    input[type=file]{ display:none; } /* скрытый файл-инпут */
+    /* скрытый, но кликабельный input (не display:none) */
+    #fileInput { position: fixed; left: -9999px; top: -9999px; width: 1px; height: 1px; opacity: 0; }
   </style>
 </head>
 <body>
@@ -80,20 +81,58 @@
       projectId: "skladsborka-6c2a7",
       storageBucket: "skladsborka-6c2a7.appspot.com",
       messagingSenderId: "516526717198"
-      // без appId — ок
+      // appId не обязателен для web v9 модулей
     };
-    const CLOUDINARY_CLOUD_NAME    = "dnx1taqp7";       // подставь свой
-    const CLOUDINARY_UPLOAD_PRESET = "unsigned_tasks";  // подставь свой
+    const CLOUDINARY_CLOUD_NAME    = "dnx1taqp7";       // замени на свой при необходимости
+    const CLOUDINARY_UPLOAD_PRESET = "unsigned_tasks";  // должен быть unsigned
     const VERCEL_NOTIFY_PROXY_URL  = "/api/notify-taskCreated";
 
     // ---------- INIT ----------
     const app = initializeApp(FIREBASE_CONFIG);
     const auth = getAuth(app);
     const db   = getFirestore(app);
-    await signInAnonymously(auth);
 
     const $ = s => document.querySelector(s);
     const status = t => { $('#status').textContent = t; };
+
+    // Ловим ошибки, чтобы не «умирал» модуль и было видно причину
+    window.addEventListener('error', e => console.error('Global error:', e.error || e.message));
+    window.addEventListener('unhandledrejection', e => console.error('Unhandled promise:', e.reason));
+
+    // ---------- Ввод файлов: КНОПКА + DND + PASTE ----------
+    const drop = $('#drop');
+    const fi   = $('#fileInput');
+
+    // кнопка — кликаем по скрытому input
+    $('#btnPick').addEventListener('click', () => fi.click());
+    fi.addEventListener('change', () => handleFiles(fi.files));
+
+    // drag & drop
+    ['dragenter','dragover'].forEach(ev=>{
+      document.addEventListener(ev, e=>{ e.preventDefault(); });
+      drop.addEventListener(ev, e=>{ e.preventDefault(); drop.classList.add('drag'); });
+    });
+    ['dragleave','drop'].forEach(ev=>{
+      document.addEventListener(ev, e=>{ e.preventDefault(); });
+      drop.addEventListener(ev, e=>{ e.preventDefault(); drop.classList.remove('drag'); });
+    });
+    drop.addEventListener('drop', e => { handleFiles(e.dataTransfer.files); });
+
+    // paste скриншота
+    window.addEventListener('paste', async (e)=>{
+      const items = e.clipboardData?.items; if (!items) return;
+      for (const it of items) { if (it.kind==='file'){ handleFiles([it.getAsFile()]); break; } }
+    });
+
+    // ---------- Авторизация Firebase (не блокирует UI) ----------
+    (async ()=>{
+      try {
+        await signInAnonymously(auth);
+        console.log("✅ Firebase анонимный вход выполнен");
+      } catch(e) {
+        console.warn("⚠️ Firebase вход не удался (UI продолжит работать):", e);
+      }
+    })();
 
     // ---------- УТИЛЫ ----------
     const readAsArrayBuffer = (f)=> new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(r.result); r.onerror=rej; r.readAsArrayBuffer(f); });
@@ -159,31 +198,6 @@
       $('#btnCreate').disabled = items.length===0;
     }
 
-    // ---------- Ввод файлов: КНОПКА + DND + PASTE ----------
-    const drop = $('#drop');
-    const fi   = $('#fileInput');
-
-    // 1) Кнопка — кликаем по скрытому input (он в DOM, значит Edge/Chromium пропустит)
-    $('#btnPick').addEventListener('click', () => fi.click());
-    fi.addEventListener('change', () => handleFiles(fi.files));
-
-    // 2) DnD — на весь документ (и на зону), с preventDefault
-    ['dragenter','dragover'].forEach(ev=>{
-      document.addEventListener(ev, e=>{ e.preventDefault(); });
-      drop.addEventListener(ev, e=>{ e.preventDefault(); drop.classList.add('drag'); });
-    });
-    ['dragleave','drop'].forEach(ev=>{
-      document.addEventListener(ev, e=>{ e.preventDefault(); });
-      drop.addEventListener(ev, e=>{ e.preventDefault(); drop.classList.remove('drag'); });
-    });
-    drop.addEventListener('drop', e => { handleFiles(e.dataTransfer.files); });
-
-    // 3) Paste (Alt+PrintScreen → Ctrl+V)
-    window.addEventListener('paste', async (e)=>{
-      const items = e.clipboardData?.items; if (!items) return;
-      for (const it of items) { if (it.kind==='file'){ handleFiles([it.getAsFile()]); break; } }
-    });
-
     // ---------- Обработка выбранных файлов ----------
     let inputFile=null, sourceKind="", items=[];
 
@@ -206,7 +220,7 @@
           const ab = await readAsArrayBuffer(file);
           const pdf = await pdfjsLib.getDocument({ data: ab }).promise;
 
-          // Текстовый слой?
+          // Пробуем текствой слой
           let hasTextLayer = false;
           try {
             const p1  = await pdf.getPage(1);
@@ -228,6 +242,7 @@
             renderItems(items);
             status(`Готово. Найдено позиций: ${items.length}`);
           } else {
+            // OCR каждого рендера страницы
             sourceKind = "pdf-scan";
             items = [];
             for (let i=1;i<=pdf.numPages;i++){
@@ -241,8 +256,7 @@
               const dataUrl = canvas.toDataURL('image/png');
 
               const worker = await Tesseract.createWorker('rus+eng');
-              const { data } = await worker.recognize(dataUrl, { tessedit_char_whitelist:
-                '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZабвгдеёжзийклмнопрстуфхцчшщьыъэюя-() .,' });
+              const { data } = await worker.recognize(dataUrl);
               await worker.terminate();
 
               const lines = data.lines.map(l => l.text);
@@ -252,18 +266,20 @@
             status(`Готово. Найдено позиций: ${items.length}`);
           }
         } else {
+          // Обычное изображение
           sourceKind = "image";
           status('Делаю OCR изображения…');
           const dataUrl = await readAsDataURL(file);
           const worker = await Tesseract.createWorker('rus+eng');
-          const { data } = await worker.recognize(dataUrl, { tessedit_char_whitelist:
-            '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZабвгдеёжзийклмнопрстуфхцчшщьыъэюя-() .,' });
+          const { data } = await worker.recognize(dataUrl);
           await worker.terminate();
           const lines = data.lines.map(l => l.text);
           items = parseFromOcr(lines);
           renderItems(items);
           status(`Готово. Найдено позиций: ${items.length}`);
         }
+        // после успешного парса — можно создавать
+        $('#btnCreate').disabled = collectItemsFromTable().length===0;
       } catch (e) {
         console.error(e);
         status('Ошибка обработки файла: ' + (e?.message||e));
@@ -292,13 +308,16 @@
         if (!title) { alert('Введите заголовок'); return; }
         const selectedItems = collectItemsFromTable();
         if (!selectedItems.length) { alert('Нет позиций'); return; }
+        if (!inputFile) { alert('Не выбран файл'); return; }
 
         $('#btnCreate').disabled = true;
         status('Создаю задачу…');
 
+        const assigneeIds = assigneesRaw ? assigneesRaw.split(/[,;\s]+/).filter(Boolean) : [];
+
         const docRef = await addDoc(collection(db, 'tasks'), {
           title, comment, status:'new',
-          assignees: assigneesRaw ? assigneesRaw.split(/[,;\s]+/).filter(Boolean) : [],
+          assignees: assigneeIds,
           assigneeNames: [],
           items: selectedItems,
           source: sourceKind,
@@ -311,19 +330,32 @@
         await updateDoc(docRef, { files: [fileRec] });
 
         status('Пишу задачу… ок. Шлю пуш…');
-        const assigneeIds = assigneesRaw ? assigneesRaw.split(/[,;\s]+/).filter(Boolean) : [];
-        const r = await fetch(VERCEL_NOTIFY_PROXY_URL, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ taskId, assigneeIds }) });
+        const r = await fetch(VERCEL_NOTIFY_PROXY_URL, {
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ taskId, assigneeIds })
+        });
         if (!r.ok) throw new Error('Notify failed: ' + r.status);
 
         status(`Готово: задача ${taskId}`);
         alert('Задача создана');
-        $('#itemsBody').innerHTML = ""; $('#totals').textContent = ""; $('#preview').textContent = "";
-        $('#title').value=""; $('#comment').value=""; $('#assignees').value="";
+
+        // сброс формы
+        $('#itemsBody').innerHTML = "";
+        $('#totals').textContent = "";
+        $('#preview').textContent = "";
+        $('#title').value="";
+        $('#comment').value="";
+        $('#assignees').value="";
         $('#btnCreate').disabled = true;
+        inputFile=null; sourceKind=""; items=[];
       } catch (e) {
-        console.error(e); alert('Ошибка: ' + (e?.message||e)); status('Ошибка');
+        console.error(e);
+        alert('Ошибка: ' + (e?.message||e));
+        status('Ошибка');
       } finally {
-        $('#btnCreate').disabled = false;
+        // если что-то не так — оставить кнопку активной для повтора
+        $('#btnCreate').disabled = collectItemsFromTable().length===0;
       }
     }
 
@@ -331,3 +363,4 @@
   </script>
 </body>
 </html>
+
