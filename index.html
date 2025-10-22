@@ -12,9 +12,7 @@
     h1 { margin: 0 0 16px; }
     .card { background:#0d1422; border:1px solid #1f2a44; border-radius:14px; padding:16px; margin-bottom:16px; }
     label { font-size:14px; color:#9ca3af; display:block; margin:10px 0 6px; }
-    input[type="text"], textarea {
-      width:100%; padding:10px 12px; border-radius:10px; border:1px solid #374151; background:#0b1220; color:#fff;
-    }
+    input[type="text"], textarea { width:100%; padding:10px 12px; border-radius:10px; border:1px solid #374151; background:#0b1220; color:#fff; }
     textarea { min-height:80px; resize:vertical; }
     .row { display:flex; gap:12px; flex-wrap:wrap; align-items:center; }
     .dropzone { border:2px dashed #4b5563; border-radius:14px; padding:22px; background:#111827; text-align:center; transition:.2s; }
@@ -76,7 +74,7 @@
   </div>
 
   <script>
-    // ===== Конфиг
+    // ===== Конфиг (как в приложении)
     const FIREBASE_CONFIG = {
       apiKey: "AIzaSyAH58ZpWAp64mhM589KD6jXHcOlPqU0aYU",
       authDomain: "skladsborka-6c2a7.firebaseapp.com",
@@ -85,10 +83,8 @@
       messagingSenderId: "516526717198"
     };
     const CONFIG = {
-      cloudinary: { cloudName: "dnx1taqp7", uploadPreset: "unsigned_tasks" },
-      notify: { directUrl: "https://version-pi.vercel.app/notify/taskCreated" }
+      cloudinary: { cloudName: "dnx1taqp7", uploadPreset: "unsigned_tasks" } // тот же пресет
     };
-    const DIRECT_NOTIFY_URL = CONFIG.notify.directUrl;
 
     // ===== Утилиты
     const $  = s => document.querySelector(s);
@@ -99,7 +95,7 @@
     function blobToFile(blob, name){ return new File([blob], name, { type: blob.type || 'application/octet-stream' }); }
 
     // ===== Состояние файлов
-    let filesAll = []; // File[]
+    let filesAll = [];
 
     function clearAll(){
       filesAll = [];
@@ -113,7 +109,7 @@
       for (const f of filesAll){
         const row = document.createElement('div'); row.className = 'file';
         const th = document.createElement('div'); th.className = 'thumb';
-        if (f.type?.toLowerCase().startsWith('image/')){
+        if ((f.type||'').toLowerCase().startsWith('image/')){
           const img = document.createElement('img');
           img.src = URL.createObjectURL(f);
           th.appendChild(img);
@@ -158,7 +154,6 @@
         updateCreateDisabled();
       }
     }
-
     ['dragenter','dragover'].forEach(ev=>{
       document.addEventListener(ev, e=>{ e.preventDefault(); });
       drop.addEventListener(ev, e=>{ e.preventDefault(); drop.classList.add('drag'); });
@@ -173,11 +168,9 @@
     window.addEventListener('paste', async (e) => {
       const items = Array.from(e.clipboardData?.items || []);
       const files = [];
-      for (const it of items) {
-        if (it.kind === 'file') {
-          const f = it.getAsFile();
-          if (acceptFile(f)) files.push(f);
-        }
+      for (const it of items) if (it.kind === 'file') {
+        const f = it.getAsFile();
+        if (acceptFile(f)) files.push(f);
       }
       if (!files.length) return;
       const now = new Date();
@@ -194,12 +187,11 @@
       }));
       addFiles(named);
       status('Добавлено из буфера: ' + named.length);
-      await sleep(1000);
-      status('');
+      await sleep(1000); status('');
     });
 
     // ===== Firebase
-    let _app, _auth, _db, _fsMod, _authMod;
+    let _app, _db, _fsMod, _authMod;
     async function ensureFirebase(){
       if (_db) return;
       const appMod  = await import("https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js");
@@ -249,10 +241,8 @@
       }
     }
 
-    // ===== Cloudinary upload (PDF -> raw, images -> image)
+    // ===== Cloudinary upload (как в аппе: auto/upload + фиксация PDF)
     async function uploadToCloudinary(file, taskId){
-      const pdf = isPdfFile(file);
-      const endpointType = pdf ? 'raw' : 'image';
       const form = new FormData();
       form.append('file', file);
       form.append('upload_preset', CONFIG.cloudinary.uploadPreset);
@@ -260,19 +250,32 @@
       form.append('use_filename', 'true');
       form.append('unique_filename', 'true');
 
-      const resp = await fetch(`https://api.cloudinary.com/v1_1/${CONFIG.cloudinary.cloudName}/${endpointType}/upload`, {
+      const resp = await fetch(`https://api.cloudinary.com/v1_1/${CONFIG.cloudinary.cloudName}/auto/upload`, {
         method:'POST', body: form
       });
-      if (!resp.ok) throw new Error('Cloudinary upload failed: ' + resp.status);
-      const j = await resp.json();
+
+      let j;
+      if (!resp.ok) {
+        // Показать реальную причину 400
+        try { j = await resp.json(); } catch { j = null; }
+        const msg = j?.error?.message || (`Cloudinary upload failed: ${resp.status}`);
+        throw new Error(msg);
+      }
+      j = await resp.json();
+
+      const isPdf = isPdfFile(file);
+      // если pdf вдруг пришёл как image/upload — чиним путь на raw/upload (как в приложении)
+      const fixedUrl = (isPdf && typeof j.secure_url === 'string' && j.secure_url.includes('/image/upload/'))
+        ? j.secure_url.replace('/image/upload/', '/raw/upload/')
+        : j.secure_url;
+
+      const rtype = j.resource_type || (isPdf ? 'raw' : 'image');
+      const typeForTask = isPdf ? 'pdf' : (rtype === 'image' ? 'image' : rtype);
 
       return {
-        url: j.secure_url,
+        url: fixedUrl,
         publicId: j.public_id,
-        resourceType: j.resource_type,  // 'raw' для PDF, 'image' для картинок
-        format: j.format,
-        bytes: j.bytes,
-        isPdf: pdf,
+        type: typeForTask,
         name: file.name || 'file'
       };
     }
@@ -320,16 +323,6 @@
       const filesRecs = await uploadAll(taskId);
       await _fsMod.updateDoc(docRef, { files: filesRecs });
 
-      // Нотификация: только taskId (+ CORS fallback)
-      try {
-        await fetch(DIRECT_NOTIFY_URL, {
-          method:'POST',
-          headers:{ 'Content-Type':'application/json' },
-          body: JSON.stringify({ taskId })
-        });
-      } catch (e) {
-        new Image().src = `${DIRECT_NOTIFY_URL}?taskId=${encodeURIComponent(taskId)}`;
-      }
       return taskId;
     }
 
@@ -359,7 +352,6 @@
         status(`Готово. Создано задач: ${created.length}`);
         alert(`Создано задач: ${created.length}`);
 
-        // Сброс формы
         clearAll();
         $('#title').value = '';
         $('#comment').value = '';
