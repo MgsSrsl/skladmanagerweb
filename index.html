@@ -242,41 +242,47 @@
       }
     }
 
-    // ===== Cloudinary upload (unsigned, без use/unique_filename; auto → фиксим pdf URL на raw)
-    async function uploadToCloudinary(file, taskId){
-      const form = new FormData();
-      form.append('file', file);
-      form.append('upload_preset', CONFIG.cloudinary.uploadPreset);
-      form.append('folder', `tasks/${taskId}`);
+    // ===== Cloudinary upload (unsigned; auto/upload; PDF детект по 5 критериям)
+async function uploadToCloudinary(file, taskId){
+  const form = new FormData();
+  form.append('file', file);
+  form.append('upload_preset', CONFIG.cloudinary.uploadPreset);
+  form.append('folder', `tasks/${taskId}`); // unsigned: ok
+  // ВАЖНО: без use_filename/unique_filename — для unsigned запрещены
 
-      const resp = await fetch(
-        `https://api.cloudinary.com/v1_1/${CONFIG.cloudinary.cloudName}/auto/upload`,
-        { method:'POST', body: form }
-      );
+  const resp = await fetch(
+    `https://api.cloudinary.com/v1_1/${CONFIG.cloudinary.cloudName}/auto/upload`,
+    { method:'POST', body: form }
+  );
 
-      let j;
-      if (!resp.ok) {
-        try { j = await resp.json(); } catch { j = null; }
-        const msg = j?.error?.message || (`Cloudinary upload failed: ${resp.status}`);
-        throw new Error(msg);
-      }
-      j = await resp.json();
+  let j;
+  if (!resp.ok) {
+    try { j = await resp.json(); } catch { j = null; }
+    const msg = j?.error?.message || (`Cloudinary upload failed: ${resp.status}`);
+    throw new Error(msg);
+  }
+  j = await resp.json();
 
-      const isPdf = isPdfFile(file);
-      const fixedUrl = (isPdf && typeof j.secure_url === 'string' && j.secure_url.includes('/image/upload/'))
-        ? j.secure_url.replace('/image/upload/', '/raw/upload/')
-        : j.secure_url;
+  // --- Надёжная проверка, что это PDF ---
+  const byMime   = (file.type || '').toLowerCase() === 'application/pdf';
+  const byName   = /\.pdf$/i.test(file.name || '');
+  const byFormat = (j.format || '').toLowerCase() === 'pdf';
+  const byUrl    = typeof j.secure_url === 'string' && /\.pdf($|\?)/i.test(j.secure_url);
+  const byRes    = (j.resource_type || '').toLowerCase() === 'raw';
+  const isPdf    = byMime || byName || byFormat || byUrl || byRes;
 
-      const rtype = j.resource_type || (isPdf ? 'raw' : 'image');
-      const typeForTask = isPdf ? 'pdf' : (rtype === 'image' ? 'image' : rtype);
+  // Если Cloudinary вернул ссылку через /image/upload/, для PDF принудительно чиним на /raw/upload/
+  const fixedUrl = (isPdf && typeof j.secure_url === 'string' && j.secure_url.includes('/image/upload/'))
+    ? j.secure_url.replace('/image/upload/', '/raw/upload/')
+    : j.secure_url;
 
-      return {
-        url: fixedUrl,
-        publicId: j.public_id,
-        type: typeForTask,
-        name: file.name || 'file'
-      };
-    }
+  return {
+    url: fixedUrl,
+    publicId: j.public_id,
+    type: isPdf ? 'pdf' : 'image',      // <— теперь в Firestore будет "pdf"
+    name: file.name || 'file'
+  };
+}
 
     async function uploadAll(taskId){
       const out = [];
