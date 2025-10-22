@@ -36,7 +36,6 @@
     .chip.active { background:#1e293b; border-color:#60a5fa; }
     .status { margin-top:8px; font-size:14px; color:#93c5fd; white-space:pre-wrap; }
   </style>
-  <!-- Firebase импортируем динамически внизу -->
 </head>
 <body>
   <div class="container">
@@ -77,7 +76,7 @@
   </div>
 
   <script>
-    // ===== Конфиг от хозяина =====
+    // ===== Конфиг
     const FIREBASE_CONFIG = {
       apiKey: "AIzaSyAH58ZpWAp64mhM589KD6jXHcOlPqU0aYU",
       authDomain: "skladsborka-6c2a7.firebaseapp.com",
@@ -91,7 +90,7 @@
     };
     const DIRECT_NOTIFY_URL = CONFIG.notify.directUrl;
 
-    // ===== Утилиты =====
+    // ===== Утилиты
     const $  = s => document.querySelector(s);
     const $$ = s => Array.from(document.querySelectorAll(s));
     const status = t => { $('#status').textContent = t || ''; };
@@ -99,7 +98,7 @@
     function fmtSize(bytes){ return (bytes/1024/1024).toFixed(2)+' MB'; }
     function blobToFile(blob, name){ return new File([blob], name, { type: blob.type || 'application/octet-stream' }); }
 
-    // ===== Состояние файлов =====
+    // ===== Состояние файлов
     let filesAll = []; // File[]
 
     function clearAll(){
@@ -109,13 +108,12 @@
       updateCreateDisabled();
     }
 
-    // Рендер списка
     function renderFiles(){
       const box = $('#files'); box.innerHTML = '';
       for (const f of filesAll){
         const row = document.createElement('div'); row.className = 'file';
         const th = document.createElement('div'); th.className = 'thumb';
-        if (f.type.startsWith('image/')){
+        if (f.type?.toLowerCase().startsWith('image/')){
           const img = document.createElement('img');
           img.src = URL.createObjectURL(f);
           th.appendChild(img);
@@ -134,17 +132,21 @@
       }
     }
 
-    // ===== Приём drop / pick / paste =====
+    // ===== DnD / Pick / Paste
     const drop = $('#drop');
     const fi   = $('#fileInput');
     $('#btnPick').addEventListener('click', () => fi.click());
     $('#btnClear').addEventListener('click', clearAll);
 
+    function isPdfFile(file){
+      const t = (file?.type || '').toLowerCase();
+      return t === 'application/pdf' || /\.pdf$/i.test(file?.name || '');
+    }
     function acceptFile(file){
       if (!file) return false;
       const t = (file.type || '').toLowerCase();
       if (t.startsWith('image/')) return true;
-      if (t === 'application/pdf' || /\.pdf$/i.test(file.name || '')) return true;
+      if (isPdfFile(file)) return true;
       return false;
     }
     function addFiles(list){
@@ -157,7 +159,6 @@
       }
     }
 
-    // drag&drop
     ['dragenter','dragover'].forEach(ev=>{
       document.addEventListener(ev, e=>{ e.preventDefault(); });
       drop.addEventListener(ev, e=>{ e.preventDefault(); drop.classList.add('drag'); });
@@ -167,11 +168,8 @@
       drop.addEventListener(ev, e=>{ e.preventDefault(); drop.classList.remove('drag'); });
     });
     drop.addEventListener('drop', e => addFiles(e.dataTransfer?.files));
-
-    // file input
     fi.addEventListener('change', () => addFiles(fi.files));
 
-    // paste из буфера: берём файлы из clipboardData.items
     window.addEventListener('paste', async (e) => {
       const items = Array.from(e.clipboardData?.items || []);
       const files = [];
@@ -180,10 +178,8 @@
           const f = it.getAsFile();
           if (acceptFile(f)) files.push(f);
         }
-        // иногда скриншот приходит как image/png в items.length == 1
       }
       if (!files.length) return;
-      // Присвоим осмысленные имена принтскринам
       const now = new Date();
       let idx = 1;
       const named = await Promise.all(files.map(async (f) => {
@@ -192,7 +188,6 @@
           const ts = now.toISOString().replace(/[:.]/g,'-');
           const ext = (f.type && f.type.split('/')[1]) ? f.type.split('/')[1] : 'png';
           name = `screenshot-${ts}-${idx++}.${ext}`;
-          // Safari может отдавать Blob без имени — пересоберём как File
           return blobToFile(f, name);
         }
         return f;
@@ -203,7 +198,7 @@
       status('');
     });
 
-    // ===== Firebase =====
+    // ===== Firebase
     let _app, _auth, _db, _fsMod, _authMod;
     async function ensureFirebase(){
       if (_db) return;
@@ -217,10 +212,10 @@
       try { await authMod.signInAnonymously(authMod.getAuth(_app)); } catch (e) { console.warn('Anon auth failed', e); }
     }
 
-    // ===== Загрузка пользователей / выбор исполнителей =====
-    let usersAll = [];               // {id, name, role}
-    const selectedIds = new Set();   // Set<string>
-    const selectedNames = new Set(); // Set<string>
+    // ===== Пользователи / исполнители
+    let usersAll = [];
+    const selectedIds = new Set();
+    const selectedNames = new Set();
 
     function renderWorkers(){
       const box = $('#workers'); box.innerHTML = '';
@@ -254,24 +249,34 @@
       }
     }
 
-    // ===== Загрузка в Cloudinary =====
+    // ===== Cloudinary upload (PDF -> raw, images -> image)
     async function uploadToCloudinary(file, taskId){
+      const pdf = isPdfFile(file);
+      const endpointType = pdf ? 'raw' : 'image';
       const form = new FormData();
       form.append('file', file);
       form.append('upload_preset', CONFIG.cloudinary.uploadPreset);
       form.append('folder', `tasks/${taskId}`);
-      const resp = await fetch(`https://api.cloudinary.com/v1_1/${CONFIG.cloudinary.cloudName}/auto/upload`, {
+      form.append('use_filename', 'true');
+      form.append('unique_filename', 'true');
+
+      const resp = await fetch(`https://api.cloudinary.com/v1_1/${CONFIG.cloudinary.cloudName}/${endpointType}/upload`, {
         method:'POST', body: form
       });
       if (!resp.ok) throw new Error('Cloudinary upload failed: ' + resp.status);
       const j = await resp.json();
+
       return {
         url: j.secure_url,
         publicId: j.public_id,
-        type: j.resource_type || 'raw',
+        resourceType: j.resource_type,  // 'raw' для PDF, 'image' для картинок
+        format: j.format,
+        bytes: j.bytes,
+        isPdf: pdf,
         name: file.name || 'file'
       };
     }
+
     async function uploadAll(taskId){
       const out = [];
       let i = 0;
@@ -284,7 +289,7 @@
       return out;
     }
 
-    // ===== Создание задач =====
+    // ===== Создание задач
     function updateCreateDisabled(){
       const titleOk = !!$('#title').value.trim();
       $('#btnCreate').disabled = !(filesAll.length && titleOk);
@@ -294,6 +299,7 @@
     async function createOneTaskFor(assigneeId, assigneeName, isPickup){
       const docRef = _fsMod.doc(_fsMod.collection(_db, 'tasks'));
       const taskId = docRef.id;
+
       const data = {
         title: $('#title').value.trim(),
         comment: $('#comment').value.trim(),
@@ -304,24 +310,25 @@
         createdAt: _fsMod.serverTimestamp(),
         creatorId: "unknown",
         creatorName: "unknown",
-        items: [], // здесь специально пусто — мы только прикладываем файлы
+        items: [],
         source: "web-clip-pdf",
         sourceMeta: { ua: navigator.userAgent, filesCount: filesAll.length },
         files: []
       };
       await _fsMod.setDoc(docRef, data);
+
       const filesRecs = await uploadAll(taskId);
       await _fsMod.updateDoc(docRef, { files: filesRecs });
 
-      // Нотификация
+      // Нотификация: только taskId (+ CORS fallback)
       try {
         await fetch(DIRECT_NOTIFY_URL, {
           method:'POST',
           headers:{ 'Content-Type':'application/json' },
-          body: JSON.stringify({ taskId, assigneeIds: assigneeId ? [assigneeId] : [] })
+          body: JSON.stringify({ taskId })
         });
       } catch (e) {
-        console.warn('notify failed', e);
+        new Image().src = `${DIRECT_NOTIFY_URL}?taskId=${encodeURIComponent(taskId)}`;
       }
       return taskId;
     }
@@ -368,12 +375,11 @@
     }
     $('#btnCreate').addEventListener('click', onCreate);
 
-    // ===== Init =====
+    // ===== Init
     (async function init(){
       await ensureFirebase();
       await loadUsers();
       updateCreateDisabled();
-      // Подсказка по paste
       status('Подсказка: нажми Ctrl+V для вставки скриншота из буфера.');
       setTimeout(()=>status(''), 3000);
     })();
