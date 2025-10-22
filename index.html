@@ -74,7 +74,7 @@
   </div>
 
   <script>
-    // ===== Конфиг (как в приложении)
+    // ===== Конфиг (один-в-один как в проекте)
     const FIREBASE_CONFIG = {
       apiKey: "AIzaSyAH58ZpWAp64mhM589KD6jXHcOlPqU0aYU",
       authDomain: "skladsborka-6c2a7.firebaseapp.com",
@@ -83,7 +83,8 @@
       messagingSenderId: "516526717198"
     };
     const CONFIG = {
-      cloudinary: { cloudName: "dnx1taqp7", uploadPreset: "unsigned_tasks" } // тот же пресет
+      cloudinary: { cloudName: "dnx1taqp7", uploadPreset: "unsigned_tasks" },
+      notifyUrl: "https://skladsborka-notify.vercel.app/api/notify-taskCreated"
     };
 
     // ===== Утилиты
@@ -241,41 +242,41 @@
       }
     }
 
-   async function uploadToCloudinary(file, taskId){
-  const form = new FormData();
-  form.append('file', file);
-  form.append('upload_preset', CONFIG.cloudinary.uploadPreset);
-  form.append('folder', `tasks/${taskId}`); // ок для unsigned
+    // ===== Cloudinary upload (unsigned, без use/unique_filename; auto → фиксим pdf URL на raw)
+    async function uploadToCloudinary(file, taskId){
+      const form = new FormData();
+      form.append('file', file);
+      form.append('upload_preset', CONFIG.cloudinary.uploadPreset);
+      form.append('folder', `tasks/${taskId}`);
 
-  const resp = await fetch(
-    `https://api.cloudinary.com/v1_1/${CONFIG.cloudinary.cloudName}/auto/upload`,
-    { method:'POST', body: form }
-  );
+      const resp = await fetch(
+        `https://api.cloudinary.com/v1_1/${CONFIG.cloudinary.cloudName}/auto/upload`,
+        { method:'POST', body: form }
+      );
 
-  let j;
-  if (!resp.ok) {
-    try { j = await resp.json(); } catch { j = null; }
-    const msg = j?.error?.message || (`Cloudinary upload failed: ${resp.status}`);
-    throw new Error(msg);
-  }
-  j = await resp.json();
+      let j;
+      if (!resp.ok) {
+        try { j = await resp.json(); } catch { j = null; }
+        const msg = j?.error?.message || (`Cloudinary upload failed: ${resp.status}`);
+        throw new Error(msg);
+      }
+      j = await resp.json();
 
-  const isPdf = (file.type || '').toLowerCase() === 'application/pdf' || /\.pdf$/i.test(file.name||'');
-  // если pdf вдруг пришёл как image/upload — чиним путь на raw/upload (как в приложении)
-  const fixedUrl = (isPdf && typeof j.secure_url === 'string' && j.secure_url.includes('/image/upload/'))
-    ? j.secure_url.replace('/image/upload/', '/raw/upload/')
-    : j.secure_url;
+      const isPdf = isPdfFile(file);
+      const fixedUrl = (isPdf && typeof j.secure_url === 'string' && j.secure_url.includes('/image/upload/'))
+        ? j.secure_url.replace('/image/upload/', '/raw/upload/')
+        : j.secure_url;
 
-  const rtype = j.resource_type || (isPdf ? 'raw' : 'image');
-  const typeForTask = isPdf ? 'pdf' : (rtype === 'image' ? 'image' : rtype);
+      const rtype = j.resource_type || (isPdf ? 'raw' : 'image');
+      const typeForTask = isPdf ? 'pdf' : (rtype === 'image' ? 'image' : rtype);
 
-  return {
-    url: fixedUrl,
-    publicId: j.public_id,
-    type: typeForTask,
-    name: file.name || 'file'
-  };
-}
+      return {
+        url: fixedUrl,
+        publicId: j.public_id,
+        type: typeForTask,
+        name: file.name || 'file'
+      };
+    }
 
     async function uploadAll(taskId){
       const out = [];
@@ -289,7 +290,26 @@
       return out;
     }
 
-    // ===== Создание задач
+    // ===== Уведомления — как в приложении (form POST: taskId, assigneeIds)
+    async function notifyTaskCreated(taskId, assigneeIds){
+      const body = new URLSearchParams();
+      body.set('taskId', taskId);
+      if (assigneeIds?.length) body.set('assigneeIds', assigneeIds.join(','));
+
+      try {
+        await fetch(CONFIG.notifyUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body
+        });
+      } catch (e) {
+        // fallback GET (на случай CORS)
+        const qs = new URLSearchParams({ taskId, assigneeIds: (assigneeIds||[]).join(',') }).toString();
+        new Image().src = `${CONFIG.notifyUrl}?${qs}`;
+      }
+    }
+
+    // ===== Создание задач (как в приложении: если никого — self pickup)
     function updateCreateDisabled(){
       const titleOk = !!$('#title').value.trim();
       $('#btnCreate').disabled = !(filesAll.length && titleOk);
@@ -310,16 +330,17 @@
         createdAt: _fsMod.serverTimestamp(),
         creatorId: "unknown",
         creatorName: "unknown",
-        items: [],
+        files: [],
         source: "web-clip-pdf",
-        sourceMeta: { ua: navigator.userAgent, filesCount: filesAll.length },
-        files: []
+        sourceMeta: { ua: navigator.userAgent, filesCount: filesAll.length }
       };
       await _fsMod.setDoc(docRef, data);
 
       const filesRecs = await uploadAll(taskId);
       await _fsMod.updateDoc(docRef, { files: filesRecs });
 
+      // уведомление
+      await notifyTaskCreated(taskId, assigneeId ? [assigneeId] : []);
       return taskId;
     }
 
