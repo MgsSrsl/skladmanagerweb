@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
   <meta charset="utf-8" />
-  <title>Создать задачу — СкладСборка (скриншоты & PDF)</title>
+  <title>Создать задачу — СкладСборка</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
     :root { color-scheme: dark; }
@@ -74,7 +74,7 @@
   </div>
 
   <script>
-    // ===== Конфиг (один-в-один как в проекте)
+    // ===== Конфиг
     const FIREBASE_CONFIG = {
       apiKey: "AIzaSyAH58ZpWAp64mhM589KD6jXHcOlPqU0aYU",
       authDomain: "skladsborka-6c2a7.firebaseapp.com",
@@ -94,6 +94,7 @@
     const sleep = ms => new Promise(r=>setTimeout(r,ms));
     function fmtSize(bytes){ return (bytes/1024/1024).toFixed(2)+' MB'; }
     function blobToFile(blob, name){ return new File([blob], name, { type: blob.type || 'application/octet-stream' }); }
+    function isPdfByName(file){ return /\.pdf$/i.test(file?.name || ''); }
 
     // ===== Состояние файлов
     let filesAll = [];
@@ -111,8 +112,7 @@
         const row = document.createElement('div'); row.className = 'file';
         const th = document.createElement('div'); th.className = 'thumb';
         if ((f.type||'').toLowerCase().startsWith('image/')){
-          const img = document.createElement('img');
-          img.src = URL.createObjectURL(f);
+          const img = document.createElement('img'); img.src = URL.createObjectURL(f);
           th.appendChild(img);
         } else {
           const badge = document.createElement('div'); badge.className = 'pdfBadge'; badge.textContent = 'PDF';
@@ -130,30 +130,19 @@
     }
 
     // ===== DnD / Pick / Paste
-    const drop = $('#drop');
-    const fi   = $('#fileInput');
+    const drop = $('#drop'); const fi = $('#fileInput');
     $('#btnPick').addEventListener('click', () => fi.click());
     $('#btnClear').addEventListener('click', clearAll);
 
-    function isPdfFile(file){
-      const t = (file?.type || '').toLowerCase();
-      return t === 'application/pdf' || /\.pdf$/i.test(file?.name || '');
-    }
+    function isPdfFile(file){ return (file?.type||'').toLowerCase()==='application/pdf' || isPdfByName(file); }
     function acceptFile(file){
       if (!file) return false;
       const t = (file.type || '').toLowerCase();
-      if (t.startsWith('image/')) return true;
-      if (isPdfFile(file)) return true;
-      return false;
+      return t.startsWith('image/') || isPdfFile(file);
     }
     function addFiles(list){
-      const arr = Array.from(list || []);
-      const accepted = arr.filter(acceptFile);
-      if (accepted.length){
-        filesAll.push(...accepted);
-        renderFiles();
-        updateCreateDisabled();
-      }
+      const arr = Array.from(list || []).filter(acceptFile);
+      if (arr.length){ filesAll.push(...arr); renderFiles(); updateCreateDisabled(); }
     }
     ['dragenter','dragover'].forEach(ev=>{
       document.addEventListener(ev, e=>{ e.preventDefault(); });
@@ -165,26 +154,19 @@
     });
     drop.addEventListener('drop', e => addFiles(e.dataTransfer?.files));
     fi.addEventListener('change', () => addFiles(fi.files));
-
     window.addEventListener('paste', async (e) => {
       const items = Array.from(e.clipboardData?.items || []);
       const files = [];
       for (const it of items) if (it.kind === 'file') {
-        const f = it.getAsFile();
-        if (acceptFile(f)) files.push(f);
+        const f = it.getAsFile(); if (acceptFile(f)) files.push(f);
       }
       if (!files.length) return;
-      const now = new Date();
-      let idx = 1;
+      const now = new Date(); let idx = 1;
       const named = await Promise.all(files.map(async (f) => {
-        let name = f.name || '';
-        if (!name) {
-          const ts = now.toISOString().replace(/[:.]/g,'-');
-          const ext = (f.type && f.type.split('/')[1]) ? f.type.split('/')[1] : 'png';
-          name = `screenshot-${ts}-${idx++}.${ext}`;
-          return blobToFile(f, name);
-        }
-        return f;
+        if (f.name) return f;
+        const ts = now.toISOString().replace(/[:.]/g,'-');
+        const ext = (f.type && f.type.split('/')[1]) ? f.type.split('/')[1] : 'png';
+        return blobToFile(f, `screenshot-${ts}-${idx++}.${ext}`);
       }));
       addFiles(named);
       status('Добавлено из буфера: ' + named.length);
@@ -192,37 +174,26 @@
     });
 
     // ===== Firebase
-    let _app, _db, _fsMod, _authMod;
+    let _db, _fsMod;
     async function ensureFirebase(){
       if (_db) return;
       const appMod  = await import("https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js");
       const authMod = await import("https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js");
       const fsMod   = await import("https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js");
-      _app = appMod.initializeApp(FIREBASE_CONFIG);
-      _authMod = authMod;
-      _fsMod = fsMod;
-      _db = fsMod.getFirestore(_app);
-      try { await authMod.signInAnonymously(authMod.getAuth(_app)); } catch (e) { console.warn('Anon auth failed', e); }
+      const app = appMod.initializeApp(FIREBASE_CONFIG);
+      _fsMod = fsMod; _db = fsMod.getFirestore(app);
+      try { await authMod.signInAnonymously(authMod.getAuth(app)); } catch {}
     }
 
     // ===== Пользователи / исполнители
-    let usersAll = [];
-    const selectedIds = new Set();
-    const selectedNames = new Set();
-
+    let usersAll = []; const selectedIds = new Set(); const selectedNames = new Set();
     function renderWorkers(){
       const box = $('#workers'); box.innerHTML = '';
       const workers = usersAll.filter(u => (u.role||'').toLowerCase() === 'кладовщик');
       (workers.length ? workers : usersAll).forEach(u => {
-        const b = document.createElement('button');
-        b.type = 'button'; b.className='chip'; b.textContent = u.name || u.id;
-        let active = false;
-        function set(a){ active=a; if(a) b.classList.add('active'); else b.classList.remove('active'); }
-        b.onclick = () => {
-          if (!active){ selectedIds.add(u.id); selectedNames.add(u.name||u.id); }
-          else { selectedIds.delete(u.id); selectedNames.delete(u.name||u.id); }
-          set(!active);
-        };
+        const b = document.createElement('button'); b.type='button'; b.className='chip'; b.textContent = u.name || u.id;
+        let active = false; const set=a=>{active=a; b.classList.toggle('active',a);};
+        b.onclick = ()=>{ active? (selectedIds.delete(u.id),selectedNames.delete(u.name||u.id)) : (selectedIds.add(u.id),selectedNames.add(u.name||u.id)); set(!active); };
         box.appendChild(b);
       });
     }
@@ -230,98 +201,55 @@
       try {
         await ensureFirebase();
         const snap = await _fsMod.getDocs(_fsMod.collection(_db, 'users'));
-        usersAll = snap.docs.map(d => ({
-          id: d.id,
-          name: d.get('name') || d.get('displayName') || d.id,
-          role: (d.get('role') || '').toString()
-        }));
+        usersAll = snap.docs.map(d => ({ id:d.id, name:d.get('name')||d.get('displayName')||d.id, role:(d.get('role')||'').toString() }));
         renderWorkers();
-      } catch (e) {
-        console.error(e);
-        $('#workers').innerHTML = '<div class="muted">Не удалось загрузить пользователей</div>';
-      }
+      } catch { $('#workers').innerHTML = '<div class="muted">Не удалось загрузить пользователей</div>'; }
     }
 
-    // ===== Cloudinary upload (как в аппе: имя .pdf -> raw/upload и type="pdf")
-function isPdfByName(file) {
-  return /\.pdf$/i.test(file?.name || '');
-}
+    // ===== Cloudinary (имя .pdf → raw/upload и type="pdf"; unsigned без use/unique_filename)
+    async function uploadToCloudinary(file, taskId){
+      const isPdf = isPdfByName(file);
+      const endpoint = isPdf ? 'raw' : 'auto';
+      const form = new FormData();
+      form.append('file', file);
+      form.append('upload_preset', CONFIG.cloudinary.uploadPreset);
+      form.append('folder', `tasks/${taskId}`);
 
-async function uploadToCloudinary(file, taskId){
-  const isPdf = isPdfByName(file); // ключевое: решаем только по имени
-  const endpoint = isPdf ? 'raw' : 'auto'; // pdf -> raw/upload, иначе auto/upload
+      const resp = await fetch(`https://api.cloudinary.com/v1_1/${CONFIG.cloudinary.cloudName}/${endpoint}/upload`, { method:'POST', body: form });
+      let j;
+      if (!resp.ok){ try{ j=await resp.json(); }catch{}; throw new Error(j?.error?.message || `Cloudinary upload failed: ${resp.status}`); }
+      j = await resp.json();
 
-  const form = new FormData();
-  form.append('file', file);
-  form.append('upload_preset', CONFIG.cloudinary.uploadPreset);
-  form.append('folder', `tasks/${taskId}`);
-  // ВАЖНО: для unsigned не добавляем use_filename/unique_filename
+      const url = (isPdf && typeof j.secure_url === 'string' && j.secure_url.includes('/image/upload/'))
+        ? j.secure_url.replace('/image/upload/', '/raw/upload/')
+        : j.secure_url;
 
-  const resp = await fetch(
-    `https://api.cloudinary.com/v1_1/${CONFIG.cloudinary.cloudName}/${endpoint}/upload`,
-    { method:'POST', body: form }
-  );
-
-  let j;
-  if (!resp.ok) {
-    try { j = await resp.json(); } catch { j = null; }
-    const msg = j?.error?.message || (`Cloudinary upload failed: ${resp.status}`);
-    throw new Error(msg);
-  }
-  j = await resp.json();
-
-  // На всякий случай, если Cloudinary вдруг дал url через image/upload — чиним на raw/upload
-  const url = (isPdf && typeof j.secure_url === 'string' && j.secure_url.includes('/image/upload/'))
-    ? j.secure_url.replace('/image/upload/', '/raw/upload/')
-    : j.secure_url;
-
-  return {
-    url,
-    publicId: j.public_id,
-    type: isPdf ? 'pdf' : 'image', // в Firestore ровно как нужно
-    name: file.name || 'file'
-  };
-}
-
+      return { url, publicId: j.public_id, type: isPdf ? 'pdf' : 'image', name: file.name || 'file' };
+    }
     async function uploadAll(taskId){
-      const out = [];
-      let i = 0;
-      for (const f of filesAll){
-        i++;
-        status(`Загрузка файлов ${i}/${filesAll.length}…`);
-        const rec = await uploadToCloudinary(f, taskId);
-        out.push(rec);
-      }
+      const out = []; let i = 0;
+      for (const f of filesAll){ i++; status(`Загрузка файлов ${i}/${filesAll.length}…`); out.push(await uploadToCloudinary(f, taskId)); }
       return out;
     }
 
-    // ===== Уведомления — как в приложении (form POST: taskId, assigneeIds)
+    // ===== Уведомление (как в приложении)
     async function notifyTaskCreated(taskId, assigneeIds){
       const body = new URLSearchParams();
       body.set('taskId', taskId);
       if (assigneeIds?.length) body.set('assigneeIds', assigneeIds.join(','));
-
       try {
-        await fetch(CONFIG.notifyUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-          body
-        });
-      } catch (e) {
-        // fallback GET (на случай CORS)
-        const qs = new URLSearchParams({ taskId, assigneeIds: (assigneeIds||[]).join(',') }).toString();
+        await fetch(CONFIG.notifyUrl, { method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body });
+      } catch {
+        const qs = new URLSearchParams({ taskId, assigneeIds:(assigneeIds||[]).join(',') }).toString();
         new Image().src = `${CONFIG.notifyUrl}?${qs}`;
       }
     }
 
-    // ===== Создание задач (как в приложении: если никого — self pickup)
-    function updateCreateDisabled(){
-      const titleOk = !!$('#title').value.trim();
-      $('#btnCreate').disabled = !(filesAll.length && titleOk);
-    }
+    // ===== Создание задач (записываем строго нужные поля и ничего лишнего)
+    function updateCreateDisabled(){ $('#btnCreate').disabled = !(filesAll.length && $('#title').value.trim()); }
     $('#title').addEventListener('input', updateCreateDisabled);
 
-    async function createOneTaskFor(assigneeId, assigneeName, isPickup){
+    async function createOneTaskFor(assigneeId, isPickup){
       const docRef = _fsMod.doc(_fsMod.collection(_db, 'tasks'));
       const taskId = docRef.id;
 
@@ -329,22 +257,18 @@ async function uploadToCloudinary(file, taskId){
         title: $('#title').value.trim(),
         comment: $('#comment').value.trim(),
         assignees: assigneeId ? [assigneeId] : [],
-        assigneeNames: assigneeName ? [assigneeName] : [],
         isPickup: !!isPickup,
         status: "assigned",
         createdAt: _fsMod.serverTimestamp(),
         creatorId: "unknown",
         creatorName: "unknown",
-        files: [],
-        source: "web-clip-pdf",
-        sourceMeta: { ua: navigator.userAgent, filesCount: filesAll.length }
+        files: []
       };
       await _fsMod.setDoc(docRef, data);
 
       const filesRecs = await uploadAll(taskId);
       await _fsMod.updateDoc(docRef, { files: filesRecs });
 
-      // уведомление
       await notifyTaskCreated(taskId, assigneeId ? [assigneeId] : []);
       return taskId;
     }
@@ -359,44 +283,30 @@ async function uploadToCloudinary(file, taskId){
         await ensureFirebase();
 
         const ids = Array.from(selectedIds);
-        const names = Array.from(selectedNames);
         const created = [];
         status('Создаю задачу(и)…');
 
         if (!ids.length){
-          const id = await createOneTaskFor(null, null, true);
-          created.push(id);
+          created.push(await createOneTaskFor(null, true));
         } else {
-          for (let i=0;i<ids.length;i++){
-            const id = await createOneTaskFor(ids[i], names[i] || ids[i], false);
-            created.push(id);
-          }
+          for (const id of ids) created.push(await createOneTaskFor(id, false));
         }
+
         status(`Готово. Создано задач: ${created.length}`);
         alert(`Создано задач: ${created.length}`);
 
-        clearAll();
-        $('#title').value = '';
-        $('#comment').value = '';
-        selectedIds.clear(); selectedNames.clear();
-        $$('#workers .chip').forEach(el=>el.classList.remove('active'));
+        clearAll(); $('#title').value=''; $('#comment').value='';
+        selectedIds.clear(); selectedNames.clear(); $$('#workers .chip').forEach(el=>el.classList.remove('active'));
         updateCreateDisabled();
       } catch (e) {
-        console.error(e);
-        alert('Ошибка: ' + (e?.message || e));
-        status('Ошибка');
-        $('#btnCreate').disabled = false;
+        console.error(e); alert('Ошибка: ' + (e?.message || e)); status('Ошибка'); $('#btnCreate').disabled = false;
       }
     }
     $('#btnCreate').addEventListener('click', onCreate);
 
-    // ===== Init
     (async function init(){
-      await ensureFirebase();
-      await loadUsers();
-      updateCreateDisabled();
-      status('Подсказка: нажми Ctrl+V для вставки скриншота из буфера.');
-      setTimeout(()=>status(''), 3000);
+      await ensureFirebase(); await loadUsers(); updateCreateDisabled();
+      status('Подсказка: Ctrl+V — вставка скриншота.'); setTimeout(()=>status(''), 3000);
     })();
   </script>
 </body>
