@@ -241,44 +241,41 @@
       }
     }
 
-    // ===== Cloudinary upload (как в аппе: auto/upload + фиксация PDF)
-    async function uploadToCloudinary(file, taskId){
-      const form = new FormData();
-      form.append('file', file);
-      form.append('upload_preset', CONFIG.cloudinary.uploadPreset);
-      form.append('folder', `tasks/${taskId}`);
-      form.append('use_filename', 'true');
-      form.append('unique_filename', 'true');
+   async function uploadToCloudinary(file, taskId){
+  const form = new FormData();
+  form.append('file', file);
+  form.append('upload_preset', CONFIG.cloudinary.uploadPreset);
+  form.append('folder', `tasks/${taskId}`); // ок для unsigned
 
-      const resp = await fetch(`https://api.cloudinary.com/v1_1/${CONFIG.cloudinary.cloudName}/auto/upload`, {
-        method:'POST', body: form
-      });
+  const resp = await fetch(
+    `https://api.cloudinary.com/v1_1/${CONFIG.cloudinary.cloudName}/auto/upload`,
+    { method:'POST', body: form }
+  );
 
-      let j;
-      if (!resp.ok) {
-        // Показать реальную причину 400
-        try { j = await resp.json(); } catch { j = null; }
-        const msg = j?.error?.message || (`Cloudinary upload failed: ${resp.status}`);
-        throw new Error(msg);
-      }
-      j = await resp.json();
+  let j;
+  if (!resp.ok) {
+    try { j = await resp.json(); } catch { j = null; }
+    const msg = j?.error?.message || (`Cloudinary upload failed: ${resp.status}`);
+    throw new Error(msg);
+  }
+  j = await resp.json();
 
-      const isPdf = isPdfFile(file);
-      // если pdf вдруг пришёл как image/upload — чиним путь на raw/upload (как в приложении)
-      const fixedUrl = (isPdf && typeof j.secure_url === 'string' && j.secure_url.includes('/image/upload/'))
-        ? j.secure_url.replace('/image/upload/', '/raw/upload/')
-        : j.secure_url;
+  const isPdf = (file.type || '').toLowerCase() === 'application/pdf' || /\.pdf$/i.test(file.name||'');
+  // если pdf вдруг пришёл как image/upload — чиним путь на raw/upload (как в приложении)
+  const fixedUrl = (isPdf && typeof j.secure_url === 'string' && j.secure_url.includes('/image/upload/'))
+    ? j.secure_url.replace('/image/upload/', '/raw/upload/')
+    : j.secure_url;
 
-      const rtype = j.resource_type || (isPdf ? 'raw' : 'image');
-      const typeForTask = isPdf ? 'pdf' : (rtype === 'image' ? 'image' : rtype);
+  const rtype = j.resource_type || (isPdf ? 'raw' : 'image');
+  const typeForTask = isPdf ? 'pdf' : (rtype === 'image' ? 'image' : rtype);
 
-      return {
-        url: fixedUrl,
-        publicId: j.public_id,
-        type: typeForTask,
-        name: file.name || 'file'
-      };
-    }
+  return {
+    url: fixedUrl,
+    publicId: j.public_id,
+    type: typeForTask,
+    name: file.name || 'file'
+  };
+}
 
     async function uploadAll(taskId){
       const out = [];
