@@ -242,16 +242,23 @@
       }
     }
 
-    // ===== Cloudinary upload (unsigned; auto/upload; PDF детект по 5 критериям)
+    // ===== Cloudinary upload (как в аппе: имя .pdf -> raw/upload и type="pdf")
+function isPdfByName(file) {
+  return /\.pdf$/i.test(file?.name || '');
+}
+
 async function uploadToCloudinary(file, taskId){
+  const isPdf = isPdfByName(file); // ключевое: решаем только по имени
+  const endpoint = isPdf ? 'raw' : 'auto'; // pdf -> raw/upload, иначе auto/upload
+
   const form = new FormData();
   form.append('file', file);
   form.append('upload_preset', CONFIG.cloudinary.uploadPreset);
-  form.append('folder', `tasks/${taskId}`); // unsigned: ok
-  // ВАЖНО: без use_filename/unique_filename — для unsigned запрещены
+  form.append('folder', `tasks/${taskId}`);
+  // ВАЖНО: для unsigned не добавляем use_filename/unique_filename
 
   const resp = await fetch(
-    `https://api.cloudinary.com/v1_1/${CONFIG.cloudinary.cloudName}/auto/upload`,
+    `https://api.cloudinary.com/v1_1/${CONFIG.cloudinary.cloudName}/${endpoint}/upload`,
     { method:'POST', body: form }
   );
 
@@ -263,23 +270,15 @@ async function uploadToCloudinary(file, taskId){
   }
   j = await resp.json();
 
-  // --- Надёжная проверка, что это PDF ---
-  const byMime   = (file.type || '').toLowerCase() === 'application/pdf';
-  const byName   = /\.pdf$/i.test(file.name || '');
-  const byFormat = (j.format || '').toLowerCase() === 'pdf';
-  const byUrl    = typeof j.secure_url === 'string' && /\.pdf($|\?)/i.test(j.secure_url);
-  const byRes    = (j.resource_type || '').toLowerCase() === 'raw';
-  const isPdf    = byMime || byName || byFormat || byUrl || byRes;
-
-  // Если Cloudinary вернул ссылку через /image/upload/, для PDF принудительно чиним на /raw/upload/
-  const fixedUrl = (isPdf && typeof j.secure_url === 'string' && j.secure_url.includes('/image/upload/'))
+  // На всякий случай, если Cloudinary вдруг дал url через image/upload — чиним на raw/upload
+  const url = (isPdf && typeof j.secure_url === 'string' && j.secure_url.includes('/image/upload/'))
     ? j.secure_url.replace('/image/upload/', '/raw/upload/')
     : j.secure_url;
 
   return {
-    url: fixedUrl,
+    url,
     publicId: j.public_id,
-    type: isPdf ? 'pdf' : 'image',      // <— теперь в Firestore будет "pdf"
+    type: isPdf ? 'pdf' : 'image', // в Firestore ровно как нужно
     name: file.name || 'file'
   };
 }
