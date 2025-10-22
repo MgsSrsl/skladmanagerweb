@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
   <meta charset="utf-8" />
-  <title>Создать задачу — СкладСборка (XLSX, qty→unit=next)</title>
+  <title>Создать задачу — СкладСборка (PDF/IMG + DnD/Ctrl+V)</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
     :root { color-scheme: dark; }
@@ -12,8 +12,9 @@
     .card { background:#0d1422; border:1px solid #1f2a44; border-radius:14px; padding:16px; margin-bottom:16px; }
     .row { display:flex; gap:12px; flex-wrap:wrap; align-items:center; }
     .row > * { flex:1 1 auto }
-    .dropzone { border: 2px dashed #4b5563; border-radius: 14px; padding: 22px; background: #111827; text-align: center; transition: .2s; }
+    .dropzone { border: 2px dashed #4b5563; border-radius: 14px; padding: 22px; background: #111827; text-align: center; transition: .2s; position: relative; }
     .dropzone.drag { background: #1f2937; border-color: #60a5fa; }
+    .hint { color:#9ca3af; font-size:13px; }
     label { font-size: 14px; color: #9ca3af; display:block; margin: 12px 0 6px;}
     input[type="text"], textarea {
       width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid #374151; background: #0b1220; color: #fff;
@@ -27,36 +28,28 @@
     .fileRow { display:flex; align-items:center; gap:8px; margin:6px 0; padding:8px; border:1px solid #1f2a44; border-radius:10px; background:#0b1220; }
     .fileRow .name { flex:1 1 auto; }
     .fileRow .size { font-size:12px; opacity:.75 }
-    table { width: 100%; border-collapse: collapse; margin-top: 8px; }
-    th, td { border: 1px solid #374151; padding: 6px 8px; vertical-align: top; }
-    th { background: #111827; color: #cbd5e1; position: sticky; top: 0; }
-    tr td input, tr td select { width: 100%; border:0; outline: none; background: transparent; color: #fff; }
-    tr.lowconf td { background: #382e00; }
-    .totals { display:flex; justify-content: space-between; align-items:center; gap:10px; margin-top: 6px; color:#cbd5e1 }
-    .kbd { background:#111827; border:1px solid #374151; border-radius:6px; padding:0 6px; }
+    .thumb { width:48px; height:48px; border-radius:8px; object-fit:cover; background:#0b0f14; border:1px solid #1f2a44 }
+    .pdfBadge { width:48px; height:48px; border-radius:8px; display:flex; align-items:center; justify-content:center; background:#111827; border:1px solid #1f2a44; font-weight:800 }
     .muted { color:#9ca3af; font-size:13px }
     .chip { border:1px solid #374151; background:#0b1220; padding:8px 10px; border-radius:999px; cursor:pointer; }
     .chip.active { background:#1e293b; border-color:#60a5fa; }
-    .hidden { display:none !important; }
     #fileInput { position: fixed; left: -9999px; top: -9999px; width: 1px; height: 1px; opacity: 0; }
   </style>
-  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <!-- Firebase dynamic modules; Cloudinary — через прямой REST -->
 </head>
 <body>
   <div class="container">
-    <h1>Создать задачу (XLSX/CSV: ед. = столбец справа от «Кол-во»)</h1>
+    <h1>Создать задачу (PDF/картинки: DnD + Ctrl+V)</h1>
 
     <div class="card">
       <div class="dropzone" id="drop">
-        <p><b>Перетащите XLSX/XLS/CSV (можно несколько)</b> или нажмите «Выбрать файлы».<br>
-        Поддерживаем шапки (синонимы): <span class="kbd">No/№/#</span>, <span class="kbd">Артикул/SKU/Код</span>, <span class="kbd">Товар/Title</span>, <span class="kbd">Кол-во/Количество/Qty</span>, <span class="kbd">Ед./Unit</span>.<br>
-        <small>Если в шапке нет «Ед.» — берём столбец <u>сразу справа</u> от «Кол-во».</small></p>
+        <p><b>Перетащите PDF/PNG/JPG/WebP (можно несколько)</b> или нажмите «Выбрать файлы».<br>
+        <span class="hint">Можно вставлять скриншоты: <b>Ctrl + V</b> прямо сюда.</span></p>
         <div class="row" style="justify-content:center">
           <button id="btnPick" type="button" class="ghost">Выбрать файлы</button>
           <button id="btnClearFiles" type="button" class="ghost">Очистить список</button>
-          <button id="btnReparse" type="button" class="ghost">Перепарсить</button>
         </div>
-        <input id="fileInput" type="file" multiple accept=".xlsx,.xls,.csv" />
+        <input id="fileInput" type="file" multiple accept=".pdf,image/*" />
         <div id="filesList" class="files"></div>
         <div id="status" class="status"></div>
       </div>
@@ -75,62 +68,12 @@
       <div class="muted">Если никого не выбрать — будет самовывоз (одна задача без assignees).</div>
     </div>
 
-    <div class="card">
-      <div class="row" style="align-items:center">
-        <div style="flex:2"><label>Позиции</label></div>
-        <div style="flex:1; text-align:right">
-          <label style="display:inline-flex; gap:8px; align-items:center">
-            <input id="mergeToggle" type="checkbox" />
-            <span class="muted">Склеивать одинаковые позиции</span>
-          </label>
-        </div>
-      </div>
-      <table>
-        <thead>
-          <tr>
-            <th style="width:56px">#</th>
-            <th>Товар</th>
-            <th style="max-width:220px">Артикул</th>
-            <th style="width:110px">Кол-во</th>
-            <th style="width:110px">Ед.</th>
-            <th style="width:110px">Упаковок</th>
-            <th style="width:110px">Шт</th>
-            <th style="width:40px"></th>
-          </tr>
-        </thead>
-        <tbody id="itemsBody"></tbody>
-      </table>
-      <div class="totals">
-        <div id="sourcesInfo" class="muted"></div>
-        <div id="totals"></div>
-      </div>
-    </div>
-
     <div class="card" style="display:flex;gap:10px;justify-content:flex-end">
       <button id="btnCreate" type="button" disabled>Создать задачу</button>
     </div>
   </div>
 
   <script>
-    // ====== Утилиты ======
-    const $ = s => document.querySelector(s);
-    const status = t => { $('#status').textContent = t || ''; };
-    const sleep = (ms)=> new Promise(r=>setTimeout(r,ms));
-    const readAsArrayBuffer = (f)=> new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(r.result); r.onerror=rej; r.readAsArrayBuffer(f); });
-    const readAsText = (f, enc='utf-8')=> new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(r.result); r.onerror=rej; r.readAsText(f, enc); });
-// слово похоже на единицу измерения?
-function isUnitWord(s){
-  const v = (s??"").toString().trim().toLowerCase();
-  if (!v) return false;
-  const ALIAS = {
-    "шт":1,"штук":1,"штука":1,"штуки":1,"шт.":1,
-    "уп":1,"уп.":1,"упак":1,"упаковка":1,"упаковки":1,"упаковок":1,"пак":1,"пач":1,
-    "лист":1,"рул":1,"рулон":1,"кор":1,"короб":1,"коробка":1,"компл":1,"комплект":1,"пара":1,
-    "м":1,"м.п":1,"м.п.":1,"м2":1,"м^2":1,"м²":1,"кг":1,"г":1,"гр":1,"л":1
-  };
-  return !!ALIAS[v];
-}
-
     // ====== Конфиг ======
     const FIREBASE_CONFIG = {
       apiKey: "AIzaSyAH58ZpWAp64mhM589KD6jXHcOlPqU0aYU",
@@ -143,310 +86,14 @@ function isUnitWord(s){
     const CLOUDINARY_UPLOAD_PRESET = "unsigned_tasks";
     const VERCEL_NOTIFY_PROXY_URL  = "/api/notify-taskCreated";
 
-    // ====== Нормализация ======
-    const UNIT_ALIASES = {
-      "шт":"шт","штук":"шт","штука":"шт","штуки":"шт","шт.":"шт",
-      "лист":"лист","листа":"лист","листы":"лист",
-      "упак":"упак","упаковка":"упак","упаковки":"упак","упаковок":"упак","уп":"упак","пак":"упак","пач":"упак",
-      "рул":"рул","рулон":"рул","рул.":"рул",
-      "кор":"кор","короб":"кор","коробка":"кор","коробок":"кор",
-      "комп":"компл","компл":"компл","комплект":"компл",
-      "пар":"пара","пара":"пара","пары":"пара",
-      "м":"м","метр":"м","м.п.":"м.п","м.п":"м.п","пог.м":"м.п","погонный метр":"м.п",
-      "м2":"м²","м^2":"м²","m2":"м²","м²":"м²",
-      "кг":"кг","килограмм":"кг","г":"г","гр":"г","грамм":"г",
-      "л":"л","литр":"л","литра":"л","литров":"л"
-    };
-    const normUnit = (u)=> UNIT_ALIASES[(u??"").toString().trim().toLowerCase()] || (u??"").toString().trim().toLowerCase();
+    // ====== Helpers ======
+    const $ = s => document.querySelector(s);
+    const status = t => { $('#status').textContent = t || ''; };
+    const fmtSize = b => (b/1024/1024).toFixed(2)+' MB';
+    const sleep = ms => new Promise(r=>setTimeout(r,ms));
 
-    // умная нормализация чисел (1.000 → 1000, 1 234,56 → 1234.56)
-    const normNum = (s) => {
-      if (s == null) return "";
-      s = s.toString().trim().replace(/\u00A0/g, ' ').replace(/\s+/g, ' ');
-      if (/^\d{1,3}(\.\d{3})+(,\d+)?$/.test(s)) return s.replace(/\./g, '').replace(',', '.');
-      if (/^\d{1,3}( \d{3})+([.,]\d+)?$/.test(s)) return s.replace(/ /g, '').replace(',', '.');
-      if (/^\d+\.\d{3}$/.test(s)) return s.replace(/\./g, '');
-      if (/^\d+,\d{3}$/.test(s)) return s.replace(/,/g, '');
-      return s.replace(',', '.');
-    };
-    const toNum = (s)=> { const n = parseFloat(normNum(s)); return Number.isFinite(n) ? n : 0; };
-
-    // ====== DnD / файлы ======
-    const drop = $('#drop');
-    const fi   = $('#fileInput');
-    $('#btnPick').addEventListener('click', () => fi.click());
-    $('#btnClearFiles').addEventListener('click', clearFiles);
-    $('#btnReparse').addEventListener('click', reparseAll);
-    ['dragenter','dragover'].forEach(ev=>{
-      document.addEventListener(ev, e=>{ e.preventDefault(); });
-      drop.addEventListener(ev, e=>{ e.preventDefault(); drop.classList.add('drag'); });
-    });
-    ['dragleave','drop'].forEach(ev=>{
-      document.addEventListener(ev, e=>{ e.preventDefault(); });
-      drop.addEventListener(ev, e=>{ e.preventDefault(); drop.classList.remove('drag'); });
-    });
-    drop.addEventListener('drop', e => { handleFiles(e.dataTransfer.files); });
-    fi.addEventListener('change', () => handleFiles(fi.files));
-
-    let filesAll = [];
-    let itemsParsedRaw = [];
-    let itemsRendered = [];
-
-    function clearFiles(){
-      filesAll = [];
-      itemsParsedRaw = [];
-      itemsRendered = [];
-      $('#filesList').innerHTML = "";
-      $('#itemsBody').innerHTML = "";
-      $('#totals').textContent = "";
-      $('#sourcesInfo').textContent = "";
-      status('');
-      updateCreateDisabled();
-    }
-    function renderFilesList() {
-      const box = $('#filesList'); box.innerHTML = "";
-      if (!filesAll.length) return;
-      let idx=0;
-      for (const f of filesAll) {
-        const row = document.createElement('div');
-        row.className = 'fileRow';
-        const name = document.createElement('div'); name.className='name'; name.textContent = f.name;
-        const size = document.createElement('div'); size.className='size'; size.textContent = (f.size/1024/1024).toFixed(2)+' MB';
-        const btnDel = document.createElement('button'); btnDel.type='button'; btnDel.className='ghost'; btnDel.textContent='Удалить';
-        const btnRe = document.createElement('button'); btnRe.type='button'; btnRe.className='ghost'; btnRe.textContent='Распарсить этот';
-        const thisIndex = idx++;
-        btnDel.onclick = async () => { filesAll.splice(thisIndex,1); await reparseAll(); };
-        btnRe.onclick = async () => { await parseOneFileIntoRaw(f, true); rerenderFromRaw(); };
-        row.appendChild(name); row.appendChild(size); row.appendChild(btnRe); row.appendChild(btnDel);
-        box.appendChild(row);
-      }
-    }
-    async function handleFiles(fileList){
-      const arr = Array.from(fileList || []).filter(Boolean);
-      if (!arr.length) return;
-      filesAll.push(...arr);
-      renderFilesList();
-      await reparseAll();
-    }
-
-    // ====== Шапки ======
-    const HEADER_MAP = {
-      rowNo:    ["no","№","#","номер","row","rowno"],
-      article:  ["article","артикул","sku","код","code"],
-      title:    ["title","товар","наименование","название","item","product","desc","description"],
-      qty:      ["qty","количество","кол-во","amount"],
-      unit:     ["unit","ед.","ед","единица","uom"]
-    };
-    function keyOf(colName){
-      const s = (colName||"").toString().trim().toLowerCase();
-      for (const k of Object.keys(HEADER_MAP)){ if (HEADER_MAP[k].includes(s)) return k; }
-      return null;
-    }
-    function mapColumns(headerRow){
-      const map = {};
-      headerRow.forEach((h,i)=>{ const k = keyOf(h); if (k && !(k in map)) map[k] = i; });
-      return map;
-    }
-    // главный момент: если unit не нашли — берём столбец СПРАВА от qty
-    function findHeaderRow(aoa){
-      let found = { idx:0, cols:{} };
-      for (let i=0;i<Math.min(aoa.length, 50);i++){
-        const row = aoa[i] || [];
-        const cols = mapColumns(row);
-        if (cols.title != null && Object.keys(cols).length >= 2) {
-          found = { idx:i, cols };
-          break;
-        }
-      }
-      if (!Object.keys(found.cols).length) found = { idx:0, cols: mapColumns(aoa[0] || []) };
-      if (found.cols.unit == null && found.cols.qty != null) {
-        found.cols.unit = found.cols.qty + 1; // ед. = сосед справа
-      }
-      return found;
-    }
-    function getCell(row, idx){ return (idx==null||idx<0) ? "" : (row[idx] ?? ""); }
-
-    // ====== Парсинг XLSX/CSV ======
-    async function parseXlsxFile(file){
-      const ab = await readAsArrayBuffer(file);
-      const wb = XLSX.read(ab, { type:'array' });
-      const ws = wb.Sheets[wb.SheetNames[0]];
-      const aoa = XLSX.utils.sheet_to_json(ws, { header:1, raw:false, defval:"" });
-      return parseAOA(aoa);
-    }
-    async function parseCsvFile(file){
-      const txt = await readAsText(file, 'utf-8');
-      const wb = XLSX.read(txt, {type:'string'});
-      const ws = wb.Sheets[wb.SheetNames[0]];
-      const aoa = XLSX.utils.sheet_to_json(ws, { header:1, raw:false, defval:"" });
-      return parseAOA(aoa);
-    }
-    function parseAOA(aoa){
-      if (!aoa.length) return [];
-      const { idx:headIdx, cols } = findHeaderRow(aoa);
-      const out = [];
-      let autoRow = 1;
-      for (let r=headIdx+1; r<aoa.length; r++){
-        const row = aoa[r] || [];
-        const title   = (getCell(row, cols.title)   || "").toString().trim();
-const article = (getCell(row, cols.article) || "").toString().trim();
-const rowNoR  = (getCell(row, cols.rowNo)   || "").toString().trim();
-let qty       = (getCell(row, cols.qty)     || "").toString().trim();
-
-// 1) пробуем взять unit из колонки по шапке
-let unitIdx = cols.unit;
-let unitRaw = (getCell(row, unitIdx) || "").toString().trim();
-
-// 2) если пусто — построчно берём соседа справа от qty
-if (!unitRaw && cols.qty != null) {
-  const right = cols.qty + 1;
-  const left  = cols.qty - 1;
-  const candR = (getCell(row, right) || "").toString().trim();
-  if (isUnitWord(candR)) unitRaw = candR;
-  // если справа не единица — пробуем слева
-  if (!unitRaw) {
-    const candL = (getCell(row, left) || "").toString().trim();
-    if (isUnitWord(candL)) unitRaw = candL;
-  }
-}
-
-let unit = unitRaw;
-
-// нормализация
-unit = normUnit(unit);
-qty  = normNum(qty);
-        const rowNo = rowNoR || String(autoRow++);
-        out.push({ rowNo, title, article, qty, unit, qtyPacks:"", qtyUnits:"", _src:"", _lowconf:false });
-      }
-      return out;
-    }
-
-    async function parseOneFile(file){
-      try {
-        const lower = file.name.toLowerCase();
-        if (/\.(xlsx|xls)$/.test(lower)) {
-          status(`Читаю XLSX: ${file.name}`);
-          const arr = await parseXlsxFile(file);
-          arr.forEach(it => it._src = file.name);
-          return arr;
-        } else if (/\.csv$/.test(lower)) {
-          status(`Читаю CSV: ${file.name}`);
-          const arr = await parseCsvFile(file);
-          arr.forEach(it => it._src = file.name);
-          return arr;
-        } else {
-          status(`Пропуск: неподдерживаемый тип файла ${file.name}`);
-          return [];
-        }
-      } catch (e) {
-        console.error(e);
-        status('Ошибка обработки ' + file.name + ': ' + (e?.message||e));
-        return [];
-      }
-    }
-    async function parseOneFileIntoRaw(file, replaceRaw = false) {
-      const arr = await parseOneFile(file);
-      if (replaceRaw) itemsParsedRaw = itemsParsedRaw.filter(x => x._src !== file.name).concat(arr);
-      else itemsParsedRaw.push(...arr);
-    }
-    async function reparseAll() {
-      $('#itemsBody').innerHTML = ""; $('#totals').textContent = ""; $('#sourcesInfo').textContent = "";
-      itemsParsedRaw = [];
-      if (!filesAll.length) { updateCreateDisabled(); status(''); return; }
-      let i=0;
-      for (const f of filesAll) {
-        i++;
-        status(`Парсинг ${i}/${filesAll.length}: ${f.name}`);
-        await parseOneFileIntoRaw(f);
-        await sleep(10);
-      }
-      rerenderFromRaw();
-      renderFilesList();
-      status(`Готово. Найдено позиций: ${itemsParsedRaw.length} из ${filesAll.length} файл(ов)`);
-    }
-
-    // ====== Merge ======
-    function mergeSameItemsKeepOrder(items) {
-      const map = new Map();
-      const order = [];
-      for (const it of items) {
-        const key = (it.article && it.article.trim())
-          ? "A#"+it.article.trim().toUpperCase()
-          : "T#"+(it.title||"").trim().toUpperCase();
-        if (!map.has(key)) { map.set(key, {...it}); order.push(key); }
-        else {
-          const m = map.get(key);
-          const add = (a,b)=> String((toNum(a)||0)+(toNum(b)||0)||"");
-          if ((m.unit||"") === (it.unit||"")) m.qty = add(m.qty, it.qty);
-          m._lowconf = m._lowconf || it._lowconf;
-        }
-      }
-      return order.map(k => map.get(k));
-    }
-
-    // ====== Рендер ======
-    function renderItems(items) {
-      const tbody = $('#itemsBody'); tbody.innerHTML = "";
-      for (const it of items) {
-        const tr = document.createElement('tr');
-        if (it._lowconf) tr.classList.add('lowconf');
-        tr.innerHTML = `
-          <td><input value="${it.rowNo||""}" data-k="rowNo" style="max-width:56px"></td>
-          <td><input value="${it.title||""}"    data-k="title"></td>
-          <td><input value="${it.article||""}"  data-k="article" style="max-width:220px"></td>
-          <td><input value="${it.qty||""}" data-k="qty" style="max-width:110px"></td>
-          <td>
-            <select data-k="unit" style="width:100%">
-              ${["","шт","лист","упак","рул","кор","компл","пара","м","м.п","м²","кг","г","л"].map(u=>`<option value="${u}" ${(it.unit||"")===u?"selected":""}>${u}</option>`).join("")}
-            </select>
-          </td>
-          <td><input value="${it.qtyPacks||""}" data-k="qtyPacks" placeholder="если есть" style="max-width:110px"></td>
-          <td><input value="${it.qtyUnits||""}" data-k="qtyUnits" placeholder="если есть" style="max-width:110px"></td>
-          <td><button type="button" class="rm">✕</button></td>
-        `;
-        tr.querySelector('.rm').onclick = () => { tr.remove(); updateTotals(); };
-        tr.querySelectorAll('input,select').forEach(inp => inp.addEventListener('input', updateTotals));
-        tbody.appendChild(tr);
-      }
-      updateTotals();
-    }
-
-    function collectItemsFromTable() {
-      return [...document.querySelectorAll('#itemsBody tr')].map(tr => {
-        const get = k => (tr.querySelector(`[data-k="${k}"]`)?.value || "").trim();
-        return {
-          rowNo:    get('rowNo'),
-          title:    get('title'),
-          article:  get('article'),
-          qty:      normNum(get('qty')),
-          unit:     normUnit(get('unit')),
-          qtyPacks: normNum(get('qtyPacks')),
-          qtyUnits: normNum(get('qtyUnits'))
-        };
-      }).filter(it => it.title || it.qty)
-        .sort((a,b)=> (parseInt(a.rowNo||0,10)) - (parseInt(b.rowNo||0,10)));
-    }
-
-    function updateTotals(){
-      const items = collectItemsFromTable();
-      const sumQty = items.reduce((s,it)=> s + (toNum(it.qty)||0), 0);
-      const unitsSet = new Set(items.map(i=>i.unit).filter(Boolean));
-      const unitsStr = unitsSet.size ? ` • ед: ${[...unitsSet].join(', ')}` : '';
-      $('#totals').textContent = `Итого: qty ${sumQty}${unitsStr}`;
-      updateCreateDisabled();
-    }
-
-    function rerenderFromRaw() {
-      const doMerge = $('#mergeToggle').checked;
-      itemsRendered = doMerge ? mergeSameItemsKeepOrder(itemsParsedRaw) : [...itemsParsedRaw];
-      renderItems(itemsRendered);
-      const srcSet = new Set(itemsParsedRaw.map(x => x._src).filter(Boolean));
-      $('#sourcesInfo').textContent = srcSet.size ? `Файлы: ${Array.from(srcSet).join(', ')}` : '';
-    }
-    $('#mergeToggle').addEventListener('change', rerenderFromRaw);
-
-    // ====== Firebase ======
-    let _firebase=null, _app,_auth,_db;
+    // ====== Firebase (lazy) ======
+    let _app,_auth,_db,_firebase=null;
     async function ensureFirebase() {
       if (_firebase) return _firebase;
       const appMod  = await import("https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js");
@@ -456,30 +103,121 @@ qty  = normNum(qty);
       _auth = authMod.getAuth(_app);
       _db   = fsMod.getFirestore(_app);
       try { await authMod.signInAnonymously(_auth); } catch(e){ console.warn("Anon auth failed:", e); }
-      _firebase = { appMod, authMod, fsMod }; return _firebase;
+      _firebase = { appMod, authMod, fsMod };
+      return _firebase;
     }
 
-    // ====== Cloudinary ======
-    async function uploadToCloudinary(file, taskId) {
-      const form = new FormData();
-      form.append('file', file);
-      form.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
-      form.append('folder', `tasks/${taskId}`);
-      const resp = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/auto/upload`, { method:'POST', body: form });
-      if (!resp.ok) throw new Error('Cloudinary upload failed: ' + resp.status);
-      const j = await resp.json();
-      return { url: j.secure_url, publicId: j.public_id, type: j.resource_type || 'raw', name: file.name || 'file' };
+    // ====== Состояние файлов ======
+    const drop = $('#drop');
+    const fi   = $('#fileInput');
+    const btnPick = $('#btnPick');
+    const btnClear = $('#btnClearFiles');
+    const btnCreate = $('#btnCreate');
+
+    let filesAll = []; // [{file:File, name:string, typeHint:'pdf'|'image'}]
+
+    btnPick.addEventListener('click', () => fi.click());
+    btnClear.addEventListener('click', clearFiles);
+    fi.addEventListener('change', () => handleFiles(fi.files));
+
+    // DnD
+    ['dragenter','dragover'].forEach(ev=>{
+      document.addEventListener(ev, e=>{ e.preventDefault(); });
+      drop.addEventListener(ev, e=>{ e.preventDefault(); drop.classList.add('drag'); });
+    });
+    ['dragleave','drop'].forEach(ev=>{
+      document.addEventListener(ev, e=>{ e.preventDefault(); });
+      drop.addEventListener(ev, e=>{ e.preventDefault(); drop.classList.remove('drag'); });
+    });
+    drop.addEventListener('drop', e => { handleFiles(e.dataTransfer.files); });
+
+    // Ctrl+V — скриншоты/изображения из буфера обмена
+    document.addEventListener('paste', async (e) => {
+      const items = e.clipboardData?.items || [];
+      const add = [];
+      for (const it of items) {
+        if (it.kind === 'file' && it.type.startsWith('image/')) {
+          const blob = it.getAsFile();
+          if (blob) {
+            const ts = new Date();
+            const pad = n => String(n).padStart(2,'0');
+            const name = `paste_${ts.getFullYear()}${pad(ts.getMonth()+1)}${pad(ts.getDate())}_${pad(ts.getHours())}${pad(ts.getMinutes())}${pad(ts.getSeconds())}.png`;
+            const file = new File([blob], name, { type: blob.type || 'image/png' });
+            add.push({file, name, typeHint:'image'});
+          }
+        }
+      }
+      if (add.length) {
+        filesAll.push(...add);
+        renderFilesList();
+        updateCreateDisabled();
+        status(`Добавлено из буфера: ${add.length}`);
+      }
+    });
+
+    function clearFiles(){
+      filesAll = [];
+      $('#filesList').innerHTML = "";
+      status('');
+      updateCreateDisabled();
     }
-    async function uploadAllToCloudinary(taskId) {
-      const out = [];
-      for (const f of filesAll) out.push(await uploadToCloudinary(f, taskId));
-      return out;
+
+    function handleFiles(fileList) {
+      const arr = Array.from(fileList || []).filter(Boolean);
+      if (!arr.length) return;
+      for (const f of arr) {
+        const lower = (f.name||'').toLowerCase();
+        const isPdf = lower.endsWith('.pdf') || f.type === 'application/pdf';
+        const typeHint = isPdf ? 'pdf' : 'image';
+        filesAll.push({ file: f, name: f.name || 'file', typeHint });
+      }
+      renderFilesList();
+      updateCreateDisabled();
+      status(`Файлов выбрано: ${filesAll.length}`);
     }
+
+    function renderFilesList(){
+      const box = $('#filesList'); box.innerHTML = "";
+      if (!filesAll.length) return;
+      let idx = -1;
+      for (const rec of filesAll) {
+        idx++;
+        const row = document.createElement('div');
+        row.className = 'fileRow';
+
+        let icon;
+        if (rec.typeHint === 'pdf') {
+          icon = document.createElement('div');
+          icon.className = 'pdfBadge';
+          icon.textContent = 'PDF';
+        } else {
+          icon = document.createElement('img');
+          icon.className = 'thumb';
+          try { icon.src = URL.createObjectURL(rec.file); } catch(_) {}
+        }
+        const name = document.createElement('div'); name.className='name'; name.textContent = rec.name || '(без имени)';
+        const size = document.createElement('div'); size.className='size'; size.textContent = fmtSize(rec.file.size||0);
+        const btnDel = document.createElement('button'); btnDel.type='button'; btnDel.className='ghost'; btnDel.textContent='Удалить';
+        const thisIndex = idx;
+        btnDel.onclick = () => { filesAll.splice(thisIndex,1); renderFilesList(); updateCreateDisabled(); };
+
+        row.appendChild(icon); row.appendChild(name); row.appendChild(size); row.appendChild(btnDel);
+        box.appendChild(row);
+      }
+    }
+
+    function updateCreateDisabled() {
+      const okTitle = $('#title').value.trim().length > 0;
+      const okFiles = filesAll.length > 0;
+      btnCreate.disabled = !(okTitle && okFiles);
+    }
+    $('#title').addEventListener('input', updateCreateDisabled);
 
     // ====== Users (кладовщики) ======
     let usersAll = [];  // {id, name, role}
-    let selectedWorkerIds = new Set();
-    let selectedWorkerNames = new Set();
+    const selectedWorkerIds = new Set();
+    const selectedWorkerNames = new Set();
+
     function renderWorkers() {
       const box = $('#workersBox'); box.innerHTML = "";
       const workers = usersAll.filter(u => (u.role||"").toLowerCase() === "кладовщик");
@@ -514,13 +252,37 @@ qty  = normNum(qty);
       }
     }
 
-    // ====== Создание задач ======
-    function getSelectedItems(){ return collectItemsFromTable(); }
-    function updateCreateDisabled() {
-      const okItems = getSelectedItems().length > 0;
-      const okFiles = filesAll.length > 0;
-      $('#btnCreate').disabled = !(okItems && okFiles);
+    // ====== Cloudinary upload ======
+    async function uploadToCloudinary(file, taskId, typeHint) {
+      const form = new FormData();
+      form.append('file', file);
+      form.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
+      form.append('folder', `tasks/${taskId}`);
+      // auto/upload сам определит resource_type; PDF иногда идёт как raw
+      const resp = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/auto/upload`, { method:'POST', body: form });
+      if (!resp.ok) throw new Error('Cloudinary upload failed: ' + resp.status);
+      const j = await resp.json();
+      const url = j.secure_url || "";
+      const publicId = j.public_id || "";
+      const rtype = (j.resource_type || '').toLowerCase(); // image/raw
+      const isPdfByName = (file.name||'').toLowerCase().endsWith('.pdf') || typeHint === 'pdf';
+      const fixedUrl = isPdfByName && url.includes("/image/upload/") ? url.replace("/image/upload/", "/raw/upload/") : url;
+      const typeForTask = isPdfByName ? "pdf" : (rtype === "image" ? "image" : (rtype || "raw"));
+      return { url: fixedUrl, publicId, type: typeForTask, name: file.name || (isPdfByName ? 'document.pdf' : 'image.jpg') };
     }
+    async function uploadAllToCloudinary(taskId) {
+      const out = [];
+      let i=0;
+      for (const rec of filesAll) {
+        i++;
+        status(`Загрузка файлов ${i}/${filesAll.length}…`);
+        out.push(await uploadToCloudinary(rec.file, taskId, rec.typeHint));
+        await sleep(30);
+      }
+      return out;
+    }
+
+    // ====== Создание задач ======
     async function createOneTaskFor(fsMod, title, comment, assigneeId, assigneeName, isPickup) {
       const docRef = fsMod.doc(fsMod.collection(_db, 'tasks'));
       const taskId = docRef.id;
@@ -533,14 +295,15 @@ qty  = normNum(qty);
         createdAt: fsMod.serverTimestamp(),
         creatorId: "unknown",
         creatorName: "unknown",
-        items: getSelectedItems(),
-        source: "web-xlsx-neighbor-unit",
+        items: [], // без парсинга — пустой список
+        source: "web-simple-files",
         sourceMeta: { ua: navigator.userAgent, filesCount: filesAll.length },
         files: []
       };
       await fsMod.setDoc(docRef, data);
       const fileRecs = await uploadAllToCloudinary(taskId);
       await fsMod.updateDoc(docRef, { files: fileRecs });
+
       try {
         await fetch(VERCEL_NOTIFY_PROXY_URL, {
           method:'POST',
@@ -550,15 +313,15 @@ qty  = normNum(qty);
       } catch(e) { console.warn('notify failed', e); }
       return taskId;
     }
+
     async function createTask() {
       try {
         const title = $('#title').value.trim();
         const comment = $('#comment').value.trim();
         if (!title) { alert('Введите заголовок'); return; }
-        const items = getSelectedItems();
-        if (!items.length) { alert('Нет позиций'); return; }
         if (!filesAll.length) { alert('Добавьте файл(ы)'); return; }
-        $('#btnCreate').disabled = true;
+
+        btnCreate.disabled = true;
         status('Создаю задачу(и)…');
 
         const { fsMod } = await ensureFirebase();
@@ -579,28 +342,30 @@ qty  = normNum(qty);
         status(`Готово. Создано задач: ${createdIds.length}`);
         alert(`Создано задач: ${createdIds.length}`);
 
+        // reset
         clearFiles();
-        $('#itemsBody').innerHTML = "";
-        $('#totals').textContent = "";
         $('#title').value = "";
         $('#comment').value = "";
         selectedWorkerIds.clear(); selectedWorkerNames.clear();
+        renderWorkers(); // сброс визуальных чипсов
         updateCreateDisabled();
       } catch (e) {
         console.error(e);
         alert('Ошибка: ' + (e?.message||e));
         status('Ошибка');
         updateCreateDisabled();
+      } finally {
+        btnCreate.disabled = false;
       }
     }
-    $('#btnCreate').addEventListener('click', createTask);
+    btnCreate.addEventListener('click', createTask);
 
-    // ====== Инициализация ======
+    // ====== Init ======
     (async function init(){
       await ensureFirebase();
       await loadUsers();
-      $('#mergeToggle').checked = false;
       updateCreateDisabled();
+      status('Готово к работе. Перетащите PDF/картинки или вставьте скриншот (Ctrl+V).');
     })();
   </script>
 </body>
