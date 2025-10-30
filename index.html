@@ -198,7 +198,7 @@
       const audienceIds=[...selectedWorkerIds]; const audienceNames=[...selectedWorkerNames];
       const category=isAssembled?"assembled_order":(audienceIds.length===0?"pickup":"default");
       const status=isAssembled?"assembled":"assigned"; const isPickup=isAssembled?false:(audienceIds.length===0);
-      const creatorId=(currentUser&&currentUser.uid)||"unknown"; const creatorName="unknown";
+      const creatorId = "unknown"; const creatorName="unknown";
 
       const taskRef=db.collection('tasks').doc();
       await taskRef.set({
