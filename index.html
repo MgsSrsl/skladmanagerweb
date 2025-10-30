@@ -19,7 +19,7 @@
     input[type="text"], textarea{
       width:100%; padding:12px 14px; border-radius:12px; border:1px solid rgba(0,0,0,.12); font:inherit; background:#fff
     }
-    textarea{ min-height:96px; resize:vertical }
+    textarea{ min_HEIGHT:96px; resize:vertical }
     .row{ display:grid; grid-template-columns:1fr 1fr; gap:12px }
     .muted{ color:var(--muted); font-size:13px }
     .btn{ border:none; background:var(--brand-red); color:#fff; padding:14px 16px; border-radius:12px; font-weight:800; cursor:pointer }
@@ -60,7 +60,7 @@
         <div>
           <label>Файлы (PDF/изображения)</label>
           <div id="drop" class="drop">
-            <input id="fileInput" type="file" multiple accept="image/*,.pdf" />
+            <input id="fileInput" type="file" multiple accept="image/*,application/pdf,.pdf" />
             <div class="muted">Выберите или перетащите файлы сюда</div>
           </div>
           <div id="files" class="files"></div>
@@ -98,10 +98,10 @@
     storageBucket: "skladsborka-6c2a7.firebasestorage.app",
     appId: "1:516526717198:android:e470c17aed370572757f5f"
   };
-  const CLOUDINARY_CLOUD_NAME   = "dnx1taqp7";
+  const CLOUDINARY_CLOUD_NAME    = "dnx1taqp7";
   const CLOUDINARY_UPLOAD_PRESET = "unsigned_tasks";
   const FOLDER_PREFIX            = "tasks";
-  const NOTIFY_URL               = "https://skladsborka-notify.vercel.app/api/notify-taskCreated";
+  const NOTIFY_URL               = "https://skladsborka-notify.vercel.app/api/notify-taskCreated"; // оставил как у тебя
   // =====================
 
   firebase.initializeApp(FIREBASE_CONFIG);
@@ -201,14 +201,26 @@
       const creatorId=(currentUser&&currentUser.uid)||"unknown"; const creatorName="web";
 
       const taskRef=db.collection('tasks').doc();
-      await taskRef.set({ title, comment, assignees:audienceIds, assigneeNames:audienceNames, isPickup, assembledOrder:isAssembled, category, status, createdAt:firebase.firestore.FieldValue.serverTimestamp(), creatorId, creatorName, files:[] });
+      await taskRef.set({
+        title, comment,
+        assignees:audienceIds, assigneeNames:audienceNames,
+        isPickup, assembledOrder:isAssembled,
+        category, status,
+        createdAt:firebase.firestore.FieldValue.serverTimestamp(),
+        creatorId, creatorName,
+        files:[]
+      });
 
       let uploaded=[];
-      if(selectedFiles.length){ uploaded=await uploadAllFiles(taskRef.id,selectedFiles); if(uploaded.length){ await taskRef.update({files:uploaded}); } }
+      if(selectedFiles.length){
+        uploaded=await uploadAllFiles(taskRef.id,selectedFiles);
+        if(uploaded.length){ await taskRef.update({files:uploaded}); }
+      }
 
-      // уведомление — в фоне (аналог OkHttp enqueue)
+      // уведомление — «в фоне», не блокируем UX
       notifyTaskCreated(taskRef.id,audienceIds).catch(()=>{});
 
+      // очистка UI
       selectedFiles.length=0; renderFiles(); updateFilesInfo();
       els.title.value=''; els.comment.value=''; els.cbAssembled.checked=false;
       [...document.querySelectorAll('#users input[type=checkbox]')].forEach(ch=>ch.checked=false);
@@ -219,38 +231,39 @@
     finally{ freeze(false); touchLastUpdated(); }
   }
 
-  // === Только file + upload_preset + folder. Никаких access_mode/use_filename и т.п. ===
+  // === ВАЖНО: строго как в приложении — всегда /auto/upload, без ручной замены на raw на этом этапе ===
   async function uploadAllFiles(taskId, files){
-  const out=[];
-  for(const f of files){
-    const name = f.name || "file";
-    const isPdf = /\.pdf$/i.test(name) || f.type === 'application/pdf';
+    const out=[];
+    for(const f of files){
+      const name = f.name || "file";
+      const isPdf = /\.pdf$/i.test(name) || f.type === 'application/pdf';
 
-    // ✅ Всегда auto (как в Android)
-    const endpoint = `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/auto/upload`;
+      // ✅ Единая точка: auto/upload
+      const endpoint = `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/auto/upload`;
 
-    const fd = new FormData();
-    fd.append('file', f);
-    fd.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
-    fd.append('folder', `${FOLDER_PREFIX}/${taskId}`);
+      const fd = new FormData();
+      fd.append('file', f);
+      fd.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
+      fd.append('folder', `${FOLDER_PREFIX}/${taskId}`);
 
-    const resp = await fetch(endpoint, { method:'POST', body:fd });
-    if(!resp.ok){
-      const t = await resp.text().catch(()=> "");
-      throw new Error(`upload failed (${resp.status}) ${t}`);
+      const resp = await fetch(endpoint,{method:'POST',body:fd});
+      if(!resp.ok){
+        const t = await resp.text().catch(()=> "");
+        throw new Error(`upload failed (${resp.status}) ${t}`);
+      }
+      const json = await resp.json();
+
+      const url = json.secure_url || json.url || "";
+      const pid = json.public_id || "";
+      const rtype = (json.resource_type||"").toLowerCase();
+
+      // тип в задаче помечаем для удобства рендера на мобилке
+      const typeForTask = isPdf ? "pdf" : (rtype || "raw");
+
+      out.push({ url, publicId: pid, type: typeForTask, name });
     }
-    const json = await resp.json();
-
-    // Cloudinary вернёт URL чаще всего с /image/upload/
-    // Сохраняем как есть; тип в документе помечаем "pdf" по имени
-    let url = json.secure_url || json.url || "";
-    const pid = json.public_id || "";
-    const typeForTask = isPdf ? "pdf" : ((json.resource_type||"").toLowerCase() || "raw");
-
-    out.push({ url, publicId: pid, type: typeForTask, name });
+    return out;
   }
-  return out;
-}
 
   function notifyTaskCreated(taskId,audienceIds){
     const assigneeIdsCsv=(audienceIds&&audienceIds.length)?audienceIds.join(","):"";
