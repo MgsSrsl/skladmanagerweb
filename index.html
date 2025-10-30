@@ -1,313 +1,328 @@
 <!doctype html>
 <html lang="ru">
 <head>
-  <meta charset="utf-8" />
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <title>Создать задачу — СкладСборка</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
   <style>
-    :root { color-scheme: dark; }
-    * { box-sizing: border-box; }
-    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 0; background: #0b0f14; color: #fff; }
-    .container { max-width: 1100px; margin: 24px auto 64px; padding: 0 16px; }
-    h1 { margin: 0 0 16px; }
-    .card { background:#0d1422; border:1px solid #1f2a44; border-radius:14px; padding:16px; margin-bottom:16px; }
-    label { font-size:14px; color:#9ca3af; display:block; margin:10px 0 6px; }
-    input[type="text"], textarea { width:100%; padding:10px 12px; border-radius:10px; border:1px solid #374151; background:#0b1220; color:#fff; }
-    textarea { min-height:80px; resize:vertical; }
-    .row { display:flex; gap:12px; flex-wrap:wrap; align-items:center; }
-    .dropzone { border:2px dashed #4b5563; border-radius:14px; padding:22px; background:#111827; text-align:center; transition:.2s; }
-    .dropzone.drag { background:#1f2937; border-color:#60a5fa; }
-    .muted { color:#9ca3af; font-size:13px }
-    button { background:#3b82f6; border:0; color:#fff; padding:10px 14px; border-radius:10px; cursor:pointer; font-weight:600; }
-    button.ghost { background:#0b1220; border:1px solid #374151; }
-    button[disabled] { opacity:.6; cursor:not-allowed }
-    #fileInput { position:fixed; left:-9999px; top:-9999px; width:1px; height:1px; opacity:0; }
-    .files { margin-top:10px; display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:10px; }
-    .file { display:flex; gap:10px; align-items:center; padding:8px; border:1px solid #1f2a44; border-radius:10px; background:#0b1220; }
-    .thumb { width:48px; height:48px; border-radius:8px; background:#111827; display:flex; align-items:center; justify-content:center; overflow:hidden; }
-    .thumb img { max-width:100%; max-height:100%; display:block; }
-    .pdfBadge { font-size:12px; font-weight:700; padding:2px 6px; border-radius:6px; background:#b91c1c; }
-    .fname { font-weight:600; }
-    .fmeta { font-size:12px; opacity:.75 }
-    .grow { flex:1 1 auto; min-width:0 }
-    .chip { border:1px solid #374151; background:#0b1220; padding:8px 10px; border-radius:999px; cursor:pointer; }
-    .chip.active { background:#1e293b; border-color:#60a5fa; }
-    .status { margin-top:8px; font-size:14px; color:#93c5fd; white-space:pre-wrap; }
+    :root{--brand:#FF3B30;--stroke:rgba(0,0,0,.08)}
+    *{box-sizing:border-box} html,body{height:100%} body{margin:0;font-family:Inter,system-ui;background:#f7f7f8;color:#111}
+    .wrap{max-width:760px;margin:24px auto;padding:0 16px}
+    .card{background:#fff;border:1px solid var(--stroke);border-radius:16px;box-shadow:0 8px 30px rgba(0,0,0,.06);padding:20px}
+    h1{font-size:22px;margin:0 0 16px;font-weight:800}
+    label{display:block;font-size:13px;font-weight:600;margin:14px 0 6px}
+    input[type="text"], textarea, .pill{
+      width:100%;padding:12px 14px;border:1px solid var(--stroke);border-radius:12px;font:inherit;background:#fff
+    }
+    textarea{min-height:90px;resize:vertical}
+    .row{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+    .files{padding:12px;border:1px dashed #ccc;border-radius:12px;background:#fafafa}
+    .files.drag{background:#eef7ff;border-color:#8ab6ff}
+    .file-list{margin:8px 0 0;padding:0;list-style:none;font-size:14px}
+    .file-list li{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #eee}
+    .file-list small{opacity:.7}
+    .btn{display:inline-flex;align-items:center;gap:8px;padding:12px 16px;border-radius:12px;border:1px solid var(--stroke);background:#111;color:#fff;font-weight:700;cursor:pointer}
+    .btn.secondary{background:#fff;color:#111}
+    .btn:disabled{opacity:.5;cursor:not-allowed}
+    .toolbar{display:flex;gap:10px;flex-wrap:wrap}
+    .hint{font-size:12px;opacity:.7}
+    .ok{color:#0a8f3c}.err{color:#c62828}
+    .pill{display:flex;gap:8px;flex-wrap:wrap;min-height:46px}
+    .chip{display:inline-flex;gap:6px;align-items:center;padding:6px 10px;border-radius:999px;background:#f0f3f6;border:1px solid #d9e1ea}
+    .chip b{font-weight:600}.chip button{border:0;background:none;cursor:pointer;font-size:16px;line-height:1}
+    .grid{display:grid;grid-template-columns:1fr 240px;gap:16px}
+    .right{position:sticky;top:16px;height:fit-content}
+    .danger{background:linear-gradient(180deg, rgba(255,59,48,.06), transparent), #111}
   </style>
 </head>
 <body>
-  <div class="container">
-    <h1>Создать задачу (скриншоты & PDF)</h1>
+<div class="wrap">
+  <div class="card">
+    <h1>Создать задачу</h1>
 
-    <div class="card">
-      <div class="dropzone" id="drop">
-        <p><b>Перетащи сюда изображения или PDF</b>, нажми «Выбрать файлы»<br>или просто <b>Ctrl+V</b> — вставь принтскрин из буфера.</p>
-        <div class="row" style="justify-content:center">
-          <button id="btnPick" type="button" class="ghost">Выбрать файлы</button>
-          <button id="btnClear" type="button" class="ghost">Очистить</button>
+    <label>Заголовок</label>
+    <input id="title" type="text" placeholder="Например: Заказ №1234">
+
+    <label>Комментарий</label>
+    <textarea id="comment" placeholder="Ссылки, уточнения, примечания…"></textarea>
+
+    <div class="grid" style="margin-top:12px">
+      <div>
+        <label>Исполнители (необязательно)</label>
+        <div id="assignees" class="pill" aria-label="Исполнители"></div>
+        <div class="toolbar" style="margin-top:10px">
+          <button id="pickUsers" class="btn secondary">Выбрать исполнителей</button>
+          <button id="clearUsers" class="btn secondary">Очистить</button>
         </div>
-        <input id="fileInput" type="file" multiple accept="image/*,application/pdf" />
-        <div id="files" class="files"></div>
-        <div id="status" class="status"></div>
+
+        <label style="margin-top:18px">Файлы (PDF/изображения)</label>
+        <div id="drop" class="files" tabindex="0">
+          Перетащите файлы сюда или <label for="file" style="display:inline;color:#0b57d0;cursor:pointer;text-decoration:underline;margin:0">выберите</label>.
+          <input id="file" type="file" multiple accept="image/*,.pdf" style="display:none">
+          <ul id="list" class="file-list"></ul>
+          <div class="hint">PDF уйдут как <b>raw</b> в Cloudinary, остальные — как <b>image</b>. Папка: <code>tasks/&lt;taskId&gt;</code></div>
+        </div>
+
       </div>
-      <div class="muted" style="margin-top:8px">
-        Поддерживаются: PNG, JPG, WebP, HEIC/HEIF (если браузер отдаёт), и PDF. Вставка из буфера — как изображение.
+      <div class="right">
+        <div class="toolbar">
+          <button id="save" class="btn danger">Сохранить задачу</button>
+          <button id="logout" class="btn secondary">Выйти</button>
+        </div>
+        <div id="status" class="hint" style="margin-top:10px"></div>
       </div>
-    </div>
-
-    <div class="card">
-      <label>Заголовок</label>
-      <input id="title" type="text" placeholder="Например: Отгрузка #1234" />
-      <label>Комментарий</label>
-      <textarea id="comment" placeholder="Склад, заказ №, контрагент — опционально"></textarea>
-    </div>
-
-    <div class="card">
-      <label>Исполнители (кладовщики)</label>
-      <div id="workers" class="row" style="gap:8px"></div>
-      <div class="muted">Если никого не выбрать — создадим одну задачу для самовывоза (без исполнителей).</div>
-    </div>
-
-    <div class="card" style="display:flex; gap:10px; justify-content:flex-end">
-      <button id="btnCreate" type="button" disabled>Создать задачу</button>
     </div>
   </div>
+</div>
 
-  <script>
-    // ===== Конфиг
-    const FIREBASE_CONFIG = {
-      apiKey: "AIzaSyAH58ZpWAp64mhM589KD6jXHcOlPqU0aYU",
-      authDomain: "skladsborka-6c2a7.firebaseapp.com",
-      projectId: "skladsborka-6c2a7",
-      storageBucket: "skladsborka-6c2a7.appspot.com",
-      messagingSenderId: "516526717198"
-    };
-    const CONFIG = {
-      cloudinary: { cloudName: "dnx1taqp7", uploadPreset: "unsigned_tasks" },
-      notifyUrl: "https://skladsborka-notify.vercel.app/api/notify-taskCreated"
-    };
+<!-- Firebase (SDK v9 modular) -->
+<script type="module">
+  // ==== 🔧 ВСТАВЬ СВОИ ДАННЫЕ ТУТ ====
+  const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyC_139FN0Bafm3nym_WTqtwJhJnfDyIRf4",
+  authDomain: "skladsborka-6c2a7.firebaseapp.com",
+  projectId: "skladsborka-6c2a7",
+  storageBucket: "skladsborka-6c2a7.firebasestorage.app",
+  appId: "1:516526717198:web:ea995cb4e4123481757f5f"
+};
+  const CLOUDINARY = {
+    cloudName: "dnx1taqp7",      // 🔧 например: skladsborka
+    uploadPreset: "unsigned_tasks",     // 🔧 как в Android
+    folderPrefix: "tasks"               // 🔧 папка
+  };
+  const NOTIFY_ENDPOINT = "https://skladsborka-notify.vercel.app/api/notify-taskCreated"; // 🔧
 
-    // ===== Утилиты
-    const $  = s => document.querySelector(s);
-    const $$ = s => Array.from(document.querySelectorAll(s));
-    const status = t => { $('#status').textContent = t || ''; };
-    const sleep = ms => new Promise(r=>setTimeout(r,ms));
-    function fmtSize(bytes){ return (bytes/1024/1024).toFixed(2)+' MB'; }
-    function blobToFile(blob, name){ return new File([blob], name, { type: blob.type || 'application/octet-stream' }); }
-    function isPdfByName(file){ return /\.pdf$/i.test(file?.name || ''); }
+  // ===== Firebase init =====
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
+  import { getAuth, onAuthStateChanged, signInWithPopup, GoogleAuthProvider, signOut } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
+  import { getFirestore, collection, doc, addDoc, setDoc, updateDoc, serverTimestamp, getDocs, query } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
 
-    // ===== Состояние файлов
-    let filesAll = [];
+  const app = initializeApp(FIREBASE_CONFIG);
+  const auth = getAuth(app);
+  const db = getFirestore(app);
 
-    function clearAll(){
-      filesAll = [];
-      renderFiles();
-      status('');
-      updateCreateDisabled();
-    }
+  // ====== UI refs ======
+  const $ = (id)=>document.getElementById(id);
+  const titleEl = $("title");
+  const commentEl = $("comment");
+  const dropEl = $("drop");
+  const fileEl = $("file");
+  const listEl = $("list");
+  const pickUsersBtn = $("pickUsers");
+  const clearUsersBtn = $("clearUsers");
+  const assigneesBox = $("assignees");
+  const saveBtn = $("save");
+  const statusEl = $("status");
+  const logoutBtn = $("logout");
 
-    function renderFiles(){
-      const box = $('#files'); box.innerHTML = '';
-      for (const f of filesAll){
-        const row = document.createElement('div'); row.className = 'file';
-        const th = document.createElement('div'); th.className = 'thumb';
-        if ((f.type||'').toLowerCase().startsWith('image/')){
-          const img = document.createElement('img'); img.src = URL.createObjectURL(f);
-          th.appendChild(img);
-        } else {
-          const badge = document.createElement('div'); badge.className = 'pdfBadge'; badge.textContent = 'PDF';
-          th.appendChild(badge);
-        }
-        const center = document.createElement('div'); center.className = 'grow';
-        const name = document.createElement('div'); name.className='fname'; name.textContent = f.name || '(без имени)';
-        const meta = document.createElement('div'); meta.className='fmeta'; meta.textContent = `${f.type || 'unknown'} • ${fmtSize(f.size)}`;
-        center.appendChild(name); center.appendChild(meta);
-        const rm = document.createElement('button'); rm.type='button'; rm.className='ghost'; rm.textContent='Удалить';
-        rm.onclick = () => { filesAll = filesAll.filter(x => x !== f); renderFiles(); updateCreateDisabled(); };
-        row.appendChild(th); row.appendChild(center); row.appendChild(rm);
-        box.appendChild(row);
-      }
-    }
+  const selected = { files: [], assignees: [], assigneeNames: [] };
 
-    // ===== DnD / Pick / Paste
-    const drop = $('#drop'); const fi = $('#fileInput');
-    $('#btnPick').addEventListener('click', () => fi.click());
-    $('#btnClear').addEventListener('click', clearAll);
-
-    function isPdfFile(file){ return (file?.type||'').toLowerCase()==='application/pdf' || isPdfByName(file); }
-    function acceptFile(file){
-      if (!file) return false;
-      const t = (file.type || '').toLowerCase();
-      return t.startsWith('image/') || isPdfFile(file);
-    }
-    function addFiles(list){
-      const arr = Array.from(list || []).filter(acceptFile);
-      if (arr.length){ filesAll.push(...arr); renderFiles(); updateCreateDisabled(); }
-    }
-    ['dragenter','dragover'].forEach(ev=>{
-      document.addEventListener(ev, e=>{ e.preventDefault(); });
-      drop.addEventListener(ev, e=>{ e.preventDefault(); drop.classList.add('drag'); });
-    });
-    ['dragleave','drop'].forEach(ev=>{
-      document.addEventListener(ev, e=>{ e.preventDefault(); });
-      drop.addEventListener(ev, e=>{ e.preventDefault(); drop.classList.remove('drag'); });
-    });
-    drop.addEventListener('drop', e => addFiles(e.dataTransfer?.files));
-    fi.addEventListener('change', () => addFiles(fi.files));
-    window.addEventListener('paste', async (e) => {
-      const items = Array.from(e.clipboardData?.items || []);
-      const files = [];
-      for (const it of items) if (it.kind === 'file') {
-        const f = it.getAsFile(); if (acceptFile(f)) files.push(f);
-      }
-      if (!files.length) return;
-      const now = new Date(); let idx = 1;
-      const named = await Promise.all(files.map(async (f) => {
-        if (f.name) return f;
-        const ts = now.toISOString().replace(/[:.]/g,'-');
-        const ext = (f.type && f.type.split('/')[1]) ? f.type.split('/')[1] : 'png';
-        return blobToFile(f, `screenshot-${ts}-${idx++}.${ext}`);
-      }));
-      addFiles(named);
-      status('Добавлено из буфера: ' + named.length);
-      await sleep(1000); status('');
-    });
-
-    // ===== Firebase
-    let _db, _fsMod;
-    async function ensureFirebase(){
-      if (_db) return;
-      const appMod  = await import("https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js");
-      const authMod = await import("https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js");
-      const fsMod   = await import("https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js");
-      const app = appMod.initializeApp(FIREBASE_CONFIG);
-      _fsMod = fsMod; _db = fsMod.getFirestore(app);
-      try { await authMod.signInAnonymously(authMod.getAuth(app)); } catch {}
-    }
-
-    // ===== Пользователи / исполнители
-    let usersAll = []; const selectedIds = new Set(); const selectedNames = new Set();
-    function renderWorkers(){
-      const box = $('#workers'); box.innerHTML = '';
-      const workers = usersAll.filter(u => (u.role||'').toLowerCase() === 'кладовщик');
-      (workers.length ? workers : usersAll).forEach(u => {
-        const b = document.createElement('button'); b.type='button'; b.className='chip'; b.textContent = u.name || u.id;
-        let active = false; const set=a=>{active=a; b.classList.toggle('active',a);};
-        b.onclick = ()=>{ active? (selectedIds.delete(u.id),selectedNames.delete(u.name||u.id)) : (selectedIds.add(u.id),selectedNames.add(u.name||u.id)); set(!active); };
-        box.appendChild(b);
+  // ===== Auth (Google popup по-быстрому) =====
+  onAuthStateChanged(auth, (user)=>{
+    if(!user){
+      status("Требуется вход… Откроется окно Google Sign-In");
+      signInWithPopup(auth, new GoogleAuthProvider()).catch(e=>{
+        statusErr("Вход отменён: "+e.message);
       });
+    } else {
+      statusOk("Вошли как: "+(user.displayName||user.email));
     }
-    async function loadUsers(){
-      try {
-        await ensureFirebase();
-        const snap = await _fsMod.getDocs(_fsMod.collection(_db, 'users'));
-        usersAll = snap.docs.map(d => ({ id:d.id, name:d.get('name')||d.get('displayName')||d.id, role:(d.get('role')||'').toString() }));
-        renderWorkers();
-      } catch { $('#workers').innerHTML = '<div class="muted">Не удалось загрузить пользователей</div>'; }
+  });
+  logoutBtn.onclick = ()=>signOut(auth);
+
+  // ===== Users picker (простая модалка) =====
+  pickUsersBtn.onclick = async ()=>{
+    try{
+      const snap = await getDocs(query(collection(db,"users")));
+      const items = [];
+      snap.forEach(d=>{
+        const id = d.id;
+        const name = d.get("name") || d.get("displayName") || id;
+        items.push({id, name});
+      });
+      items.sort((a,b)=>a.name.localeCompare(b.name,'ru'));
+      const pick = await showPicker(items, selected.assignees);
+      if(!pick) return;
+      selected.assignees = pick.map(p=>p.id);
+      selected.assigneeNames = pick.map(p=>p.name);
+      renderAssignees();
+    }catch(e){ statusErr("Не удалось загрузить пользователей: "+e.message); }
+  };
+  clearUsersBtn.onclick = ()=>{ selected.assignees=[]; selected.assigneeNames=[]; renderAssignees(); };
+
+  function renderAssignees(){
+    assigneesBox.innerHTML = "";
+    if (selected.assignees.length===0){
+      assigneesBox.innerHTML = '<span class="hint">Исполнители не выбраны — задание уйдёт как <b>самовывоз</b> для всех</span>';
+      return;
     }
+    selected.assigneeNames.forEach((n,i)=>{
+      const chip = document.createElement("span");
+      chip.className="chip";
+      chip.innerHTML = `<b>${escapeHtml(n)}</b> <button title="Убрать" aria-label="Убрать">&times;</button>`;
+      chip.querySelector("button").onclick = ()=>{ selected.assignees.splice(i,1); selected.assigneeNames.splice(i,1); renderAssignees(); };
+      assigneesBox.appendChild(chip);
+    });
+  }
 
-    // ===== Cloudinary (имя .pdf → raw/upload и type="pdf"; unsigned без use/unique_filename)
-    async function uploadToCloudinary(file, taskId){
-      const isPdf = isPdfByName(file);
-      const endpoint = isPdf ? 'raw' : 'auto';
-      const form = new FormData();
-      form.append('file', file);
-      form.append('upload_preset', CONFIG.cloudinary.uploadPreset);
-      form.append('folder', `tasks/${taskId}`);
+  // ===== Files (drop/choose) =====
+  fileEl.onchange = ()=>addFiles([...fileEl.files]);
+  ["dragenter","dragover"].forEach(ev => dropEl.addEventListener(ev, e=>{ e.preventDefault(); dropEl.classList.add("drag"); }));
+  ["dragleave","drop"].forEach(ev => dropEl.addEventListener(ev, e=>{ e.preventDefault(); dropEl.classList.remove("drag"); }));
+  dropEl.addEventListener("drop", e=>addFiles([...e.dataTransfer.files]));
 
-      const resp = await fetch(`https://api.cloudinary.com/v1_1/${CONFIG.cloudinary.cloudName}/${endpoint}/upload`, { method:'POST', body: form });
-      let j;
-      if (!resp.ok){ try{ j=await resp.json(); }catch{}; throw new Error(j?.error?.message || `Cloudinary upload failed: ${resp.status}`); }
-      j = await resp.json();
-
-      const url = (isPdf && typeof j.secure_url === 'string' && j.secure_url.includes('/image/upload/'))
-        ? j.secure_url.replace('/image/upload/', '/raw/upload/')
-        : j.secure_url;
-
-      return { url, publicId: j.public_id, type: isPdf ? 'pdf' : 'image', name: file.name || 'file' };
+  function addFiles(files){
+    for(const f of files){
+      if(!f || !f.name) continue;
+      if (selected.files.find(x=>x.name===f.name && x.size===f.size)) continue;
+      selected.files.push(f);
     }
-    async function uploadAll(taskId){
-      const out = []; let i = 0;
-      for (const f of filesAll){ i++; status(`Загрузка файлов ${i}/${filesAll.length}…`); out.push(await uploadToCloudinary(f, taskId)); }
-      return out;
-    }
+    renderFiles();
+  }
+  function renderFiles(){
+    listEl.innerHTML="";
+    selected.files.forEach((f, i)=>{
+      const li = document.createElement("li");
+      li.innerHTML = `<b>${escapeHtml(f.name)}</b> <small>${(f.size/1024/1024).toFixed(2)} MB</small>
+        <button aria-label="Удалить" style="margin-left:auto" class="btn secondary">Удалить</button>`;
+      li.querySelector("button").onclick = ()=>{ selected.files.splice(i,1); renderFiles(); };
+      listEl.appendChild(li);
+    });
+  }
 
-    // ===== Уведомление (как в приложении)
-    async function notifyTaskCreated(taskId, assigneeIds){
-      const body = new URLSearchParams();
-      body.set('taskId', taskId);
-      if (assigneeIds?.length) body.set('assigneeIds', assigneeIds.join(','));
-      try {
-        await fetch(CONFIG.notifyUrl, { method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body });
-      } catch {
-        const qs = new URLSearchParams({ taskId, assigneeIds:(assigneeIds||[]).join(',') }).toString();
-        new Image().src = `${CONFIG.notifyUrl}?${qs}`;
-      }
-    }
+  // ===== Save =====
+  saveBtn.onclick = async ()=>{
+    const user = auth.currentUser;
+    if(!user){ return statusErr("Сначала выполните вход"); }
+    const title = titleEl.value.trim();
+    const comment = commentEl.value.trim();
+    if(!title) return statusErr("Введите заголовок");
 
-    // ===== Создание задач (записываем строго нужные поля и ничего лишнего)
-    function updateCreateDisabled(){ $('#btnCreate').disabled = !(filesAll.length && $('#title').value.trim()); }
-    $('#title').addEventListener('input', updateCreateDisabled);
-
-    async function createOneTaskFor(assigneeId, isPickup){
-      const docRef = _fsMod.doc(_fsMod.collection(_db, 'tasks'));
-      const taskId = docRef.id;
-
-      const data = {
-        title: $('#title').value.trim(),
-        comment: $('#comment').value.trim(),
-        assignees: assigneeId ? [assigneeId] : [],
-        isPickup: !!isPickup,
+    saveBtn.disabled = true; status("Создаём задачу…");
+    try{
+      // 1) Черновик задачи
+      const taskRef = await addDoc(collection(db,"tasks"), {
+        title, comment,
+        assignees: selected.assignees,
+        assigneeNames: selected.assigneeNames,
+        isPickup: selected.assignees.length===0,       // ← логика как в Android
         status: "assigned",
-        createdAt: _fsMod.serverTimestamp(),
-        creatorId: "unknown",
-        creatorName: "unknown",
+        createdAt: serverTimestamp(),
+        creatorId: user.uid || "unknown",
+        creatorName: user.displayName || user.email || "unknown",
         files: []
-      };
-      await _fsMod.setDoc(docRef, data);
+      });
 
-      const filesRecs = await uploadAll(taskId);
-      await _fsMod.updateDoc(docRef, { files: filesRecs });
-
-      await notifyTaskCreated(taskId, assigneeId ? [assigneeId] : []);
-      return taskId;
-    }
-
-    async function onCreate(){
-      try {
-        if (!filesAll.length) { alert('Добавь файлы'); return; }
-        const title = $('#title').value.trim();
-        if (!title) { alert('Введи заголовок'); return; }
-
-        $('#btnCreate').disabled = true;
-        await ensureFirebase();
-
-        const ids = Array.from(selectedIds);
-        const created = [];
-        status('Создаю задачу(и)…');
-
-        if (!ids.length){
-          created.push(await createOneTaskFor(null, true));
-        } else {
-          for (const id of ids) created.push(await createOneTaskFor(id, false));
-        }
-
-        status(`Готово. Создано задач: ${created.length}`);
-        alert(`Создано задач: ${created.length}`);
-
-        clearAll(); $('#title').value=''; $('#comment').value='';
-        selectedIds.clear(); selectedNames.clear(); $$('#workers .chip').forEach(el=>el.classList.remove('active'));
-        updateCreateDisabled();
-      } catch (e) {
-        console.error(e); alert('Ошибка: ' + (e?.message || e)); status('Ошибка'); $('#btnCreate').disabled = false;
+      // 2) Загрузка всех файлов (по одному, чтобы иметь порядок/контроль типов)
+      const uploaded = [];
+      for(let i=0;i<selected.files.length;i++){
+        const f = selected.files[i];
+        status(`Загрузки файлов: ${i+1}/${selected.files.length}…`);
+        const up = await uploadToCloudinary(f, taskRef.id);
+        uploaded.push(up);
       }
-    }
-    $('#btnCreate').addEventListener('click', onCreate);
 
-    (async function init(){
-      await ensureFirebase(); await loadUsers(); updateCreateDisabled();
-      status('Подсказка: Ctrl+V — вставка скриншота.'); setTimeout(()=>status(''), 3000);
-    })();
-  </script>
+      // 3) Обновляем files в документе
+      if (uploaded.length>0){
+        await updateDoc(doc(db,"tasks",taskRef.id), { files: uploaded, updatedAt: serverTimestamp() });
+      }
+
+      // 4) Дёргаем нотификатор (сервер сам решит — пуш всем/исполнителям)
+      try{
+        await fetch(NOTIFY_ENDPOINT, {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({taskId: taskRef.id})});
+      }catch(_){/* не блокируем UX */}
+
+      statusOk("Готово: задача создана");
+      titleEl.value=""; commentEl.value=""; selected.files=[]; renderFiles();
+      // (исполнители оставим выбранными — так удобнее пачкой создавать)
+    }catch(e){
+      statusErr("Ошибка сохранения: "+e.message);
+    }finally{
+      saveBtn.disabled = false;
+    }
+  };
+
+  // ===== Cloudinary (unsigned) =====
+  async function uploadToCloudinary(file, taskId){
+    const name = file.name || "file";
+    const isPdf = /\.pdf$/i.test(name);
+    const resource = isPdf ? "raw" : "auto"; // raw для PDF — критично
+    const url = `https://api.cloudinary.com/v1_1/${encodeURIComponent(CLOUDINARY.cloudName)}/${resource}/upload`;
+    const fd = new FormData();
+    fd.append("file", file);
+    fd.append("upload_preset", CLOUDINARY.uploadPreset);
+    fd.append("folder", `${CLOUDINARY.folderPrefix}/${taskId}`);
+    // Можно подсказать тип:
+    if (isPdf) fd.append("resource_type", "raw");
+
+    const res = await fetch(url, { method:"POST", body: fd });
+    if (!res.ok) throw new Error("Upload failed: "+res.status);
+    const j = await res.json();
+    // ожидаем secure_url, public_id, resource_type
+    let fileType = j.resource_type || (isPdf ? "raw" : "image");
+    // иногда PDF уходит как image — починим тип для downstream
+    if (isPdf && fileType!=="raw") fileType = "pdf";
+
+    return {
+      url: j.secure_url,
+      publicId: j.public_id,
+      type: fileType,
+      name
+    };
+  }
+
+  // ===== утилиты =====
+  function status(t){ statusEl.innerHTML = t; statusEl.className="hint"; }
+  function statusOk(t){ statusEl.innerHTML = `<span class="ok">${t}</span>`; statusEl.className="hint"; }
+  function statusErr(t){ statusEl.innerHTML = `<span class="err">${t}</span>`; statusEl.className="hint"; }
+  function escapeHtml(s){ return s.replace(/[&<>"']/g, m=>({ "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;" }[m])); }
+
+  // Простенький пикер пользователей
+  function showPicker(items, preselected){
+    return new Promise(resolve=>{
+      const sel = new Set(preselected||[]);
+      const dlg = document.createElement("dialog");
+      dlg.style.padding="0"; dlg.style.border="none"; dlg.style.borderRadius="14px"; dlg.style.width="min(680px, 96vw)";
+      dlg.innerHTML = `
+        <form method="dialog" style="padding:16px 16px 10px">
+          <h3 style="margin:4px 0 12px;font-weight:800">Выберите исполнителей</h3>
+          <input id="filt" type="text" placeholder="Фильтр…" style="width:100%;padding:10px 12px;border:1px solid var(--stroke);border-radius:10px">
+          <div id="lst" style="margin-top:10px;max-height:52vh;overflow:auto;border:1px solid #eee;border-radius:10px;padding:8px;background:#fafafa"></div>
+          <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:12px">
+            <button value="cancel" class="btn secondary">Отмена</button>
+            <button id="ok" value="ok" class="btn">Выбрать</button>
+          </div>
+        </form>`;
+      document.body.appendChild(dlg);
+
+      const lst = dlg.querySelector("#lst");
+      const filt = dlg.querySelector("#filt");
+      function renderList(){
+        const q = (filt.value||"").toLowerCase();
+        lst.innerHTML = "";
+        items.forEach(it=>{
+          if (q && !it.name.toLowerCase().includes(q) && !it.id.toLowerCase().includes(q)) return;
+          const row = document.createElement("label");
+          row.style.cssText = "display:flex;align-items:center;gap:10px;padding:8px;border-bottom:1px solid #eee;cursor:pointer";
+          row.innerHTML = `<input type="checkbox" ${sel.has(it.id)?"checked":""}> <div><b>${escapeHtml(it.name)}</b><div class="hint">${escapeHtml(it.id)}</div></div>`;
+          row.querySelector("input").onchange = (e)=>{ if(e.target.checked) sel.add(it.id); else sel.delete(it.id); };
+          lst.appendChild(row);
+        });
+      }
+      renderList();
+      filt.oninput = renderList;
+
+      dlg.addEventListener("close", ()=>{
+        if (dlg.returnValue!=="ok"){ dlg.remove(); return resolve(null); }
+        const res = items.filter(it=>sel.has(it.id));
+        dlg.remove(); resolve(res);
+      });
+      dlg.showModal();
+    });
+  }
+</script>
 </body>
 </html>
