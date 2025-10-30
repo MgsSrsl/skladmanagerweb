@@ -7,6 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+  <meta http-equiv="Cache-Control" content="no-store" />
   <style>
     :root{ --brand-red:#FF3B30; --glass-fill:#fff; --text:#0d0d0d; --muted:#555; }
     *{ box-sizing:border-box }
@@ -83,33 +84,29 @@
     </div>
   </div>
 
-  <!-- Только App/Auth/Firestore. НЕТ Storage/Messaging, чтобы не трогать Blob/File. -->
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 
   <script>
-  // ====== КОНФИГИ ======
-  // Берём из твоего google-services.json, но appId оставляем ANDROID-формата — не регистрируем Web.
+  // ====== КОНФИГ ======
   const FIREBASE_CONFIG = {
     apiKey: "AIzaSyAH58ZpWAp64mhM589KD6jXHcOlPqU0aYU",
     authDomain: "skladsborka-6c2a7.firebaseapp.com",
     projectId: "skladsborka-6c2a7",
     storageBucket: "skladsborka-6c2a7.firebasestorage.app",
-    appId: "1:516526717198:android:e470c17aed370572757f5f" // важно: android, НЕ web
+    appId: "1:516526717198:android:e470c17aed370572757f5f"
   };
   const CLOUDINARY_CLOUD_NAME   = "dnx1taqp7";
-  const CLOUDINARY_UPLOAD_PRESET = "unsigned_tasks"; // как в Android
+  const CLOUDINARY_UPLOAD_PRESET = "unsigned_tasks";
   const FOLDER_PREFIX            = "tasks";
   const NOTIFY_URL               = "https://skladsborka-notify.vercel.app/api/notify-taskCreated";
-  // ======================
+  // =====================
 
-  // Инициализация (без Storage).
   firebase.initializeApp(FIREBASE_CONFIG);
   const auth = firebase.auth();
   const db   = firebase.firestore();
 
-  // Ссылки на элементы
   const els = {
     title: document.getElementById('title'),
     comment: document.getElementById('comment'),
@@ -130,23 +127,18 @@
   const selectedWorkerNames = new Set();
   let currentUser = null;
 
-  // Анонимная авторизация
   auth.signInAnonymously()
     .then(c => { currentUser = c.user; touchLastUpdated(); return loadUsers(); })
     .catch(e => alert("Auth error: " + (e?.message||e)));
 
-  // Загрузка пользователей
   async function loadUsers(){
     const snap = await db.collection('users').get();
     if (snap.empty){ els.users.innerHTML = '<div class="muted">Пользователи не найдены</div>'; return; }
     const frag = document.createDocumentFragment();
     snap.forEach(doc=>{
       const data = doc.data()||{};
-      const role = (data.role||"")+"";
-      const base = (data.name || data.displayName || doc.id);
-      const label = role ? `${base} (${role})` : base;
-      const id = doc.id;
-
+      const role = (data.role||"")+""; const base = (data.name || data.displayName || doc.id);
+      const label = role ? `${base} (${role})` : base; const id = doc.id;
       const row = document.createElement('label');
       row.style.display='flex'; row.style.alignItems='center'; row.style.gap='8px'; row.style.padding='6px 2px';
       row.innerHTML = `<input type="checkbox" data-id="${id}" data-name="${escapeHtml(label)}" /> <span>${escapeHtml(label)}</span>`;
@@ -158,9 +150,7 @@
       });
       frag.appendChild(row);
     });
-    els.users.innerHTML = '';
-    els.users.appendChild(frag);
-    updateAssigneesInfo();
+    els.users.innerHTML = ''; els.users.appendChild(frag); updateAssigneesInfo();
   }
 
   function updateAssigneesInfo(){
@@ -169,7 +159,6 @@
       : "Исполнители не выбраны (необязательно)";
   }
 
-  // Файлы: выбор + DnD
   els.fileInput.addEventListener('change', e=>{
     [...(e.target.files||[])].forEach(f=>{ if(!selectedFiles.includes(f)) selectedFiles.push(f); });
     renderFiles(); updateFilesInfo();
@@ -181,139 +170,90 @@
     files.forEach(f=>{ if(!selectedFiles.includes(f)) selectedFiles.push(f); });
     renderFiles(); updateFilesInfo();
   });
-  els.btnClear.addEventListener('click', ()=>{
-    selectedFiles.length = 0; renderFiles(); updateFilesInfo(); els.fileInput.value = '';
-  });
+  els.btnClear.addEventListener('click', ()=>{ selectedFiles.length=0; renderFiles(); updateFilesInfo(); els.fileInput.value=''; });
 
   function renderFiles(){
     els.files.innerHTML = '';
-    selectedFiles.forEach((f, i)=>{
-      const chip = document.createElement('span');
-      chip.className = 'chip';
-      chip.innerHTML = `<span title="${escapeHtml(f.name)}">${escapeHtml(short(f.name))}</span> <button>&times;</button>`;
-      chip.querySelector('button').onclick = ()=>{ selectedFiles.splice(i,1); renderFiles(); updateFilesInfo(); };
+    selectedFiles.forEach((f,i)=>{
+      const chip=document.createElement('span');
+      chip.className='chip';
+      chip.innerHTML=`<span title="${escapeHtml(f.name)}">${escapeHtml(short(f.name))}</span> <button>&times;</button>`;
+      chip.querySelector('button').onclick=()=>{selectedFiles.splice(i,1);renderFiles();updateFilesInfo();};
       els.files.appendChild(chip);
     });
   }
   function updateFilesInfo(){
     els.filesInfo.textContent = selectedFiles.length ? `Файлов выбрано: ${selectedFiles.length}` : 'Файлы не выбраны';
   }
-  const short = s => s.length>36 ? (s.slice(0,16)+'…'+s.slice(-16)) : s;
-  const escapeHtml = s => s.replace(/[&<>"']/g, c=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;', "'":'&#039;' }[c]));
+  const short=s=>s.length>36?(s.slice(0,16)+'…'+s.slice(-16)):s;
+  const escapeHtml=s=>s.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
 
-  // Сохранение
   els.btnSave.addEventListener('click', onSave);
   async function onSave(){
-    const title = els.title.value.trim();
-    const comment = els.comment.value.trim();
-    const isAssembled = !!els.cbAssembled.checked;
-    if (!title){ alert("Введите название задания"); return; }
-
+    const title=els.title.value.trim(); const comment=els.comment.value.trim(); const isAssembled=!!els.cbAssembled.checked;
+    if(!title){ alert("Введите название задания"); return; }
     freeze(true,"Сохраняю…");
     try{
-      const audienceIds = [...selectedWorkerIds];
-      const audienceNames = [...selectedWorkerNames];
+      const audienceIds=[...selectedWorkerIds]; const audienceNames=[...selectedWorkerNames];
+      const category=isAssembled?"assembled_order":(audienceIds.length===0?"pickup":"default");
+      const status=isAssembled?"assembled":"assigned"; const isPickup=isAssembled?false:(audienceIds.length===0);
+      const creatorId=(currentUser&&currentUser.uid)||"unknown"; const creatorName="web";
 
-      const category = isAssembled ? "assembled_order" : (audienceIds.length===0 ? "pickup" : "default");
-      const status   = isAssembled ? "assembled" : "assigned";
-      const isPickup = isAssembled ? false : (audienceIds.length===0);
+      const taskRef=db.collection('tasks').doc();
+      await taskRef.set({ title, comment, assignees:audienceIds, assigneeNames:audienceNames, isPickup, assembledOrder:isAssembled, category, status, createdAt:firebase.firestore.FieldValue.serverTimestamp(), creatorId, creatorName, files:[] });
 
-      const creatorId = (currentUser && currentUser.uid) || "unknown";
-      const creatorName = "web";
+      let uploaded=[];
+      if(selectedFiles.length){ uploaded=await uploadAllFiles(taskRef.id,selectedFiles); if(uploaded.length){ await taskRef.update({files:uploaded}); } }
 
-      // 1) создаём задачу
-      const taskRef = db.collection('tasks').doc();
-      await taskRef.set({
-        title, comment,
-        assignees: audienceIds,
-        assigneeNames: audienceNames,
-        isPickup, assembledOrder: isAssembled,
-        category, status,
-        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-        creatorId, creatorName,
-        files: []
-      });
+      // уведомление — в фоне
+      notifyTaskCreated(taskRef.id,audienceIds).catch(()=>{});
 
-      // 2) аплоадим файлы прямо в Cloudinary (без Firebase Storage/Blob обёрток)
-      let uploaded = [];
-      if (selectedFiles.length){
-        uploaded = await uploadAllFiles(taskRef.id, selectedFiles);
-        if (uploaded.length){ await taskRef.update({ files: uploaded }); }
-      }
-
-      // 3) notify
-      await notifyTaskCreated(taskRef.id, audienceIds);
-
-      // reset
-      selectedFiles.length = 0; renderFiles(); updateFilesInfo();
+      selectedFiles.length=0; renderFiles(); updateFilesInfo();
       els.title.value=''; els.comment.value=''; els.cbAssembled.checked=false;
-      [...document.querySelectorAll('#users input[type=checkbox]')].forEach(ch=> ch.checked=false);
+      [...document.querySelectorAll('#users input[type=checkbox]')].forEach(ch=>ch.checked=false);
       selectedWorkerIds.clear(); selectedWorkerNames.clear(); updateAssigneesInfo();
 
       alert("Задание создано");
-    }catch(e){
-      alert("Ошибка сохранения: " + (e?.message||e));
-    }finally{
-      freeze(false); touchLastUpdated();
-    }
+    }catch(e){ alert("Ошибка сохранения: "+(e?.message||e)); }
+    finally{ freeze(false); touchLastUpdated(); }
   }
 
-  // Чистый Cloudinary: pdf -> /raw/upload; остальное -> /auto/upload.
   async function uploadAllFiles(taskId, files){
-    const out = [];
-    for (const f of files){
-      const name = f.name || "file";
-      const isPdf = /\.pdf$/i.test(name);
+    const out=[];
+    for(const f of files){
+      const name=f.name||"file";
+      const isPdf=/\.pdf$/i.test(name)||f.type==='application/pdf';
+      const endpoint=isPdf
+        ?`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/raw/upload`
+        :`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/auto/upload`;
+      const fd=new FormData();
+      fd.append('file',f);
+      fd.append('upload_preset',CLOUDINARY_UPLOAD_PRESET);
+      fd.append('folder',`${FOLDER_PREFIX}/${taskId}`);
+      fd.append('access_mode','public'); // 👈 делаем файл публичным
 
-      const endpoint = isPdf
-        ? `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/raw/upload`
-        : `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/auto/upload`;
-
-      const fd = new FormData();
-      fd.append('file', f); // напрямую File, без преобразований
-      fd.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
-      fd.append('folder', `${FOLDER_PREFIX}/${taskId}`);
-      fd.append('access_mode', 'public');
-
-      const resp = await fetch(endpoint, { method:'POST', body:fd });
-      if (!resp.ok){
-        const t = await resp.text().catch(()=> "");
-        throw new Error(`upload failed (${resp.status}) ${t}`);
-      }
-      const json = await resp.json();
-
-      let url = json.secure_url || json.url || "";
-      const pid = json.public_id || "";
-      const rtype = (json.resource_type || "").toLowerCase();
-
-      if (isPdf && /\/image\/upload\//.test(url)){ // страховка на случай бага
-        url = url.replace("/image/upload/","/raw/upload/");
-      }
-
-      const typeForTask = isPdf ? "pdf" : (rtype === "image" ? "image" : (rtype || "raw"));
-      out.push({ url, publicId: pid, type: typeForTask, name });
+      const resp=await fetch(endpoint,{method:'POST',body:fd});
+      if(!resp.ok){ const t=await resp.text().catch(()=> ""); throw new Error(`upload failed (${resp.status}) ${t}`); }
+      const json=await resp.json();
+      let url=json.secure_url||json.url||""; const pid=json.public_id||""; const rtype=(json.resource_type||"").toLowerCase();
+      if(isPdf&&/\/image\/upload\//.test(url)){ url=url.replace("/image/upload/","/raw/upload/"); }
+      const typeForTask=isPdf?"pdf":(rtype==="image"?"image":(rtype||"raw"));
+      out.push({url,publicId:pid,type:typeForTask,name});
     }
     return out;
   }
 
-  async function notifyTaskCreated(taskId, audienceIds){
-    const assigneeIdsCsv = (audienceIds && audienceIds.length) ? audienceIds.join(",") : "";
-    const body = new URLSearchParams({ taskId, assigneeIds: assigneeIdsCsv });
-    const resp = await fetch(NOTIFY_URL, {
-      method:'POST', headers:{ 'Content-Type':'application/x-www-form-urlencoded' }, body
-    });
-    // лог — но не валим процесс
-    try{ console.log('notify', resp.status, await resp.text()); }catch(_){}
+  function notifyTaskCreated(taskId,audienceIds){
+    const assigneeIdsCsv=(audienceIds&&audienceIds.length)?audienceIds.join(","):"";
+    const body=new URLSearchParams({taskId,assigneeIds:assigneeIdsCsv});
+    return fetch(NOTIFY_URL,{method:'POST',mode:'no-cors',headers:{'Content-Type':'application/x-www-form-urlencoded'},body})
+      .catch(()=>{});
   }
 
-  function freeze(flag, text){
-    els.btnSave.disabled = !!flag;
-    els.btnSave.textContent = flag ? (text||"…") : "Сохранить задание";
-  }
+  function freeze(flag,text){ els.btnSave.disabled=!!flag; els.btnSave.textContent=flag?(text||"…"):"Сохранить задание"; }
   function touchLastUpdated(){
-    const d = new Date();
-    const s = d.toLocaleDateString() + " " + d.toLocaleTimeString().slice(0,5);
-    els.tvHomeLastUpdated.textContent = "Список актуален: " + s;
+    const d=new Date(); const s=d.toLocaleDateString()+" "+d.toLocaleTimeString().slice(0,5);
+    els.tvHomeLastUpdated.textContent="Список актуален: "+s;
   }
   </script>
 </body>
