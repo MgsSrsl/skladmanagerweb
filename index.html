@@ -221,30 +221,36 @@
 
   // === Только file + upload_preset + folder. Никаких access_mode/use_filename и т.п. ===
   async function uploadAllFiles(taskId, files){
-    const out=[];
-    for(const f of files){
-      const name=f.name||"file";
-      const isPdf=/\.pdf$/i.test(name)||f.type==='application/pdf';
-      const endpoint=isPdf
-        ?`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/raw/upload`
-        :`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/auto/upload`;
+  const out=[];
+  for(const f of files){
+    const name = f.name || "file";
+    const isPdf = /\.pdf$/i.test(name) || f.type === 'application/pdf';
 
-      const fd=new FormData();
-      fd.append('file',f);
-      fd.append('upload_preset',CLOUDINARY_UPLOAD_PRESET);
-      fd.append('folder',`${FOLDER_PREFIX}/${taskId}`);
+    // ✅ Всегда auto (как в Android)
+    const endpoint = `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/auto/upload`;
 
-      const resp=await fetch(endpoint,{method:'POST',body:fd});
-      if(!resp.ok){ const t=await resp.text().catch(()=> ""); throw new Error(`upload failed (${resp.status}) ${t}`); }
-      const json=await resp.json();
+    const fd = new FormData();
+    fd.append('file', f);
+    fd.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
+    fd.append('folder', `${FOLDER_PREFIX}/${taskId}`);
 
-      let url=json.secure_url||json.url||""; const pid=json.public_id||""; const rtype=(json.resource_type||"").toLowerCase();
-      if(isPdf&&/\/image\/upload\//.test(url)){ url=url.replace("/image/upload/","/raw/upload/"); }
-      const typeForTask=isPdf?"pdf":(rtype==="image"?"image":(rtype||"raw"));
-      out.push({url,publicId:pid,type:typeForTask,name});
+    const resp = await fetch(endpoint, { method:'POST', body:fd });
+    if(!resp.ok){
+      const t = await resp.text().catch(()=> "");
+      throw new Error(`upload failed (${resp.status}) ${t}`);
     }
-    return out;
+    const json = await resp.json();
+
+    // Cloudinary вернёт URL чаще всего с /image/upload/
+    // Сохраняем как есть; тип в документе помечаем "pdf" по имени
+    let url = json.secure_url || json.url || "";
+    const pid = json.public_id || "";
+    const typeForTask = isPdf ? "pdf" : ((json.resource_type||"").toLowerCase() || "raw");
+
+    out.push({ url, publicId: pid, type: typeForTask, name });
   }
+  return out;
+}
 
   function notifyTaskCreated(taskId,audienceIds){
     const assigneeIdsCsv=(audienceIds&&audienceIds.length)?audienceIds.join(","):"";
