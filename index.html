@@ -273,6 +273,7 @@
       fd.append('file', f); // напрямую File, без преобразований
       fd.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
       fd.append('folder', `${FOLDER_PREFIX}/${taskId}`);
+      fd.append('access_mode', 'public');
 
       const resp = await fetch(endpoint, { method:'POST', body:fd });
       if (!resp.ok){
