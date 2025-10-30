@@ -1,504 +1,319 @@
 <!doctype html>
 <html lang="ru">
 <head>
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>Создать задачу — СкладСборка (Web)</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Создать задание — СкладСборка</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
   <style>
-    :root{
-      --brand-red:#FF3B30;
-      --glass:#ffffffcc;            /* лёгкое стекло */
-      --stroke:rgba(0,0,0,.10);
-      --text:rgba(0,0,0,.88);
-      --muted:rgba(0,0,0,.65);
-      --shadow:0 10px 38px rgba(0,0,0,.10);
-      --radius:16px;
+    :root{ --brand-red:#FF3B30; --glass-fill:#fff; --text:#0d0d0d; --muted:#555; }
+    *{ box-sizing:border-box }
+    body{ margin:0; font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial; background:#f5f6f8; color:var(--text) }
+    .wrap{ max-width:720px; margin:0 auto; padding:24px 16px 120px }
+    h1{ margin:6px 0 18px; font-size:28px; font-weight:800 }
+    .card{ background:#fff; border:1px solid rgba(0,0,0,.06); border-radius:16px; padding:16px }
+    label{ font-weight:600; font-size:14px; display:block; margin:12px 0 6px }
+    input[type="text"], textarea{
+      width:100%; padding:12px 14px; border-radius:12px; border:1px solid rgba(0,0,0,.12); font:inherit; background:#fff
     }
-    *{box-sizing:border-box}
-    html,body{height:100%}
-    body{
-      margin:0;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial;
-      color:var(--text);
-      background:
-        radial-gradient(1200px 1200px at -10% -10%, rgba(255,59,48,.10), transparent 60%),
-        radial-gradient(1200px 1200px at 110% 110%, rgba(0,0,0,.06), transparent 60%),
-        #ECEFF3;
-    }
-    .wrap{max-width:980px;margin:28px auto;padding:0 16px}
-    .header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
-    .brand{display:flex;align-items:center;gap:10px}
-    .dot{width:12px;height:12px;border-radius:50%;background:var(--brand-red);box-shadow:0 0 0 3px rgba(255,59,48,.15)}
-    .card{background:var(--glass);backdrop-filter:blur(10px);border:1px solid var(--stroke);border-radius:var(--radius);box-shadow:var(--shadow);padding:18px}
-    h1{font-size:22px;margin:0;font-weight:800}
-    h2{font-size:16px;margin:0 0 10px;font-weight:800}
-    label{display:block;font-size:13px;font-weight:600;margin:14px 0 6px}
-    input[type="text"],input[type="email"],input[type="password"],textarea,.pill{
-      width:100%;padding:12px 14px;border:1px solid var(--stroke);border-radius:12px;background:#fff;font:inherit
-    }
-    textarea{min-height:90px;resize:vertical}
-    .grid{display:grid;grid-template-columns:1fr 300px;gap:16px}
-    .right{position:sticky;top:16px;height:fit-content}
-    .toolbar{display:flex;gap:10px;flex-wrap:wrap}
-    .btn{display:inline-flex;align-items:center;gap:8px;padding:11px 16px;border-radius:12px;border:1px solid var(--stroke);cursor:pointer;font-weight:700}
-    .btn.primary{background:#111;color:#fff}
-    .btn.secondary{background:#fff;color:#111}
-    .btn.danger{background:linear-gradient(180deg, rgba(255,59,48,.08), transparent), #111;color:#fff}
-    .hint{font-size:12px;color:var(--muted)}
-    .ok{color:#0a8f3c}.err{color:#c62828}
-    .files{padding:12px;border:1px dashed #c9ced6;border-radius:12px;background:#f9fafb}
-    .files.drag{background:#eef7ff;border-color:#8ab6ff}
-    .file-list{margin:8px 0 0;padding:0;list-style:none;font-size:14px}
-    .file-list li{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #eee}
-    .pill{display:flex;gap:8px;flex-wrap:wrap;min-height:46px;background:#fff}
-    .chip{display:inline-flex;gap:6px;align-items:center;padding:6px 10px;border-radius:999px;background:#f0f3f6;border:1px solid #d9e1ea}
-    .chip b{font-weight:600}.chip button{border:0;background:none;cursor:pointer;font-size:16px;line-height:1}
-    .auth{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-    .divider{height:1px;background:#e5e9ef;margin:12px 0}
-    .badge{display:inline-block;background:#111;color:#fff;padding:3px 8px;border-radius:999px;font-size:12px;font-weight:700}
-    .muted{opacity:.7}
+    textarea{ min-height:96px; resize:vertical }
+    .row{ display:grid; grid-template-columns:1fr 1fr; gap:12px }
+    .muted{ color:var(--muted); font-size:13px }
+    .btn{ border:none; background:var(--brand-red); color:#fff; padding:14px 16px; border-radius:12px; font-weight:800; cursor:pointer }
+    .btn:disabled{ opacity:.6; cursor:not-allowed }
+    .btn-secondary{ background:#fff; color:var(--text); border:1px solid rgba(0,0,0,.12) }
+    .files{ display:flex; flex-wrap:wrap; gap:8px; margin-top:8px }
+    .chip{ display:inline-flex; gap:8px; align-items:center; background:#fff; border:1px solid rgba(0,0,0,.12); padding:8px 10px; border-radius:12px }
+    .chip button{ border:none; background:transparent; font-weight:800; cursor:pointer }
+    .footer{ position:fixed; left:0; right:0; bottom:0; background:#fff; border-top:1px solid rgba(0,0,0,.08); padding:12px }
+    .footer .inner{ max-width:720px; margin:0 auto; display:flex; gap:10px; justify-content:flex-end }
+    .list{ height:180px; overflow:auto; border:1px solid rgba(0,0,0,.08); border-radius:12px; padding:8px }
+    .updated{ position:fixed; right:14px; bottom:70px; font-size:13px; color:#222; opacity:.8 }
+    .switch{ display:flex; align-items:center; gap:10px; margin-top:28px }
+    .drop{ padding:12px; border:2px dashed rgba(0,0,0,.2); border-radius:12px; background:#fff }
+    .drop.drag{ background:#f8fbff; border-color:#3d7bfd }
   </style>
 </head>
 <body>
-<div class="wrap">
+  <div class="wrap">
+    <h1>Создать задание</h1>
 
-  <div class="header">
-    <div class="brand">
-      <span class="dot"></span>
-      <div>
-        <div style="font-weight:800;letter-spacing:.2px">СкладСборка — Web</div>
-        <div class="hint">Glass A-1</div>
+    <div class="card">
+      <div class="row">
+        <div>
+          <label for="title">Название задания</label>
+          <input id="title" type="text" placeholder="Например: Заказ 12345" />
+        </div>
+        <div class="switch">
+          <input id="cbAssembled" type="checkbox" />
+          <label for="cbAssembled" style="margin:0">Собранный заказ</label>
+        </div>
+      </div>
+
+      <label for="comment">Комментарий</label>
+      <textarea id="comment" placeholder="Опционально: примечания"></textarea>
+
+      <div class="row">
+        <div>
+          <label>Файлы (PDF/изображения)</label>
+          <div id="drop" class="drop">
+            <input id="fileInput" type="file" multiple accept="image/*,.pdf" />
+            <div class="muted">Выберите или перетащите файлы сюда</div>
+          </div>
+          <div id="files" class="files"></div>
+          <div class="muted" id="filesInfo">Файлы не выбраны</div>
+        </div>
+        <div>
+          <label>Кладовщики (мультивыбор)</label>
+          <div id="users" class="list"></div>
+          <div class="muted" id="assigneesInfo">Исполнители не выбраны (необязательно)</div>
+        </div>
       </div>
     </div>
-    <div id="authState" class="hint">Не вошли</div>
+
+    <div class="updated" id="tvHomeLastUpdated">Список актуален: —</div>
   </div>
 
-  <!-- Авторизация e-mail/пароль + анонимный вход -->
-  <div class="card" id="authCard">
-    <h2>Вход</h2>
-    <div class="auth">
-      <div>
-        <label>E-mail</label>
-        <input id="email" type="email" placeholder="you@company.ru" autocomplete="username">
-      </div>
-      <div>
-        <label>Пароль</label>
-        <input id="pass" type="password" placeholder="Пароль" autocomplete="current-password">
-      </div>
-    </div>
-    <div class="toolbar" style="margin-top:12px">
-      <button id="btnSignIn" class="btn primary">Войти</button>
-      <button id="btnSignUp" class="btn secondary">Создать аккаунт</button>
-      <button id="btnAnon" class="btn secondary">Войти анонимно</button>
-      <button id="btnLogout" class="btn secondary">Выйти</button>
-    </div>
-    <div id="authMsg" class="hint" style="margin-top:8px"></div>
-    <div class="divider"></div>
-    <div class="hint">Если надо поменять конфиг (Firebase/Cloudinary/Notify) — жми <a href="#" id="openSetup">настройки</a>.</div>
-  </div>
-
-  <div style="height:12px"></div>
-
-  <!-- Создание задачи -->
-  <div class="card" id="taskCard" style="display:none">
-    <h1>Создать задачу</h1>
-    <label>Заголовок</label>
-    <input id="title" type="text" placeholder="Например: Заказ №1234">
-
-    <label>Комментарий</label>
-    <textarea id="comment" placeholder="Ссылки, уточнения, примечания…"></textarea>
-
-    <div class="grid" style="margin-top:12px">
-      <div>
-        <label>Исполнители (необязательно)</label>
-        <div id="assignees" class="pill" aria-label="Исполнители"></div>
-        <div class="toolbar" style="margin-top:10px">
-          <button id="pickUsers" class="btn secondary">Выбрать исполнителей</button>
-          <button id="clearUsers" class="btn secondary">Очистить</button>
-        </div>
-
-        <label style="margin-top:16px">Статус сборки</label>
-        <div class="toolbar">
-          <label style="display:inline-flex;align-items:center;gap:8px">
-            <input id="assembled" type="checkbox"> <span>Собранный заказ</span>
-          </label>
-        </div>
-
-        <label style="margin-top:16px">Файлы (PDF/изображения)</label>
-        <div id="drop" class="files" tabindex="0">
-          Перетащите файлы сюда или <label for="file" style="display:inline;color:#0b57d0;cursor:pointer;text-decoration:underline;margin:0">выберите</label>.
-          <input id="file" type="file" multiple accept="image/*,.pdf" style="display:none">
-          <ul id="list" class="file-list"></ul>
-          <div class="hint">PDF → <b>raw</b> в Cloudinary, остальные — как <b>image</b>. Папка: <code>tasks/&lt;taskId&gt;</code></div>
-        </div>
-      </div>
-
-      <div class="right">
-        <div class="toolbar">
-          <button id="save" class="btn danger">Сохранить задачу</button>
-        </div>
-        <div id="status" class="hint" style="margin-top:12px"></div>
-        <div style="margin-top:14px">
-          <span class="badge" id="who"></span>
-        </div>
-      </div>
+  <div class="footer">
+    <div class="inner">
+      <button id="btnClear" class="btn btn-secondary" type="button">Очистить файлы</button>
+      <button id="btnSave" class="btn" type="button">Сохранить задание</button>
     </div>
   </div>
-</div>
 
-<!-- ===== Firebase SDK (modular v9) ===== -->
-<script type="module">
-  // ==== Мастер-настройка (хранится в localStorage) ====
-  const SAVED = JSON.parse(localStorage.getItem("wct_config")||"null");
+  <!-- Только App/Auth/Firestore. НЕТ Storage/Messaging, чтобы не трогать Blob/File. -->
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 
-  const FIREBASE_CONFIG = SAVED?.firebase || {
-    // Подставь свои при первом запуске через "Настройки"
-    apiKey: "",
-    authDomain: "",
-    projectId: "",
-    storageBucket: "",
-    appId: ""
+  <script>
+  // ====== КОНФИГИ ======
+  // Берём из твоего google-services.json, но appId оставляем ANDROID-формата — не регистрируем Web.
+  const FIREBASE_CONFIG = {
+    apiKey: "AIzaSyAH58ZpWAp64mhM589KD6jXHcOlPqU0aYU",
+    authDomain: "skladsborka-6c2a7.firebaseapp.com",
+    projectId: "skladsborka-6c2a7",
+    storageBucket: "skladsborka-6c2a7.firebasestorage.app",
+    appId: "1:516526717198:android:e470c17aed370572757f5f" // важно: android, НЕ web
   };
-  const CLOUDINARY = SAVED?.cloudinary || {
-    cloudName: "",
-    uploadPreset: "unsigned_tasks",
-    folderPrefix: "tasks"
+  const CLOUDINARY_CLOUD_NAME   = "dnx1taqp7";
+  const CLOUDINARY_UPLOAD_PRESET = "unsigned_tasks"; // как в Android
+  const FOLDER_PREFIX            = "tasks";
+  const NOTIFY_URL               = "https://skladsborka-notify.vercel.app/api/notify-taskCreated";
+  // ======================
+
+  // Инициализация (без Storage).
+  firebase.initializeApp(FIREBASE_CONFIG);
+  const auth = firebase.auth();
+  const db   = firebase.firestore();
+
+  // Ссылки на элементы
+  const els = {
+    title: document.getElementById('title'),
+    comment: document.getElementById('comment'),
+    cbAssembled: document.getElementById('cbAssembled'),
+    fileInput: document.getElementById('fileInput'),
+    files: document.getElementById('files'),
+    filesInfo: document.getElementById('filesInfo'),
+    users: document.getElementById('users'),
+    assigneesInfo: document.getElementById('assigneesInfo'),
+    btnSave: document.getElementById('btnSave'),
+    btnClear: document.getElementById('btnClear'),
+    drop: document.getElementById('drop'),
+    tvHomeLastUpdated: document.getElementById('tvHomeLastUpdated'),
   };
-  const NOTIFY_ENDPOINT = (SAVED?.notifyUrl) || "https://skladsborka-notify.vercel.app/api/notify-taskCreated";
 
-  // Показать мастер-настройку, если чего-то нет
-  function openSetupDialog(prefill = true){
-    const dlg = document.createElement("dialog");
-    dlg.style.cssText = "border:none;border-radius:14px;width:min(760px,96vw);padding:0";
-    dlg.innerHTML = `
-      <form method="dialog" style="padding:16px 16px 10px;font-family:Inter,system-ui">
-        <h3 style="margin:4px 0 12px;font-weight:800">Настройки</h3>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-          <div>
-            <h4 style="margin:8px 0">Firebase</h4>
-            <label>apiKey <input id="f_apiKey" style="width:100%"></label>
-            <label>authDomain <input id="f_authDomain" style="width:100%"></label>
-            <label>projectId <input id="f_projectId" style="width:100%"></label>
-            <label>storageBucket <input id="f_storageBucket" style="width:100%"></label>
-            <label>appId <input id="f_appId" style="width:100%"></label>
-          </div>
-          <div>
-            <h4 style="margin:8px 0">Cloudinary</h4>
-            <label>cloudName <input id="c_cloudName" style="width:100%"></label>
-            <label>uploadPreset <input id="c_uploadPreset" value="unsigned_tasks" style="width:100%"></label>
-            <label>folderPrefix <input id="c_folder" value="tasks" style="width:100%"></label>
-            <h4 style="margin:12px 0 4px">Notify</h4>
-            <label>notify URL <input id="n_url" value="${NOTIFY_ENDPOINT}" style="width:100%"></label>
-          </div>
-        </div>
-        <div style="display:flex;justify-content:space-between;gap:8px;margin-top:12px">
-          <button id="resetCfg" value="reset" class="btn secondary">Сбросить</button>
-          <div>
-            <button value="cancel" class="btn secondary">Отмена</button>
-            <button id="ok" value="ok" class="btn primary">Сохранить</button>
-          </div>
-        </div>
-      </form>`;
-    document.body.appendChild(dlg);
+  const selectedFiles = [];
+  const selectedWorkerIds = new Set();
+  const selectedWorkerNames = new Set();
+  let currentUser = null;
 
-    if (prefill){
-      dlg.querySelector("#f_apiKey").value = FIREBASE_CONFIG.apiKey || "";
-      dlg.querySelector("#f_authDomain").value = FIREBASE_CONFIG.authDomain || "";
-      dlg.querySelector("#f_projectId").value = FIREBASE_CONFIG.projectId || "";
-      dlg.querySelector("#f_storageBucket").value = FIREBASE_CONFIG.storageBucket || "";
-      dlg.querySelector("#f_appId").value = FIREBASE_CONFIG.appId || "";
-      dlg.querySelector("#c_cloudName").value = CLOUDINARY.cloudName || "";
-      dlg.querySelector("#c_uploadPreset").value = CLOUDINARY.uploadPreset || "unsigned_tasks";
-      dlg.querySelector("#c_folder").value = CLOUDINARY.folderPrefix || "tasks";
-      dlg.querySelector("#n_url").value = NOTIFY_ENDPOINT || "";
-    }
+  // Анонимная авторизация
+  auth.signInAnonymously()
+    .then(c => { currentUser = c.user; touchLastUpdated(); return loadUsers(); })
+    .catch(e => alert("Auth error: " + (e?.message||e)));
 
-    dlg.querySelector("#resetCfg").addEventListener("click",(e)=>{
-      e.preventDefault();
-      localStorage.removeItem("wct_config");
-      location.reload();
+  // Загрузка пользователей
+  async function loadUsers(){
+    const snap = await db.collection('users').get();
+    if (snap.empty){ els.users.innerHTML = '<div class="muted">Пользователи не найдены</div>'; return; }
+    const frag = document.createDocumentFragment();
+    snap.forEach(doc=>{
+      const data = doc.data()||{};
+      const role = (data.role||"")+"";
+      const base = (data.name || data.displayName || doc.id);
+      const label = role ? `${base} (${role})` : base;
+      const id = doc.id;
+
+      const row = document.createElement('label');
+      row.style.display='flex'; row.style.alignItems='center'; row.style.gap='8px'; row.style.padding='6px 2px';
+      row.innerHTML = `<input type="checkbox" data-id="${id}" data-name="${escapeHtml(label)}" /> <span>${escapeHtml(label)}</span>`;
+      row.querySelector('input').addEventListener('change', ev=>{
+        const chk = ev.target; const uid = chk.getAttribute('data-id'); const nm = chk.getAttribute('data-name');
+        if (chk.checked){ selectedWorkerIds.add(uid); selectedWorkerNames.add(nm); }
+        else { selectedWorkerIds.delete(uid); selectedWorkerNames.delete(nm); }
+        updateAssigneesInfo();
+      });
+      frag.appendChild(row);
     });
-
-    dlg.addEventListener("close", ()=>{
-      if (dlg.returnValue!=="ok"){ dlg.remove(); return; }
-      const cfg = {
-        firebase: {
-          apiKey: dlg.querySelector("#f_apiKey").value.trim(),
-          authDomain: dlg.querySelector("#f_authDomain").value.trim(),
-          projectId: dlg.querySelector("#f_projectId").value.trim(),
-          storageBucket: dlg.querySelector("#f_storageBucket").value.trim(),
-          appId: dlg.querySelector("#f_appId").value.trim(),
-        },
-        cloudinary: {
-          cloudName: dlg.querySelector("#c_cloudName").value.trim(),
-          uploadPreset: dlg.querySelector("#c_uploadPreset").value.trim() || "unsigned_tasks",
-          folderPrefix: dlg.querySelector("#c_folder").value.trim() || "tasks"
-        },
-        notifyUrl: dlg.querySelector("#n_url").value.trim()
-      };
-      localStorage.setItem("wct_config", JSON.stringify(cfg));
-      location.reload();
-    });
-    dlg.querySelector("#ok").addEventListener("click",(e)=>{
-      const rq = ["#f_apiKey","#f_authDomain","#f_projectId","#f_storageBucket","#f_appId","#c_cloudName","#c_uploadPreset"];
-      for (const id of rq) if (!dlg.querySelector(id).value.trim()) { e.preventDefault(); alert("Заполни обязательные поля"); return; }
-    });
-    dlg.showModal();
+    els.users.innerHTML = '';
+    els.users.appendChild(frag);
+    updateAssigneesInfo();
   }
 
-  // Если конфиг не заполнен — сразу показать
-  if (!FIREBASE_CONFIG.apiKey || !CLOUDINARY.cloudName) {
-    window.addEventListener("DOMContentLoaded", ()=>openSetupDialog());
+  function updateAssigneesInfo(){
+    els.assigneesInfo.textContent = selectedWorkerNames.size
+      ? "Исполнители: " + [...selectedWorkerNames].join(", ")
+      : "Исполнители не выбраны (необязательно)";
   }
-  document.getElementById("openSetup").addEventListener("click",(e)=>{ e.preventDefault(); openSetupDialog(); });
 
-  // ==== Firebase init ====
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
-  import { getFirestore, collection, doc, addDoc, setDoc, updateDoc, serverTimestamp, getDocs, query } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
-  import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, signInAnonymously, updateProfile } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
-
-  const app = initializeApp(FIREBASE_CONFIG);
-  const db = getFirestore(app);
-  const auth = getAuth(app);
-
-  // ==== UI refs ====
-  const $ = id=>document.getElementById(id);
-  const authCard = $("authCard");
-  const taskCard = $("taskCard");
-  const authMsg = $("authMsg");
-  const authState = $("authState");
-  const who = $("who");
-
-  $("btnSignIn").onclick = async ()=>{
-    try{
-      const email = $("email").value.trim();
-      const pass = $("pass").value;
-      if(!email||!pass) return msgErr("Укажи e-mail и пароль");
-      await signInWithEmailAndPassword(auth, email, pass);
-      msgOk("Вход выполнен");
-    }catch(e){ msgErr(e.message); }
-  };
-  $("btnSignUp").onclick = async ()=>{
-    try{
-      const email = $("email").value.trim();
-      const pass = $("pass").value;
-      if(!email||!pass) return msgErr("Укажи e-mail и пароль");
-      const cr = await createUserWithEmailAndPassword(auth, email, pass);
-      // Можно подсветить имя из e-mail до @
-      const displayName = email.split("@")[0];
-      try{ await updateProfile(cr.user, { displayName }); }catch(_){}
-      msgOk("Аккаунт создан и вошли");
-    }catch(e){ msgErr(e.message); }
-  };
-  $("btnAnon").onclick = async ()=>{
-    try{ await signInAnonymously(auth); msgOk("Анонимный вход"); }catch(e){ msgErr(e.message); }
-  };
-  $("btnLogout").onclick = ()=>signOut(auth).catch(e=>msgErr(e.message));
-
-  onAuthStateChanged(auth, (user)=>{
-    if (user){
-      authState.textContent = `Вошли: ${user.displayName || user.email || ("Anon "+user.uid.slice(0,6))}`;
-      who.textContent = user.displayName || user.email || ("Anon "+user.uid.slice(0,6));
-      authCard.querySelectorAll("input,button").forEach(el=>el.disabled=false);
-      taskCard.style.display = "";
-    } else {
-      authState.textContent = "Не вошли";
-      who.textContent = "без входа (если разрешают правила)";
-      taskCard.style.display = ""; // можно работать без входа, если rules позволяют
-    }
+  // Файлы: выбор + DnD
+  els.fileInput.addEventListener('change', e=>{
+    [...(e.target.files||[])].forEach(f=>{ if(!selectedFiles.includes(f)) selectedFiles.push(f); });
+    renderFiles(); updateFilesInfo();
+  });
+  ['dragenter','dragover'].forEach(ev=> els.drop.addEventListener(ev, e=>{ e.preventDefault(); e.stopPropagation(); els.drop.classList.add('drag'); }));
+  ['dragleave','drop'].forEach(ev=> els.drop.addEventListener(ev, e=>{ e.preventDefault(); e.stopPropagation(); els.drop.classList.remove('drag'); }));
+  els.drop.addEventListener('drop', e=>{
+    const files = [...(e.dataTransfer?.files||[])];
+    files.forEach(f=>{ if(!selectedFiles.includes(f)) selectedFiles.push(f); });
+    renderFiles(); updateFilesInfo();
+  });
+  els.btnClear.addEventListener('click', ()=>{
+    selectedFiles.length = 0; renderFiles(); updateFilesInfo(); els.fileInput.value = '';
   });
 
-  function msgOk(t){ authMsg.innerHTML = `<span class="ok">${t}</span>`; }
-  function msgErr(t){ authMsg.innerHTML = `<span class="err">${t}</span>`; }
-
-  // ==== Users picker ====
-  const selected = { files: [], assignees: [], assigneeNames: [] };
-  $("pickUsers").onclick = async ()=>{
-    try{
-      const snap = await getDocs(query(collection(db,"users")));
-      const items = [];
-      snap.forEach(d=>{
-        const id = d.id;
-        const name = d.get("name") || d.get("displayName") || id;
-        items.push({id,name});
-      });
-      items.sort((a,b)=>a.name.localeCompare(b.name,'ru'));
-      const res = await showPicker(items, selected.assignees);
-      if(!res) return;
-      selected.assignees = res.map(x=>x.id);
-      selected.assigneeNames = res.map(x=>x.name);
-      renderAssignees();
-    }catch(e){ statusErr("Не удалось загрузить пользователей: "+e.message); }
-  };
-  $("clearUsers").onclick = ()=>{ selected.assignees=[]; selected.assigneeNames=[]; renderAssignees(); };
-
-  function renderAssignees(){
-    const box = $("assignees");
-    box.innerHTML="";
-    if (selected.assignees.length===0){
-      box.innerHTML = '<span class="hint">Исполнители не выбраны — задача уйдёт как <b>самовывоз</b> для всех</span>';
-      return;
-    }
-    selected.assigneeNames.forEach((n,i)=>{
-      const chip = document.createElement("span");
-      chip.className="chip";
-      chip.innerHTML = `<b>${escapeHtml(n)}</b> <button title="Убрать" aria-label="Убрать">&times;</button>`;
-      chip.querySelector("button").onclick = ()=>{ selected.assignees.splice(i,1); selected.assigneeNames.splice(i,1); renderAssignees(); };
-      box.appendChild(chip);
-    });
-  }
-
-  // ==== Files (drop/choose) ====
-  const drop = $("drop"), fileInput = $("file"), list = $("list");
-  fileInput.onchange = ()=>addFiles([...fileInput.files]);
-  ["dragenter","dragover"].forEach(ev => drop.addEventListener(ev, e=>{ e.preventDefault(); drop.classList.add("drag"); }));
-  ["dragleave","drop"].forEach(ev => drop.addEventListener(ev, e=>{ e.preventDefault(); drop.classList.remove("drag"); }));
-  drop.addEventListener("drop", e=>addFiles([...e.dataTransfer.files]));
-
-  function addFiles(files){
-    for(const f of files){
-      if(!f || !f.name) continue;
-      if (selected.files.find(x=>x.name===f.name && x.size===f.size)) continue;
-      selected.files.push(f);
-    }
-    renderFiles();
-  }
   function renderFiles(){
-    list.innerHTML="";
-    selected.files.forEach((f, i)=>{
-      const li = document.createElement("li");
-      li.innerHTML = `<b>${escapeHtml(f.name)}</b> <small class="muted">${(f.size/1024/1024).toFixed(2)} MB</small>
-        <button aria-label="Удалить" class="btn secondary" style="margin-left:auto">Удалить</button>`;
-      li.querySelector("button").onclick = ()=>{ selected.files.splice(i,1); renderFiles(); };
-      list.appendChild(li);
+    els.files.innerHTML = '';
+    selectedFiles.forEach((f, i)=>{
+      const chip = document.createElement('span');
+      chip.className = 'chip';
+      chip.innerHTML = `<span title="${escapeHtml(f.name)}">${escapeHtml(short(f.name))}</span> <button>&times;</button>`;
+      chip.querySelector('button').onclick = ()=>{ selectedFiles.splice(i,1); renderFiles(); updateFilesInfo(); };
+      els.files.appendChild(chip);
     });
   }
+  function updateFilesInfo(){
+    els.filesInfo.textContent = selectedFiles.length ? `Файлов выбрано: ${selectedFiles.length}` : 'Файлы не выбраны';
+  }
+  const short = s => s.length>36 ? (s.slice(0,16)+'…'+s.slice(-16)) : s;
+  const escapeHtml = s => s.replace(/[&<>"']/g, c=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;', "'":'&#039;' }[c]));
 
-  // ==== Save task ====
-  $("save").onclick = async ()=>{
-    const title = $("title").value.trim();
-    const comment = $("comment").value.trim();
-    const isAssembled = $("assembled").checked;
-    const user = auth.currentUser; // может быть null
+  // Сохранение
+  els.btnSave.addEventListener('click', onSave);
+  async function onSave(){
+    const title = els.title.value.trim();
+    const comment = els.comment.value.trim();
+    const isAssembled = !!els.cbAssembled.checked;
+    if (!title){ alert("Введите название задания"); return; }
 
-    if(!title) return statusErr("Введите заголовок");
-    $("save").disabled = true; status("Создаём задачу…");
-
+    freeze(true,"Сохраняю…");
     try{
-      // 1) Создаём документ задачи
-      const taskRef = await addDoc(collection(db,"tasks"), {
+      const audienceIds = [...selectedWorkerIds];
+      const audienceNames = [...selectedWorkerNames];
+
+      const category = isAssembled ? "assembled_order" : (audienceIds.length===0 ? "pickup" : "default");
+      const status   = isAssembled ? "assembled" : "assigned";
+      const isPickup = isAssembled ? false : (audienceIds.length===0);
+
+      const creatorId = (currentUser && currentUser.uid) || "unknown";
+      const creatorName = "web";
+
+      // 1) создаём задачу
+      const taskRef = db.collection('tasks').doc();
+      await taskRef.set({
         title, comment,
-        assignees: selected.assignees,
-        assigneeNames: selected.assigneeNames,
-        isPickup: selected.assignees.length===0,
-        isAssembled: !!isAssembled,
-        status: "assigned",
-        createdAt: serverTimestamp(),
-        creatorId: user?.uid || "web-desktop",
-        creatorName: user?.displayName || user?.email || "Менеджер с ПК",
+        assignees: audienceIds,
+        assigneeNames: audienceNames,
+        isPickup, assembledOrder: isAssembled,
+        category, status,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+        creatorId, creatorName,
         files: []
       });
 
-      // 2) Загружаем файлы
-      const uploaded = [];
-      for(let i=0;i<selected.files.length;i++){
-        const f = selected.files[i];
-        status(`Загрузка файлов: ${i+1}/${selected.files.length}…`);
-        const up = await uploadToCloudinary(f, taskRef.id);
-        uploaded.push(up);
+      // 2) аплоадим файлы прямо в Cloudinary (без Firebase Storage/Blob обёрток)
+      let uploaded = [];
+      if (selectedFiles.length){
+        uploaded = await uploadAllFiles(taskRef.id, selectedFiles);
+        if (uploaded.length){ await taskRef.update({ files: uploaded }); }
       }
 
-      // 3) Обновляем files
-      if (uploaded.length>0){
-        await updateDoc(doc(db,"tasks",taskRef.id), { files: uploaded, updatedAt: serverTimestamp() });
-      }
+      // 3) notify
+      await notifyTaskCreated(taskRef.id, audienceIds);
 
-      // 4) Пингануть нотификатор
-      try{
-        await fetch(NOTIFY_ENDPOINT, {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({taskId: taskRef.id})});
-      }catch(_){}
+      // reset
+      selectedFiles.length = 0; renderFiles(); updateFilesInfo();
+      els.title.value=''; els.comment.value=''; els.cbAssembled.checked=false;
+      [...document.querySelectorAll('#users input[type=checkbox]')].forEach(ch=> ch.checked=false);
+      selectedWorkerIds.clear(); selectedWorkerNames.clear(); updateAssigneesInfo();
 
-      statusOk("Готово: задача создана");
-      $("title").value=""; $("comment").value=""; selected.files=[]; renderFiles();
-      // Исполнителей не очищаем — удобно делать пачку
+      alert("Задание создано");
     }catch(e){
-      statusErr("Ошибка сохранения: "+e.message);
+      alert("Ошибка сохранения: " + (e?.message||e));
     }finally{
-      $("save").disabled = false;
+      freeze(false); touchLastUpdated();
     }
-  };
-
-  // ==== Cloudinary upload (unsigned) ====
-  async function uploadToCloudinary(file, taskId){
-    const name = file.name || "file";
-    const isPdf = /\.pdf$/i.test(name);
-    const resource = isPdf ? "raw" : "auto";
-    const url = `https://api.cloudinary.com/v1_1/${encodeURIComponent(CLOUDINARY.cloudName)}/${resource}/upload`;
-    const fd = new FormData();
-    fd.append("file", file);
-    fd.append("upload_preset", CLOUDINARY.uploadPreset);
-    fd.append("folder", `${CLOUDINARY.folderPrefix}/${taskId}`);
-    if (isPdf) fd.append("resource_type", "raw");
-    const res = await fetch(url, { method:"POST", body: fd });
-    if (!res.ok) throw new Error("Upload failed: "+res.status);
-    const j = await res.json();
-    let fileType = j.resource_type || (isPdf ? "raw" : "image");
-    if (isPdf && fileType!=="raw") fileType = "pdf";
-    return { url: j.secure_url, publicId: j.public_id, type: fileType, name };
   }
 
-  // ==== status utils ====
-  const statusEl = $("status");
-  function status(t){ statusEl.innerHTML = t; statusEl.className="hint"; }
-  function statusOk(t){ statusEl.innerHTML = `<span class="ok">${t}</span>`; statusEl.className="hint"; }
-  function statusErr(t){ statusEl.innerHTML = `<span class="err">${t}</span>`; statusEl.className="hint"; }
-  function escapeHtml(s){ return s.replace(/[&<>"']/g, m=>({ "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;" }[m])); }
+  // Чистый Cloudinary: pdf -> /raw/upload; остальное -> /auto/upload.
+  async function uploadAllFiles(taskId, files){
+    const out = [];
+    for (const f of files){
+      const name = f.name || "file";
+      const isPdf = /\.pdf$/i.test(name);
 
-  // ==== простой модальный выбор пользователей ====
-  function showPicker(items, preselected){
-    return new Promise(resolve=>{
-      const sel = new Set(preselected||[]);
-      const dlg = document.createElement("dialog");
-      dlg.style.padding="0"; dlg.style.border="none"; dlg.style.borderRadius="14px"; dlg.style.width="min(700px, 96vw)";
-      dlg.innerHTML = `
-        <form method="dialog" style="padding:16px 16px 10px">
-          <h3 style="margin:4px 0 12px;font-weight:800">Выберите исполнителей</h3>
-          <input id="filt" type="text" placeholder="Фильтр…" style="width:100%;padding:10px 12px;border:1px solid var(--stroke);border-radius:10px">
-          <div id="lst" style="margin-top:10px;max-height:52vh;overflow:auto;border:1px solid #eee;border-radius:10px;padding:8px;background:#fafafa"></div>
-          <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:12px">
-            <button value="cancel" class="btn secondary">Отмена</button>
-            <button id="ok" value="ok" class="btn primary">Выбрать</button>
-          </div>
-        </form>`;
-      document.body.appendChild(dlg);
+      const endpoint = isPdf
+        ? `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/raw/upload`
+        : `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/auto/upload`;
 
-      const lst = dlg.querySelector("#lst");
-      const filt = dlg.querySelector("#filt");
-      function renderList(){
-        const q = (filt.value||"").toLowerCase();
-        lst.innerHTML = "";
-        items.forEach(it=>{
-          if (q && !it.name.toLowerCase().includes(q) && !it.id.toLowerCase().includes(q)) return;
-          const row = document.createElement("label");
-          row.style.cssText = "display:flex;align-items:center;gap:10px;padding:8px;border-bottom:1px solid #eee;cursor:pointer";
-          row.innerHTML = `<input type="checkbox" ${sel.has(it.id)?"checked":""}> <div><b>${escapeHtml(it.name)}</b><div class="hint">${escapeHtml(it.id)}</div></div>`;
-          row.querySelector("input").onchange = (e)=>{ if(e.target.checked) sel.add(it.id); else sel.delete(it.id); };
-          lst.appendChild(row);
-        });
+      const fd = new FormData();
+      fd.append('file', f); // напрямую File, без преобразований
+      fd.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
+      fd.append('folder', `${FOLDER_PREFIX}/${taskId}`);
+
+      const resp = await fetch(endpoint, { method:'POST', body:fd });
+      if (!resp.ok){
+        const t = await resp.text().catch(()=> "");
+        throw new Error(`upload failed (${resp.status}) ${t}`);
       }
-      renderList();
-      filt.oninput = renderList;
+      const json = await resp.json();
 
-      dlg.addEventListener("close", ()=>{
-        if (dlg.returnValue!=="ok"){ dlg.remove(); return resolve(null); }
-        const res = items.filter(it=>sel.has(it.id));
-        dlg.remove(); resolve(res);
-      });
-      dlg.showModal();
-    });
+      let url = json.secure_url || json.url || "";
+      const pid = json.public_id || "";
+      const rtype = (json.resource_type || "").toLowerCase();
+
+      if (isPdf && /\/image\/upload\//.test(url)){ // страховка на случай бага
+        url = url.replace("/image/upload/","/raw/upload/");
+      }
+
+      const typeForTask = isPdf ? "pdf" : (rtype === "image" ? "image" : (rtype || "raw"));
+      out.push({ url, publicId: pid, type: typeForTask, name });
+    }
+    return out;
   }
-</script>
+
+  async function notifyTaskCreated(taskId, audienceIds){
+    const assigneeIdsCsv = (audienceIds && audienceIds.length) ? audienceIds.join(",") : "";
+    const body = new URLSearchParams({ taskId, assigneeIds: assigneeIdsCsv });
+    const resp = await fetch(NOTIFY_URL, {
+      method:'POST', headers:{ 'Content-Type':'application/x-www-form-urlencoded' }, body
+    });
+    // лог — но не валим процесс
+    try{ console.log('notify', resp.status, await resp.text()); }catch(_){}
+  }
+
+  function freeze(flag, text){
+    els.btnSave.disabled = !!flag;
+    els.btnSave.textContent = flag ? (text||"…") : "Сохранить задание";
+  }
+  function touchLastUpdated(){
+    const d = new Date();
+    const s = d.toLocaleDateString() + " " + d.toLocaleTimeString().slice(0,5);
+    els.tvHomeLastUpdated.textContent = "Список актуален: " + s;
+  }
+  </script>
 </body>
 </html>
