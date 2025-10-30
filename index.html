@@ -84,6 +84,7 @@
     </div>
   </div>
 
+  <!-- Firebase только App/Auth/Firestore -->
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
@@ -205,7 +206,7 @@
       let uploaded=[];
       if(selectedFiles.length){ uploaded=await uploadAllFiles(taskRef.id,selectedFiles); if(uploaded.length){ await taskRef.update({files:uploaded}); } }
 
-      // уведомление — в фоне
+      // уведомление — в фоне (аналог OkHttp enqueue)
       notifyTaskCreated(taskRef.id,audienceIds).catch(()=>{});
 
       selectedFiles.length=0; renderFiles(); updateFilesInfo();
@@ -218,6 +219,7 @@
     finally{ freeze(false); touchLastUpdated(); }
   }
 
+  // === Только file + upload_preset + folder. Никаких access_mode/use_filename и т.п. ===
   async function uploadAllFiles(taskId, files){
     const out=[];
     for(const f of files){
@@ -226,15 +228,16 @@
       const endpoint=isPdf
         ?`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/raw/upload`
         :`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/auto/upload`;
+
       const fd=new FormData();
       fd.append('file',f);
       fd.append('upload_preset',CLOUDINARY_UPLOAD_PRESET);
       fd.append('folder',`${FOLDER_PREFIX}/${taskId}`);
-      fd.append('access_mode','public'); // 👈 делаем файл публичным
 
       const resp=await fetch(endpoint,{method:'POST',body:fd});
       if(!resp.ok){ const t=await resp.text().catch(()=> ""); throw new Error(`upload failed (${resp.status}) ${t}`); }
       const json=await resp.json();
+
       let url=json.secure_url||json.url||""; const pid=json.public_id||""; const rtype=(json.resource_type||"").toLowerCase();
       if(isPdf&&/\/image\/upload\//.test(url)){ url=url.replace("/image/upload/","/raw/upload/"); }
       const typeForTask=isPdf?"pdf":(rtype==="image"?"image":(rtype||"raw"));
@@ -246,7 +249,7 @@
   function notifyTaskCreated(taskId,audienceIds){
     const assigneeIdsCsv=(audienceIds&&audienceIds.length)?audienceIds.join(","):"";
     const body=new URLSearchParams({taskId,assigneeIds:assigneeIdsCsv});
-    return fetch(NOTIFY_URL,{method:'POST',mode:'no-cors',headers:{'Content-Type':'application/x-www-form-urlencoded'},body})
+    return fetch(NOTIFY_URL,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body})
       .catch(()=>{});
   }
 
