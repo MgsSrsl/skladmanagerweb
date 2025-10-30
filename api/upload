@@ -1,0 +1,27 @@
+async function uploadAllFiles(taskId, files){
+  const out = [];
+  for (const f of files){
+    const isPdf = /\.pdf$/i.test(f.name || '');
+    const fd = new FormData();
+    fd.append('file', f, f.name);
+    fd.append('name', f.name || 'file');
+
+    // POST на свой домен => без CORS/“untrusted”
+    const url = `/api/upload?folder=${encodeURIComponent(FOLDER_PREFIX)}&taskId=${encodeURIComponent(taskId)}`;
+
+    const resp = await fetch(url, { method:'POST', body: fd });
+    if (!resp.ok) {
+      const t = await resp.text().catch(()=> '');
+      throw new Error(`upload failed (${resp.status}) ${t}`);
+    }
+    const json = await resp.json();
+
+    out.push({
+      url: json.url,
+      publicId: json.publicId,
+      type: isPdf ? 'pdf' : (json.type || 'raw'),
+      name: json.name || f.name || 'file'
+    });
+  }
+  return out;
+}
