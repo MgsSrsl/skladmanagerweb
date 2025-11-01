@@ -67,7 +67,8 @@
     .task .assignees{ font-size:12px; color:#444; }
     .task:hover{ box-shadow:0 1px 0 rgba(0,0,0,.02), 0 6px 16px rgba(0,0,0,.06) }
 
-    .row-compact{ display:grid; grid-template-columns: 1fr auto auto; gap:8px; align-items:center }
+    .row-compact{ display:grid; grid-template-columns: auto auto auto 1fr auto; gap:8px; align-items:center }
+    /* теперь без селектора статуса */
 
     /* Модалка редактирования */
     dialog{ border:none; border-radius:16px; padding:0; width:min(620px, 96vw); }
@@ -124,13 +125,14 @@
       <aside class="aside">
         <div class="hdr">
           <div style="font-weight:800">Задачи</div>
-          <div class="row-compact">
+          <div class="row-compact" style="grid-template-columns:auto 1fr auto">
             <select id="statusFilter">
               <option value="">Все</option>
               <option value="assigned">Назначено</option>
               <option value="in_progress">В работе</option>
               <option value="done">Готово</option>
             </select>
+            <div></div>
             <button id="btnReload" class="btn btn-secondary" type="button" title="Обновить">Обновить</button>
           </div>
         </div>
@@ -165,14 +167,7 @@
           <label for="edTitle">Название</label>
           <input id="edTitle" type="text" />
         </div>
-        <div>
-          <label for="edStatus">Статус</label>
-          <select id="edStatus">
-            <option value="assigned">Назначено</option>
-            <option value="in_progress">В работе</option>
-            <option value="done">Готово</option>
-          </select>
-        </div>
+        <!-- блок статуса удалён по ТЗ -->
       </div>
 
       <label for="edComment">Комментарий</label>
@@ -197,7 +192,7 @@
         <label>Вложения</label>
         <!-- текущие -->
         <div id="edExistingFiles" class="files"></div>
-        <div class="sub">Клик по кресту — удаляет файл из задачи (из Cloudinary не удаляем).</div>
+        <div class="sub">Крест — убирает файл из задачи (из Cloudinary не удаляем). 👁 — открыть, ⇩ — скачать.</div>
         <!-- добавление новых -->
         <div class="card" style="margin-top:8px; padding:10px">
           <div id="edDrop" class="drop">
@@ -267,7 +262,6 @@
     btnDelete: document.getElementById('btnDelete'),
     edTitle: document.getElementById('edTitle'),
     edComment: document.getElementById('edComment'),
-    edStatus: document.getElementById('edStatus'),
     edAssembled: document.getElementById('edAssembled'),
     edPickup: document.getElementById('edPickup'),
     edUsers: document.getElementById('edUsers'),
@@ -363,8 +357,7 @@
 
   // Вставка из буфера (скриншоты/pdf) — создание
   document.addEventListener('paste', e=>{
-    // если открыта модалка — перехватим ниже в обработчике модалки
-    if (els.dlg.open) return;
+    if (els.dlg.open) return; // модалка перехватит
     const dt=e.clipboardData; if(!dt)return;
     let added=0;
     for(const item of dt.items||[]){
@@ -545,20 +538,39 @@
         </div>
         ${t.comment ? `<div class="line"></div><div class="assignees">${escapeHtml(t.comment)}</div>` : ''}
         <div class="row-compact" style="margin-top:4px">
-          <select data-act="status" title="Сменить статус">
-            <option value="assigned" ${st==='assigned'?'selected':''}>Назначено</option>
-            <option value="in_progress" ${st==='in_progress'?'selected':''}>В работе</option>
-            <option value="done" ${st==='done'?'selected':''}>Готово</option>
-          </select>
           <button class="btn btn-secondary" data-act="edit">Редактировать</button>
+          ${filesCount ? `<button class="btn btn-secondary" data-act="open">Открыть</button>` : ``}
+          ${filesCount ? `<button class="btn btn-secondary" data-act="download">Скачать</button>` : ``}
+          <div></div>
           <button class="btn btn-secondary" data-act="delete" style="border-color:#f00;color:#f00">Удалить</button>
         </div>
       `;
 
-      div.querySelector('[data-act="status"]').addEventListener('change', async (e)=>{
-        const newStatus = e.target.value;
-        await db.collection('tasks').doc(t.id).update({ status:newStatus });
-      });
+      // обработчики
+      const btnOpen = div.querySelector('[data-act="open"]');
+      if(btnOpen){
+        btnOpen.addEventListener('click', ()=>{
+          const f = (t.files||[])[0];
+          if(!f){ alert('Нет вложений'); return; }
+          const url = (f.url || f.secure_url);
+          if(!url){ alert('URL файла не найден'); return; }
+          openFile(url);
+        });
+      }
+
+      const btnDownload = div.querySelector('[data-act="download"]');
+      if(btnDownload){
+        btnDownload.addEventListener('click', async ()=>{
+          const files = t.files||[];
+          if(!files.length){ alert('Нет вложений'); return; }
+          if(files.length>1){
+            const ok = confirm(`Скачать все вложения (${files.length} шт.)?`);
+            if(!ok) return;
+          }
+          await downloadAll(files);
+        });
+      }
+
       div.querySelector('[data-act="edit"]').addEventListener('click', ()=> openEditModal(t.id));
       div.querySelector('[data-act="delete"]').addEventListener('click', ()=> deleteTask(t.id));
 
@@ -580,7 +592,7 @@
       id: doc.id,
       title: x.title||'',
       comment: x.comment||'',
-      status: String(x.status||'assigned'),
+      status: String(x.status||'assigned'), // только отображение (бейджи/фильтр)
       isPickup: !!x.isPickup,
       assembledOrder: !!x.assembledOrder || String(x.status).toLowerCase()==='assembled',
       assignees: Array.isArray(x.assignees)? x.assignees : [],
@@ -590,7 +602,7 @@
 
     els.edTitle.value = editingTask.title;
     els.edComment.value = editingTask.comment;
-    els.edStatus.value = editingTask.status;
+    // статуса в UI нет
     els.edAssembled.checked = !!editingTask.assembledOrder;
     els.edPickup.checked = !!editingTask.isPickup;
 
@@ -644,9 +656,15 @@
       const chip=document.createElement('span'); chip.className='chip';
       chip.style.opacity = removed ? '.4' : '1';
       chip.innerHTML = `
-        <span title="${escapeHtml(f.name||f.publicId||'file')}"> ${f.type==='pdf'?'📄':'🖼'} ${escapeHtml(short(f.name||f.publicId||'file'))}</span>
-        <button title="${removed?'Вернуть':'Удалить'}">${removed?'↩':'×'}</button>`;
-      chip.querySelector('button').onclick=()=>{
+        <span title="${escapeHtml(f.name||f.publicId||'file')}">
+          ${f.type==='pdf'?'📄':'🖼'} ${escapeHtml(short(f.name||f.publicId||'file'))}
+        </span>
+        <button title="Открыть" data-act="open">👁</button>
+        <button title="Скачать" data-act="save">⇩</button>
+        <button title="${removed?'Вернуть':'Удалить'}" data-act="toggle">${removed?'↩':'×'}</button>`;
+      chip.querySelector('[data-act="open"]').onclick = ()=> openFile(f.url || f.secure_url);
+      chip.querySelector('[data-act="save"]').onclick = ()=> downloadFile(f);
+      chip.querySelector('[data-act="toggle"]').onclick = ()=>{
         if(removed){ edRemovedPids.delete(f.publicId); }
         else { edRemovedPids.add(f.publicId); }
         renderEdExistingFiles();
@@ -701,7 +719,6 @@
     const newTitle = els.edTitle.value.trim();
     if(!newTitle){ alert('Название обязательно'); return; }
     const newComment = els.edComment.value.trim();
-    const newStatus = els.edStatus.value;
     const newAssembled = !!els.edAssembled.checked;
     const newPickup = !!els.edPickup.checked;
 
@@ -711,20 +728,19 @@
     const onlyNewAssignees = newAssignees.filter(id=> !oldAssignees.has(id));
 
     try{
-      // 1) подготовим массив файлов: берём существующие минус удалённые
+      // 1) оставляем существующие минус те, что помечены к удалению
       const kept = edExisting.filter(f=> !edRemovedPids.has(f.publicId));
-      // 2) загрузим новые файлы в Cloudinary (если есть)
+      // 2) загружаем новые (если есть)
       let uploaded = [];
       if(edNewSelected.length){
         uploaded = await uploadAllFiles(editingTask.id, edNewSelected);
       }
       const filesMerged = kept.concat(uploaded);
 
-      // 3) апдейт задачи
+      // 3) апдейт задачи (без изменения status)
       await db.collection('tasks').doc(editingTask.id).update({
         title:newTitle,
         comment:newComment,
-        status:newStatus,
         assembledOrder:newAssembled,
         isPickup:newPickup,
         assignees:newAssignees,
@@ -754,6 +770,45 @@
     await deleteTask(editingTask.id);
     els.dlg.close();
   });
+
+  // ======= OPEN/DOWNLOAD HELPERS =======
+  function openFile(url){
+    if(!url) return;
+    window.open(url, '_blank', 'noopener,noreferrer');
+  }
+  function makeAttachmentUrl(url, fileName){
+    try{
+      const u = new URL(url);
+      const parts = u.pathname.split('/');
+      const i = parts.indexOf('upload');
+      if(i>0){
+        const safeName = (fileName || '').replace(/[^\w.\-]+/g,'_').slice(0,80);
+        const flag = safeName ? `fl_attachment:${safeName}` : 'fl_attachment';
+        parts.splice(i+1, 0, flag);
+        u.pathname = parts.join('/');
+        return u.toString();
+      }
+    }catch(_){}
+    return url + (url.includes('?') ? '&' : '?') + 'download=1';
+  }
+  function downloadFile(fileObj){
+    const url = (fileObj && (fileObj.url || fileObj.secure_url)) || '';
+    if(!url) return;
+    const a = document.createElement('a');
+    a.href = makeAttachmentUrl(url, fileObj.name || '');
+    a.download = fileObj.name || '';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  }
+  async function downloadAll(files){
+    if(!Array.isArray(files) || !files.length) return;
+    for(const f of files){
+      downloadFile(f);
+      await new Promise(r=> setTimeout(r, 120));
+    }
+    alert('Скачивание запущено. Если что-то не скачалось — проверь блокировщик всплывающих окон.');
+  }
 
   </script>
 </body>
