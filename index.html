@@ -277,6 +277,83 @@
     const d=new Date(); const s=d.toLocaleDateString()+" "+d.toLocaleTimeString().slice(0,5);
     els.tvHomeLastUpdated.textContent="Список актуален: "+s;
   }
+    // === ВСТАВКА СКРИНШОТА ПО CTRL+V / CMD+V ===
+// Работает по всей странице: изображения из буфера (image/png, image/jpeg, webp) и pdf.
+(function enableClipboardPasteToFiles(){
+  // Красивый короткий таймстемп для имени файла
+  function tsName(prefix, ext){
+    const d = new Date();
+    const pad = n => String(n).padStart(2,'0');
+    const name = `${prefix}_${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`;
+    return `${name}.${ext}`;
+  }
+
+  // Мягкая подсветка статуса возле "Файлы не выбраны"
+  let revertTimer = null;
+  function flashInfo(text){
+    const prev = els.filesInfo.textContent;
+    els.filesInfo.textContent = text;
+    els.filesInfo.style.fontWeight = '800';
+    clearTimeout(revertTimer);
+    revertTimer = setTimeout(()=>{
+      els.filesInfo.textContent = selectedFiles.length ? `Файлов выбрано: ${selectedFiles.length}` : 'Файлы не выбраны';
+      els.filesInfo.style.fontWeight = 'normal';
+    }, 1800);
+  }
+
+  document.addEventListener('paste', async (e)=>{
+    // Если курсор в текстовом поле — уважаем обычную вставку текста
+    const t = document.activeElement;
+    const tag = (t && t.tagName || '').toLowerCase();
+    const isTyping = tag === 'input' || tag === 'textarea' || t?.isContentEditable;
+    // Всё равно обработаем файлы из буфера, но текст не трогаем
+    const dt = e.clipboardData;
+    if(!dt) return;
+
+    const items = [...dt.items||[]];
+    if(!items.length) return;
+
+    let added = 0;
+
+    // 1) Файлы напрямую из буфера (основной кейс: скриншот image/png)
+    for (const it of items) {
+      if (it.kind === 'file') {
+        const blob = it.getAsFile();
+        if (!blob) continue;
+
+        // Определяем расширение
+        let ext = 'bin';
+        if (blob.type === 'application/pdf') ext = 'pdf';
+        else if (blob.type.startsWith('image/')) {
+          const sub = blob.type.split('/')[1] || 'png';
+          ext = sub === 'jpeg' ? 'jpg' : sub;
+        }
+
+        // Дадим человеку достойное имя файла
+        const name = tsName(ext === 'pdf' ? 'pasted' : 'screenshot', ext);
+        const file = new File([blob], name, { type: blob.type || 'application/octet-stream' });
+
+        // Защита от дубликатов по размеру+типу в один момент (редко, но бывает)
+        if (!selectedFiles.some(f => f.name === file.name && f.size === file.size && f.type === file.type)) {
+          selectedFiles.push(file);
+          added++;
+        }
+      }
+    }
+
+    // 2) Если в буфере был URL на изображение — можно подтянуть (опционально)
+    // Отключено по умолчанию, чтобы не городить лишние запросы:
+    // const plain = items.find(i => i.kind==='string' && i.type==='text/plain');
+    // if (plain && added===0) { /* можно попробовать скачать картинку по URL и превратить в File */ }
+
+    if (added > 0) {
+      renderFiles();
+      updateFilesInfo();
+      flashInfo(`Вставлено из буфера: ${added}`);
+      // Блокируем «вставку» как текста, если курсор не в инпуте
+      if (!isTyping) e.preventDefault();
+    }
+  }, false);
   </script>
 </body>
 </html>
