@@ -11,7 +11,7 @@
   <style>
     :root{
       --brand-red:#FF3B30; --text:#0d0d0d; --muted:#666; --line:rgba(0,0,0,.08);
-      --glass:#fff; --bg:#f5f6f8; --ok:#10B981; --info:#3B82F6; --warn:#F59E0B;
+      --glass:#fff; --bg:#f5f6f8;
     }
     *{ box-sizing:border-box }
     body{ margin:0; font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial; background:var(--bg); color:var(--text) }
@@ -19,21 +19,21 @@
     .shell{ max-width:1120px; margin:0 auto; padding:20px 14px 120px }
     h1{ margin:6px 0 18px; font-size:28px; font-weight:800 }
 
-    /* Две колонки: слева форма, справа список задач */
-    .grid{ display:grid; grid-template-columns: 1fr 340px; gap:16px; align-items:start }
+    .grid{ display:grid; grid-template-columns: 1fr 360px; gap:16px; align-items:start }
     @media (max-width: 980px){ .grid{ grid-template-columns: 1fr } }
 
     .card{ background:var(--glass); border:1px solid rgba(0,0,0,.06); border-radius:16px; padding:16px }
     label{ font-weight:600; font-size:14px; display:block; margin:12px 0 6px }
-    input[type="text"], textarea{
+    input[type="text"], textarea, select{
       width:100%; padding:12px 14px; border-radius:12px; border:1px solid rgba(0,0,0,.12); font:inherit; background:#fff
     }
     textarea{ min-height:96px; resize:vertical }
     .row{ display:grid; grid-template-columns:1fr 1fr; gap:12px }
     .muted{ color:var(--muted); font-size:13px }
-    .btn{ border:none; background:var(--brand-red); color:#fff; padding:14px 16px; border-radius:12px; font-weight:800; cursor:pointer }
+    .btn{ border:none; background:var(--brand-red); color:#fff; padding:12px 14px; border-radius:12px; font-weight:800; cursor:pointer }
     .btn:disabled{ opacity:.6; cursor:not-allowed }
     .btn-secondary{ background:#fff; color:var(--text); border:1px solid rgba(0,0,0,.12) }
+    .btn-ghost{ background:transparent; color:var(--text); border:1px dashed var(--line) }
     .files{ display:flex; flex-wrap:wrap; gap:8px; margin-top:8px }
     .chip{ display:inline-flex; gap:8px; align-items:center; background:#fff; border:1px solid rgba(0,0,0,.12); padding:8px 10px; border-radius:12px }
     .chip button{ border:none; background:transparent; font-weight:800; cursor:pointer }
@@ -49,27 +49,33 @@
     /* Сайдбар задач */
     .aside{ position:sticky; top:12px }
     .aside .hdr{ display:flex; align-items:center; justify-content:space-between; margin-bottom:10px }
-    .aside .search{ width:100%; margin-bottom:10px }
-    .aside input[type="search"]{
-      width:100%; padding:10px 12px; border-radius:12px; border:1px solid var(--line); background:#fff; font:inherit
-    }
+    .aside .search{ width:100%; margin-bottom:10px; display:flex; gap:8px }
+    .aside input[type="search"]{ flex:1; padding:10px 12px; border-radius:12px; border:1px solid var(--line); background:#fff; font:inherit }
     .tasklist{ display:flex; flex-direction:column; gap:10px; max-height:70vh; overflow:auto; padding-right:4px }
     .task{ border:1px solid var(--line); background:#fff; border-radius:14px; padding:10px 12px; display:grid; gap:6px }
     .task .t1{ display:flex; align-items:center; justify-content:space-between; gap:8px }
     .task .title{ font-weight:700; font-size:14px; line-height:1.2; word-break:break-word }
-    .badges{ display:flex; gap:6px; flex-wrap:wrap }
+    .badges{ display:flex; gap:6px; flex-wrap:wrap; align-items:center }
     .pill{ font-size:11px; font-weight:700; padding:4px 8px; border-radius:999px; border:1px solid var(--line); background:#fafafa }
-    .pill.ok{ color:#065f46; background:#ecfdf5; border-color:#a7f3d0 }         /* done */
-    .pill.info{ color:#1e40af; background:#eff6ff; border-color:#bfdbfe }       /* in_progress */
-    .pill.warn{ color:#7c2d12; background:#fffbeb; border-color:#fde68a }       /* pickup */
-    .pill.assem{ color:#991b1b; background:#fef2f2; border-color:#fecaca }      /* assembled */
+    .pill.ok{ color:#065f46; background:#ecfdf5; border-color:#a7f3d0 }
+    .pill.info{ color:#1e40af; background:#eff6ff; border-color:#bfdbfe }
+    .pill.warn{ color:#7c2d12; background:#fffbeb; border-color:#fde68a }
+    .pill.assem{ color:#991b1b; background:#fef2f2; border-color:#fecaca }
     .task .meta{ font-size:12px; color:#555; display:flex; gap:10px; flex-wrap:wrap }
     .task .meta span{ display:inline-flex; align-items:center; gap:6px }
     .task .line{ height:1px; background:var(--line); margin:2px 0 }
     .task .assignees{ font-size:12px; color:#444; }
     .task:hover{ box-shadow:0 1px 0 rgba(0,0,0,.02), 0 6px 16px rgba(0,0,0,.06) }
 
-    .hint{ font-size:12px; color:var(--muted); margin-top:6px }
+    .row-compact{ display:grid; grid-template-columns: 1fr auto auto; gap:8px; align-items:center }
+
+    /* Модалка редактирования */
+    dialog{ border:none; border-radius:16px; padding:0; width:min(620px, 96vw); }
+    .modal{ padding:16px; border:1px solid var(--line); border-radius:16px; background:#fff }
+    .modal .hdr{ display:flex; justify-content:space-between; align-items:center; margin-bottom:8px }
+    .modal .act{ display:flex; gap:8px; flex-wrap:wrap }
+    .section{ margin-top:10px }
+    .sub{ font-size:12px; color:var(--muted) }
   </style>
 </head>
 <body>
@@ -110,7 +116,7 @@
               <div class="muted" id="assigneesInfo">Исполнители не выбраны (необязательно)</div>
             </div>
           </div>
-          <div class="hint">Подсказка: можно просто нажать <b>Ctrl/Cmd + V</b>, чтобы приклеить скриншот из буфера.</div>
+          <div class="muted" style="margin-top:10px">Подсказка: можно просто нажать <b>Ctrl/Cmd + V</b>, чтобы приклеить скриншот из буфера.</div>
         </div>
       </div>
 
@@ -118,13 +124,21 @@
       <aside class="aside">
         <div class="hdr">
           <div style="font-weight:800">Задачи</div>
-          <button id="btnReload" class="btn btn-secondary" type="button" title="Обновить">Обновить</button>
+          <div class="row-compact">
+            <select id="statusFilter">
+              <option value="">Все</option>
+              <option value="assigned">Назначено</option>
+              <option value="in_progress">В работе</option>
+              <option value="done">Готово</option>
+            </select>
+            <button id="btnReload" class="btn btn-secondary" type="button" title="Обновить">Обновить</button>
+          </div>
         </div>
         <div class="search">
           <input id="q" type="search" placeholder="Поиск в заголовке/комменте…" />
         </div>
         <div id="tasklist" class="tasklist card" style="padding:10px"></div>
-        <div class="hint">Показываем последние 50. Обновляется в реальном времени.</div>
+        <div class="muted" style="margin-top:6px">Показываем последние 50. Реальное время.</div>
       </aside>
     </div>
 
@@ -137,6 +151,71 @@
       <button id="btnSave" class="btn" type="button">Сохранить задание</button>
     </div>
   </div>
+
+  <!-- Модалка редактирования -->
+  <dialog id="editDialog">
+    <form method="dialog" class="modal">
+      <div class="hdr">
+        <div style="font-weight:800">Редактировать задачу</div>
+        <button type="button" id="btnCloseEdit" class="btn-ghost">Закрыть</button>
+      </div>
+
+      <div class="row">
+        <div>
+          <label for="edTitle">Название</label>
+          <input id="edTitle" type="text" />
+        </div>
+        <div>
+          <label for="edStatus">Статус</label>
+          <select id="edStatus">
+            <option value="assigned">Назначено</option>
+            <option value="in_progress">В работе</option>
+            <option value="done">Готово</option>
+          </select>
+        </div>
+      </div>
+
+      <label for="edComment">Комментарий</label>
+      <textarea id="edComment"></textarea>
+
+      <div class="row section">
+        <label style="display:flex;align-items:center;gap:8px;margin:0">
+          <input id="edAssembled" type="checkbox" /> Собранный заказ
+        </label>
+        <label style="display:flex;align-items:center;gap:8px;margin:0">
+          <input id="edPickup" type="checkbox" /> Самовывоз
+        </label>
+      </div>
+
+      <div class="section">
+        <label>Исполнители</label>
+        <div id="edUsers" class="card" style="padding:8px; max-height:200px; overflow:auto"></div>
+        <div class="muted" id="edAssigneesInfo" style="margin-top:4px"></div>
+      </div>
+
+      <div class="section">
+        <label>Вложения</label>
+        <!-- текущие -->
+        <div id="edExistingFiles" class="files"></div>
+        <div class="sub">Клик по кресту — удаляет файл из задачи (из Cloudinary не удаляем).</div>
+        <!-- добавление новых -->
+        <div class="card" style="margin-top:8px; padding:10px">
+          <div id="edDrop" class="drop">
+            <input id="edFileInput" type="file" multiple accept="image/*,application/pdf,.pdf" />
+            <div class="muted">Добавить файлы: выберите, перетащите или вставьте (Ctrl+V)</div>
+          </div>
+          <div id="edNewFiles" class="files"></div>
+          <div class="muted" id="edFilesInfo">Новые файлы не выбраны</div>
+        </div>
+      </div>
+
+      <div class="act" style="margin-top:12px">
+        <button type="button" id="btnDelete" class="btn btn-secondary" style="border-color:#f00;color:#f00">Удалить</button>
+        <div style="flex:1"></div>
+        <button type="button" id="btnSaveEdit" class="btn">Сохранить</button>
+      </div>
+    </form>
+  </dialog>
 
   <!-- Firebase -->
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
@@ -155,7 +234,8 @@
   const CLOUDINARY_CLOUD_NAME    = "dnx1taqp7";
   const CLOUDINARY_UPLOAD_PRESET = "unsigned_tasks";
   const FOLDER_PREFIX            = "tasks";
-  const NOTIFY_URL               = "https://skladsborka-notify.vercel.app/api/notify-taskCreated";
+  const NOTIFY_URL_CREATED       = "https://skladsborka-notify.vercel.app/api/notify-taskCreated";
+  const NOTIFY_URL_ASSIGNEES     = "https://skladsborka-notify.vercel.app/api/notify-assigneesChanged";
   // =====================
 
   firebase.initializeApp(FIREBASE_CONFIG);
@@ -178,11 +258,40 @@
     tasklist: document.getElementById('tasklist'),
     btnReload: document.getElementById('btnReload'),
     q: document.getElementById('q'),
+    statusFilter: document.getElementById('statusFilter'),
+
+    // Edit modal
+    dlg: document.getElementById('editDialog'),
+    btnCloseEdit: document.getElementById('btnCloseEdit'),
+    btnSaveEdit: document.getElementById('btnSaveEdit'),
+    btnDelete: document.getElementById('btnDelete'),
+    edTitle: document.getElementById('edTitle'),
+    edComment: document.getElementById('edComment'),
+    edStatus: document.getElementById('edStatus'),
+    edAssembled: document.getElementById('edAssembled'),
+    edPickup: document.getElementById('edPickup'),
+    edUsers: document.getElementById('edUsers'),
+    edAssigneesInfo: document.getElementById('edAssigneesInfo'),
+    // files in edit
+    edExistingFiles: document.getElementById('edExistingFiles'),
+    edDrop: document.getElementById('edDrop'),
+    edFileInput: document.getElementById('edFileInput'),
+    edNewFiles: document.getElementById('edNewFiles'),
+    edFilesInfo: document.getElementById('edFilesInfo')
   };
 
   const selectedFiles = [];
   const selectedWorkerIds = new Set();
   const selectedWorkerNames = new Set();
+
+  // для редактирования
+  let allUsersCache = [];            // [{id,name,label}]
+  let editingTask = null;            // полный объект текущей задачи в модалке
+  let edSelectedIds = new Set();     // выбранные исполнители в модалке
+  let edSelectedNames = new Set();
+  let edExisting = [];               // текущие files[] из задачи
+  let edRemovedPids = new Set();     // publicId, снятые пользователем
+  const edNewSelected = [];          // новые файлы для загрузки
 
   // ======= AUTH + старт =======
   auth.signInAnonymously()
@@ -192,27 +301,32 @@
   // ======= USERS =======
   async function loadUsers(){
     const snap = await db.collection('users').get();
-    if (snap.empty){ els.users.innerHTML = '<div class="muted">Пользователи не найдены</div>'; return; }
     const frag = document.createDocumentFragment();
-    snap.forEach(doc=>{
-      const data = doc.data()||{};
-      const base = data.name || data.displayName || doc.id;
-      const role = data.role ? ` (${data.role})` : '';
-      const label = `${base}${role}`;
-      const id = doc.id;
-
-      const row = document.createElement('label');
-      row.style.display='flex'; row.style.alignItems='center'; row.style.gap='8px'; row.style.padding='6px 4px';
-      row.innerHTML = `<input type="checkbox" data-id="${id}" data-name="${escapeHtml(label)}" /> <span>${escapeHtml(label)}</span>`;
-      row.querySelector('input').addEventListener('change', ev=>{
-        const chk = ev.target; const uid = chk.getAttribute('data-id'); const nm = chk.getAttribute('data-name');
-        if (chk.checked){ selectedWorkerIds.add(uid); selectedWorkerNames.add(nm); }
-        else { selectedWorkerIds.delete(uid); selectedWorkerNames.delete(nm); }
-        updateAssigneesInfo();
+    allUsersCache = [];
+    if (snap.empty){
+      els.users.innerHTML = '<div class="muted">Пользователи не найдены</div>';
+    } else {
+      snap.forEach(doc=>{
+        const data = doc.data()||{};
+        const base = data.name || data.displayName || doc.id;
+        const role = data.role ? ` (${data.role})` : '';
+        const label = `${base}${role}`;
+        const id = doc.id;
+        allUsersCache.push({id, base, label});
+        const row = document.createElement('label');
+        row.style.display='flex'; row.style.alignItems='center'; row.style.gap='8px'; row.style.padding='6px 4px';
+        row.innerHTML = `<input type="checkbox" data-id="${id}" data-name="${escapeHtml(label)}" /> <span>${escapeHtml(label)}</span>`;
+        row.querySelector('input').addEventListener('change', ev=>{
+          const chk = ev.target; const uid = chk.getAttribute('data-id'); const nm = chk.getAttribute('data-name');
+          if (chk.checked){ selectedWorkerIds.add(uid); selectedWorkerNames.add(nm); }
+          else { selectedWorkerIds.delete(uid); selectedWorkerNames.delete(nm); }
+          updateAssigneesInfo();
+        });
+        frag.appendChild(row);
       });
-      frag.appendChild(row);
-    });
-    els.users.innerHTML = ''; els.users.appendChild(frag); updateAssigneesInfo();
+      els.users.innerHTML = ''; els.users.appendChild(frag);
+      updateAssigneesInfo();
+    }
   }
   function updateAssigneesInfo(){
     els.assigneesInfo.textContent = selectedWorkerNames.size
@@ -220,7 +334,7 @@
       : "Исполнители не выбраны (необязательно)";
   }
 
-  // ======= FILES UI / DND / PASTE =======
+  // ======= FILES UI / DND / PASTE (создание) =======
   els.fileInput.addEventListener('change', e=>{
     [...(e.target.files||[])].forEach(f=>{ if(!selectedFiles.includes(f)) selectedFiles.push(f); });
     renderFiles();
@@ -247,38 +361,40 @@
   const short=s=>s.length>36?(s.slice(0,16)+'…'+s.slice(-16)):s;
   const escapeHtml=s=>String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
 
-  // Вставка из буфера (скриншоты)
+  // Вставка из буфера (скриншоты/pdf) — создание
   document.addEventListener('paste', e=>{
+    // если открыта модалка — перехватим ниже в обработчике модалки
+    if (els.dlg.open) return;
     const dt=e.clipboardData; if(!dt)return;
     let added=0;
     for(const item of dt.items||[]){
       if(item.kind==='file'){
         const file=item.getAsFile();
-        if(file && file.type.startsWith('image/')){
+        if(!file) continue;
+        if(file.type.startsWith('image/')){
           const name=`screenshot_${Date.now()}.png`;
           const f=new File([file],name,{type:file.type});
           selectedFiles.push(f); added++;
-        }
-        if(file && file.type==='application/pdf'){
+        } else if(file.type==='application/pdf'){
           const name=`pasted_${Date.now()}.pdf`;
           const f=new File([file],name,{type:file.type});
           selectedFiles.push(f); added++;
         }
       }
     }
-    if(added){ renderFiles(); infoFlash(`Вставлено из буфера: ${added}`); e.preventDefault(); }
+    if(added){ renderFiles(); infoFlash(els.filesInfo, `Вставлено из буфера: ${added}`); e.preventDefault(); }
   });
-  let infoTimer=null;
-  function infoFlash(text){
-    els.filesInfo.textContent=text; els.filesInfo.style.fontWeight='800';
-    clearTimeout(infoTimer);
-    infoTimer=setTimeout(()=>{
-      els.filesInfo.textContent = selectedFiles.length ? `Файлов выбрано: ${selectedFiles.length}` : 'Файлы не выбраны';
-      els.filesInfo.style.fontWeight='normal';
-    },1600);
+  function infoFlash(el, text){
+    el.textContent=text; el.style.fontWeight='800';
+    setTimeout(()=>{
+      el.textContent = (el===els.filesInfo)
+        ? (selectedFiles.length ? `Файлов выбрано: ${selectedFiles.length}` : 'Файлы не выбраны')
+        : (edNewSelected.length ? `Новых файлов: ${edNewSelected.length}` : 'Новые файлы не выбраны');
+      el.style.fontWeight='normal';
+    }, 1600);
   }
 
-  // ======= SAVE =======
+  // ======= SAVE (создание) =======
   els.btnSave.addEventListener('click', onSave);
   async function onSave(){
     const title=els.title.value.trim(); const comment=els.comment.value.trim(); const isAssembled=!!els.cbAssembled.checked;
@@ -300,9 +416,8 @@
         files:[]
       });
 
-      let uploaded=[];
       if(selectedFiles.length){
-        uploaded=await uploadAllFiles(taskRef.id,selectedFiles);
+        const uploaded=await uploadAllFiles(taskRef.id,selectedFiles);
         if(uploaded.length){ await taskRef.update({files:uploaded}); }
       }
 
@@ -340,7 +455,12 @@
   function notifyTaskCreated(taskId,audienceIds){
     const assigneeIdsCsv=(audienceIds&&audienceIds.length)?audienceIds.join(","):"";
     const body=new URLSearchParams({taskId,assigneeIds:assigneeIdsCsv});
-    return fetch(NOTIFY_URL,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body});
+    return fetch(NOTIFY_URL_CREATED,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body});
+  }
+  function notifyAssigneesChanged(taskId, newIds){
+    if(!newIds.length) return Promise.resolve();
+    const body=new URLSearchParams({taskId,assigneeIds:newIds.join(",")});
+    return fetch(NOTIFY_URL_ASSIGNEES,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body}).catch(()=>{});
   }
   function freeze(flag,text){ els.btnSave.disabled=!!flag; els.btnSave.textContent=flag?(text||"…"):"Сохранить задание"; }
   function touchLastUpdated(){
@@ -351,11 +471,12 @@
   // ======= TASKS FEED (правый сайдбар) =======
   let unsubTasks=null, lastTasks=[], filteredTasks=[];
   function initTasksFeed(){
-    subscribeTasks(); // realtime
+    subscribeTasks();
     els.btnReload.addEventListener('click', ()=>{ subscribeTasks(true); });
     els.q.addEventListener('input', applyFilter);
+    els.statusFilter.addEventListener('change', applyFilter);
   }
-  function subscribeTasks(force=false){
+  function subscribeTasks(){
     if(unsubTasks){ unsubTasks(); unsubTasks=null; }
     const q = db.collection('tasks').orderBy('createdAt','desc').limit(50);
     unsubTasks = q.onSnapshot(snap=>{
@@ -366,11 +487,12 @@
           id:d.id,
           title: x.title || '(без названия)',
           comment: x.comment || '',
-          status: String(x.status||'').toLowerCase(),
+          status: String(x.status||'assigned').toLowerCase(),
           isPickup: !!x.isPickup,
           assembledOrder: !!x.assembledOrder || String(x.status).toLowerCase()==='assembled',
           files: Array.isArray(x.files)? x.files : [],
           assigneeNames: Array.isArray(x.assigneeNames)? x.assigneeNames : [],
+          assignees: Array.isArray(x.assignees)? x.assignees : [],
           createdAt: x.createdAt?.toDate ? x.createdAt.toDate() : null
         });
       });
@@ -380,9 +502,12 @@
     }, err=> console.error('tasks snapshot error', err));
   }
   function applyFilter(){
-    const q = (els.q.value||'').trim().toLowerCase();
-    filteredTasks = !q ? lastTasks : lastTasks.filter(t=>{
-      return (t.title||'').toLowerCase().includes(q) || (t.comment||'').toLowerCase().includes(q);
+    const text = (els.q.value||'').trim().toLowerCase();
+    const status = els.statusFilter.value;
+    filteredTasks = lastTasks.filter(t=>{
+      const matchText = !text || (t.title||'').toLowerCase().includes(text) || (t.comment||'').toLowerCase().includes(text);
+      const matchStatus = !status || t.status===status;
+      return matchText && matchStatus;
     });
     renderTasks();
   }
@@ -395,18 +520,18 @@
     for(const t of filteredTasks){
       const div=document.createElement('div');
       div.className='task';
+
       const badges = [];
-      // статус
-      const st = (t.status||'').toLowerCase();
+      const st = (t.status||'assigned').toLowerCase();
       if(st==='done') badges.push(`<span class="pill ok">Готово</span>`);
       else if(st==='in_progress') badges.push(`<span class="pill info">В работе</span>`);
       else badges.push(`<span class="pill">Назначено</span>`);
-      // метки
       if(t.isPickup) badges.push(`<span class="pill warn">Самовывоз</span>`);
       if(t.assembledOrder) badges.push(`<span class="pill assem">Собранный</span>`);
 
       const created = t.createdAt ? formatTime(t.createdAt) : '—';
       const filesCount = (t.files||[]).length;
+      const ass = t.assigneeNames?.length ? `👥 ${escapeHtml(t.assigneeNames.join(', '))}` : '';
 
       div.innerHTML = `
         <div class="t1">
@@ -416,16 +541,27 @@
         <div class="meta">
           <span>⏱ ${created}</span>
           <span>📎 ${filesCount}</span>
-          ${t.assigneeNames?.length ? `<span>👥 ${escapeHtml(t.assigneeNames.join(', '))}</span>` : ''}
+          ${ass?`<span>${ass}</span>`:''}
         </div>
         ${t.comment ? `<div class="line"></div><div class="assignees">${escapeHtml(t.comment)}</div>` : ''}
+        <div class="row-compact" style="margin-top:4px">
+          <select data-act="status" title="Сменить статус">
+            <option value="assigned" ${st==='assigned'?'selected':''}>Назначено</option>
+            <option value="in_progress" ${st==='in_progress'?'selected':''}>В работе</option>
+            <option value="done" ${st==='done'?'selected':''}>Готово</option>
+          </select>
+          <button class="btn btn-secondary" data-act="edit">Редактировать</button>
+          <button class="btn btn-secondary" data-act="delete" style="border-color:#f00;color:#f00">Удалить</button>
+        </div>
       `;
-      // клик — скопировать id (быстро для отладки или ссылок)
-      div.title = `ID: ${t.id} (клик — скопировать)`;
-      div.style.cursor='pointer';
-      div.addEventListener('click', ()=>{
-        navigator.clipboard?.writeText(t.id).then(()=>{},()=>{});
+
+      div.querySelector('[data-act="status"]').addEventListener('change', async (e)=>{
+        const newStatus = e.target.value;
+        await db.collection('tasks').doc(t.id).update({ status:newStatus });
       });
+      div.querySelector('[data-act="edit"]').addEventListener('click', ()=> openEditModal(t.id));
+      div.querySelector('[data-act="delete"]').addEventListener('click', ()=> deleteTask(t.id));
+
       frag.appendChild(div);
     }
     list.appendChild(frag);
@@ -434,6 +570,191 @@
     const pad=n=>String(n).padStart(2,'0');
     return `${pad(d.getDate())}.${pad(d.getMonth()+1)} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
   }
+
+  // ======= EDIT MODAL =======
+  async function openEditModal(taskId){
+    const doc = await db.collection('tasks').doc(taskId).get();
+    if(!doc.exists){ alert('Задача не найдена'); return; }
+    const x = doc.data()||{};
+    editingTask = {
+      id: doc.id,
+      title: x.title||'',
+      comment: x.comment||'',
+      status: String(x.status||'assigned'),
+      isPickup: !!x.isPickup,
+      assembledOrder: !!x.assembledOrder || String(x.status).toLowerCase()==='assembled',
+      assignees: Array.isArray(x.assignees)? x.assignees : [],
+      assigneeNames: Array.isArray(x.assigneeNames)? x.assigneeNames : [],
+      files: Array.isArray(x.files)? x.files : []
+    };
+
+    els.edTitle.value = editingTask.title;
+    els.edComment.value = editingTask.comment;
+    els.edStatus.value = editingTask.status;
+    els.edAssembled.checked = !!editingTask.assembledOrder;
+    els.edPickup.checked = !!editingTask.isPickup;
+
+    // исполнители
+    edSelectedIds = new Set(editingTask.assignees);
+    edSelectedNames = new Set(editingTask.assigneeNames);
+    renderEdUsers();
+
+    // файлы
+    edExisting = [...editingTask.files];  // [{url, publicId, type, name}]
+    edRemovedPids = new Set();
+    edNewSelected.length = 0;
+    renderEdExistingFiles();
+    renderEdNewFiles();
+
+    els.dlg.showModal();
+  }
+  function renderEdUsers(){
+    const frag = document.createDocumentFragment();
+    allUsersCache.forEach(u=>{
+      const row = document.createElement('label');
+      row.style.display='flex'; row.style.alignItems='center'; row.style.gap='8px'; row.style.padding='6px 4px';
+      const checked = edSelectedIds.has(u.id) ? 'checked' : '';
+      row.innerHTML = `<input type="checkbox" data-id="${u.id}" data-name="${escapeHtml(u.label)}" ${checked}/> <span>${escapeHtml(u.label)}</span>`;
+      row.querySelector('input').addEventListener('change', ev=>{
+        const chk = ev.target; const uid = chk.getAttribute('data-id'); const nm = chk.getAttribute('data-name');
+        if (chk.checked){ edSelectedIds.add(uid); edSelectedNames.add(nm); }
+        else { edSelectedIds.delete(uid); edSelectedNames.delete(nm); }
+        updateEdAssigneesInfo();
+      });
+      frag.appendChild(row);
+    });
+    els.edUsers.innerHTML=''; els.edUsers.appendChild(frag);
+    updateEdAssigneesInfo();
+  }
+  function updateEdAssigneesInfo(){
+    els.edAssigneesInfo.textContent = edSelectedNames.size
+      ? "Исполнители: " + [...edSelectedNames].join(", ")
+      : "Исполнители не выбраны";
+  }
+
+  // === вложения (существующие) ===
+  function renderEdExistingFiles(){
+    els.edExistingFiles.innerHTML = '';
+    if(!edExisting.length){
+      els.edExistingFiles.innerHTML = '<span class="muted">Нет вложений</span>';
+      return;
+    }
+    edExisting.forEach((f,i)=>{
+      const removed = edRemovedPids.has(f.publicId);
+      const chip=document.createElement('span'); chip.className='chip';
+      chip.style.opacity = removed ? '.4' : '1';
+      chip.innerHTML = `
+        <span title="${escapeHtml(f.name||f.publicId||'file')}"> ${f.type==='pdf'?'📄':'🖼'} ${escapeHtml(short(f.name||f.publicId||'file'))}</span>
+        <button title="${removed?'Вернуть':'Удалить'}">${removed?'↩':'×'}</button>`;
+      chip.querySelector('button').onclick=()=>{
+        if(removed){ edRemovedPids.delete(f.publicId); }
+        else { edRemovedPids.add(f.publicId); }
+        renderEdExistingFiles();
+      };
+      els.edExistingFiles.appendChild(chip);
+    });
+  }
+
+  // === новые вложения (в модалке) ===
+  els.edFileInput.addEventListener('change', e=>{
+    [...(e.target.files||[])].forEach(f=>{ if(!edNewSelected.includes(f)) edNewSelected.push(f); });
+    renderEdNewFiles();
+  });
+  ['dragenter','dragover'].forEach(ev=> els.edDrop.addEventListener(ev, e=>{ e.preventDefault(); e.stopPropagation(); els.edDrop.classList.add('drag'); }));
+  ['dragleave','drop'].forEach(ev=> els.edDrop.addEventListener(ev, e=>{ e.preventDefault(); e.stopPropagation(); els.edDrop.classList.remove('drag'); }));
+  els.edDrop.addEventListener('drop', e=>{
+    const files = [...(e.dataTransfer?.files||[])];
+    files.forEach(f=>{ if(!edNewSelected.includes(f)) edNewSelected.push(f); });
+    renderEdNewFiles();
+  });
+  // Ctrl+V внутри модалки — добавляет к новым
+  els.dlg.addEventListener('paste', e=>{
+    const dt=e.clipboardData; if(!dt)return;
+    let added=0;
+    for(const item of dt.items||[]){
+      if(item.kind==='file'){
+        const file=item.getAsFile(); if(!file) continue;
+        let name = file.name || (file.type==='application/pdf' ? `pasted_${Date.now()}.pdf` : `screenshot_${Date.now()}.png`);
+        const f=new File([file], name, {type:file.type});
+        edNewSelected.push(f); added++;
+      }
+    }
+    if(added){ renderEdNewFiles(); infoFlash(els.edFilesInfo, `Добавлено новых: ${added}`); e.preventDefault(); }
+  });
+
+  function renderEdNewFiles(){
+    els.edNewFiles.innerHTML='';
+    edNewSelected.forEach((f,i)=>{
+      const chip=document.createElement('span'); chip.className='chip';
+      chip.innerHTML=`<span title="${escapeHtml(f.name)}">${f.type==='application/pdf'?'📄':'🖼'} ${escapeHtml(short(f.name))}</span> <button>&times;</button>`;
+      chip.querySelector('button').onclick=()=>{edNewSelected.splice(i,1);renderEdNewFiles();};
+      els.edNewFiles.appendChild(chip);
+    });
+    els.edFilesInfo.textContent = edNewSelected.length ? `Новых файлов: ${edNewSelected.length}` : 'Новые файлы не выбраны';
+  }
+
+  // кнопки модалки
+  els.btnCloseEdit.addEventListener('click', ()=> els.dlg.close());
+
+  els.btnSaveEdit.addEventListener('click', async ()=>{
+    if(!editingTask) return;
+    const newTitle = els.edTitle.value.trim();
+    if(!newTitle){ alert('Название обязательно'); return; }
+    const newComment = els.edComment.value.trim();
+    const newStatus = els.edStatus.value;
+    const newAssembled = !!els.edAssembled.checked;
+    const newPickup = !!els.edPickup.checked;
+
+    const oldAssignees = new Set(editingTask.assignees||[]);
+    const newAssignees = [...edSelectedIds];
+    const newAssigneeNames = [...edSelectedNames];
+    const onlyNewAssignees = newAssignees.filter(id=> !oldAssignees.has(id));
+
+    try{
+      // 1) подготовим массив файлов: берём существующие минус удалённые
+      const kept = edExisting.filter(f=> !edRemovedPids.has(f.publicId));
+      // 2) загрузим новые файлы в Cloudinary (если есть)
+      let uploaded = [];
+      if(edNewSelected.length){
+        uploaded = await uploadAllFiles(editingTask.id, edNewSelected);
+      }
+      const filesMerged = kept.concat(uploaded);
+
+      // 3) апдейт задачи
+      await db.collection('tasks').doc(editingTask.id).update({
+        title:newTitle,
+        comment:newComment,
+        status:newStatus,
+        assembledOrder:newAssembled,
+        isPickup:newPickup,
+        assignees:newAssignees,
+        assigneeNames:newAssigneeNames,
+        files: filesMerged
+      });
+
+      // 4) уведомим только новых исполнителей
+      await notifyAssigneesChanged(editingTask.id, onlyNewAssignees);
+      els.dlg.close();
+    }catch(e){
+      alert('Ошибка сохранения: '+(e?.message||e));
+    }
+  });
+
+  async function deleteTask(taskId){
+    if(!confirm('Удалить задачу безвозвратно?')) return;
+    try{
+      await db.collection('tasks').doc(taskId).delete();
+    }catch(e){
+      alert('Ошибка удаления: '+(e?.message||e));
+    }
+  }
+
+  els.btnDelete.addEventListener('click', async ()=>{
+    if(!editingTask) return;
+    await deleteTask(editingTask.id);
+    els.dlg.close();
+  });
+
   </script>
 </body>
 </html>
