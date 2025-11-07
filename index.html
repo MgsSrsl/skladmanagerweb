@@ -322,18 +322,17 @@
       qSaveItem({ url, ct, body });
     }
   }
-  window.addEventListener('online', qTryResendAll);
-  document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) qTryResendAll(); });
+  
 
   // ======= AUTH + старт =======
-  auth.signInAnonymously()
-    .then(() => { 
-      qTryResendAll();              // догоняем очередь на старте
-      touchLastUpdated(); 
-      loadUsers(); 
-      initTasksFeed(); 
-    })
-    .catch(e => alert("Auth error: " + (e?.message||e)));
+ auth.signInAnonymously()
+  .then(() => { 
+ 
+    touchLastUpdated();
+    loadUsers();
+    initTasksFeed();
+  })
+  .catch(e => alert("Auth error: " + (e?.message||e)));
 
   // ======= USERS =======
   async function loadUsers(){
