@@ -15,12 +15,11 @@
     }
     *{ box-sizing:border-box }
     body{ margin:0; font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial; background:var(--bg); color:var(--text) }
-
     .shell{ max-width:1120px; margin:0 auto; padding:20px 14px 120px }
     h1{ margin:6px 0 18px; font-size:28px; font-weight:800 }
 
-    .grid{ display:grid; grid-template-columns: 1fr 440px; gap:16px; align-items:start }
-    @media (max-width: 980px){ .grid{ grid-template-columns: 1fr } }
+    .grid{ display:grid; grid-template-columns:1fr 440px; gap:16px; align-items:start }
+    @media (max-width:980px){ .grid{ grid-template-columns:1fr } }
 
     .card{ background:var(--glass); border:1px solid rgba(0,0,0,.06); border-radius:16px; padding:16px }
     label{ font-weight:600; font-size:14px; display:block; margin:12px 0 6px }
@@ -52,12 +51,9 @@
     .aside .search{ width:100%; margin-bottom:10px; display:flex; gap:8px }
     .aside input[type="search"]{ flex:1; padding:10px 12px; border-radius:12px; border:1px solid var(--line); background:#fff; font:inherit }
     .tasklist{
-  display:flex; flex-direction:column; gap:10px;
-  max-height:82vh;           /* окно повыше */
-  overflow-y:auto;           /* только вертикальный скролл */
-  overflow-x:hidden;         /* без горизонтальной полосы */
-  padding-right:2px;         /* чуть меньше, чтобы не провоцировать прокрутку */
-}
+      display:flex; flex-direction:column; gap:10px;
+      max-height:82vh; overflow-y:auto; overflow-x:hidden; padding-right:2px;
+    }
     .task{ border:1px solid var(--line); background:#fff; border-radius:14px; padding:10px 12px; display:grid; gap:6px }
     .task .t1{ display:flex; align-items:center; justify-content:space-between; gap:8px }
     .task .title{ font-weight:700; font-size:14px; line-height:1.2; word-break:break-word }
@@ -72,17 +68,7 @@
     .task .line{ height:1px; background:var(--line); margin:2px 0 }
     .task .assignees{ font-size:12px; color:#444; }
     .task:hover{ box-shadow:0 1px 0 rgba(0,0,0,.02), 0 6px 16px rgba(0,0,0,.06) }
-
-    /* аккуратная линия кнопок: edit | open | spacer | delete */
     .row-compact{ display:grid; grid-template-columns:auto auto 1fr auto; gap:8px; align-items:center }
-
-    /* Модалки */
-    dialog{ border:none; border-radius:16px; padding:0; width:min(620px, 96vw); }
-    .modal{ padding:16px; border:1px solid var(--line); border-radius:16px; background:#fff }
-    .modal .hdr{ display:flex; justify-content:space-between; align-items:center; margin-bottom:8px }
-    .modal .act{ display:flex; gap:8px; flex-wrap:wrap }
-    .section{ margin-top:10px }
-    .sub{ font-size:12px; color:var(--muted) }
   </style>
 </head>
 <body>
@@ -173,7 +159,6 @@
           <label for="edTitle">Название</label>
           <input id="edTitle" type="text" />
         </div>
-        <!-- блок статуса удалён по ТЗ -->
       </div>
 
       <label for="edComment">Комментарий</label>
@@ -196,10 +181,8 @@
 
       <div class="section">
         <label>Вложения</label>
-        <!-- текущие -->
         <div id="edExistingFiles" class="files"></div>
         <div class="sub">Крест — убрать из задачи. 👁 — открыть в новой вкладке.</div>
-        <!-- добавление новых -->
         <div class="card" style="margin-top:8px; padding:10px">
           <div id="edDrop" class="drop">
             <input id="edFileInput" type="file" multiple accept="image/*,application/pdf,.pdf" />
@@ -218,7 +201,7 @@
     </form>
   </dialog>
 
-  <!-- Диалог «Вложения» (для открытия всех файлов задачи) -->
+  <!-- Диалог «Вложения» -->
   <dialog id="filesDialog">
     <form method="dialog" class="modal">
       <div class="hdr">
@@ -230,10 +213,10 @@
     </form>
   </dialog>
 
-  <!-- Firebase -->
-  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+  <!-- Firebase (compat) -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 
   <script>
   // ====== КОНФИГ ======
@@ -272,8 +255,6 @@
     btnReload: document.getElementById('btnReload'),
     q: document.getElementById('q'),
     statusFilter: document.getElementById('statusFilter'),
-
-    // Edit modal
     dlg: document.getElementById('editDialog'),
     btnCloseEdit: document.getElementById('btnCloseEdit'),
     btnSaveEdit: document.getElementById('btnSaveEdit'),
@@ -284,14 +265,11 @@
     edPickup: document.getElementById('edPickup'),
     edUsers: document.getElementById('edUsers'),
     edAssigneesInfo: document.getElementById('edAssigneesInfo'),
-    // files in edit
     edExistingFiles: document.getElementById('edExistingFiles'),
     edDrop: document.getElementById('edDrop'),
     edFileInput: document.getElementById('edFileInput'),
     edNewFiles: document.getElementById('edNewFiles'),
     edFilesInfo: document.getElementById('edFilesInfo'),
-
-    // files dialog
     filesDialog: document.getElementById('filesDialog'),
     filesDialogList: document.getElementById('filesDialogList')
   };
@@ -300,18 +278,61 @@
   const selectedWorkerIds = new Set();
   const selectedWorkerNames = new Set();
 
-  // для редактирования
-  let allUsersCache = [];            // [{id,name,label}]
-  let editingTask = null;            // полный объект текущей задачи в модалке
-  let edSelectedIds = new Set();     // выбранные исполнители в модалке
+  let allUsersCache = [];
+  let editingTask = null;
+  let edSelectedIds = new Set();
   let edSelectedNames = new Set();
-  let edExisting = [];               // текущие files[] из задачи
-  let edRemovedPids = new Set();     // publicId, снятые пользователем
-  const edNewSelected = [];          // новые файлы для загрузки
+  let edExisting = [];
+  let edRemovedPids = new Set();
+  const edNewSelected = [];
+
+  // ====== OFFLINE RESEND QUEUE (form-urlencoded) ======
+  const QUEUE_KEY = 'notify_queue_v1';
+
+  function qSaveItem(item){
+    const arr = JSON.parse(localStorage.getItem(QUEUE_KEY)||'[]');
+    arr.push(item);
+    localStorage.setItem(QUEUE_KEY, JSON.stringify(arr));
+  }
+  async function qTryResendAll(){
+    let arr = JSON.parse(localStorage.getItem(QUEUE_KEY)||'[]');
+    if(!arr.length) return;
+    const keep = [];
+    for(const it of arr){
+      try{
+        const resp = await fetch(it.url, {
+          method:'POST',
+          headers:{'Content-Type': it.ct || 'application/x-www-form-urlencoded'},
+          body: it.body || ''
+        });
+        if(!resp.ok) throw new Error(String(resp.status));
+      }catch(e){
+        keep.push(it);
+      }
+    }
+    localStorage.setItem(QUEUE_KEY, JSON.stringify(keep));
+  }
+  async function sendFormOrQueue(url, params){
+    const ct = 'application/x-www-form-urlencoded';
+    const body = new URLSearchParams(params).toString();
+    try{
+      const resp = await fetch(url, { method:'POST', headers:{'Content-Type': ct}, body });
+      if(!resp.ok) throw new Error(String(resp.status));
+    }catch(e){
+      qSaveItem({ url, ct, body });
+    }
+  }
+  window.addEventListener('online', qTryResendAll);
+  document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) qTryResendAll(); });
 
   // ======= AUTH + старт =======
   auth.signInAnonymously()
-    .then(() => { touchLastUpdated(); loadUsers(); initTasksFeed(); })
+    .then(() => { 
+      qTryResendAll();              // догоняем очередь на старте
+      touchLastUpdated(); 
+      loadUsers(); 
+      initTasksFeed(); 
+    })
     .catch(e => alert("Auth error: " + (e?.message||e)));
 
   // ======= USERS =======
@@ -377,9 +398,8 @@
   const short=s=>s.length>36?(s.slice(0,16)+'…'+s.slice(-16)):s;
   const escapeHtml=s=>String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
 
-  // Вставка из буфера (скриншоты/pdf) — создание
   document.addEventListener('paste', e=>{
-    if (els.dlg.open) return; // модалка перехватит
+    if (els.dlg.open) return;
     const dt=e.clipboardData; if(!dt)return;
     let added=0;
     for(const item of dt.items||[]){
@@ -427,7 +447,7 @@
         isPickup, assembledOrder:isAssembled,
         category, status,
         createdAt:firebase.firestore.FieldValue.serverTimestamp(),
-        creatorId:"unknown", creatorName:"unknown",
+        creatorId:"web", creatorName:"web",
         files:[]
       });
 
@@ -436,7 +456,7 @@
         if(uploaded.length){ await taskRef.update({files:uploaded}); }
       }
 
-      notifyTaskCreated(taskRef.id,audienceIds).catch(()=>{});
+      await notifyTaskCreated(taskRef.id,audienceIds);
       // reset
       selectedFiles.length=0; renderFiles(); els.fileInput.value='';
       els.title.value=''; els.comment.value=''; els.cbAssembled.checked=false;
@@ -467,19 +487,21 @@
     }
     return out;
   }
+
+  // безопасные уведомления (form-urlencoded + офлайн очередь)
   function notifyTaskCreated(taskId,audienceIds){
     const assigneeIdsCsv=(audienceIds&&audienceIds.length)?audienceIds.join(","):"";
-    const body=new URLSearchParams({taskId,assigneeIds:assigneeIdsCsv});
-    return fetch(NOTIFY_URL_CREATED,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body});
+    return sendFormOrQueue(NOTIFY_URL_CREATED, { taskId, assigneeIds: assigneeIdsCsv });
   }
   function notifyAssigneesChanged(taskId, newIds){
-    if(!newIds.length) return Promise.resolve();
-    const body=new URLSearchParams({taskId,assigneeIds:newIds.join(",")});
-    return fetch(NOTIFY_URL_ASSIGНЕES,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body}).catch(()=>{});
+    if(!newIds || !newIds.length) return Promise.resolve();
+    return sendFormOrQueue(NOTIFY_URL_ASSIGNEES, { taskId, assigneeIds: newIds.join(",") });
   }
+
   function freeze(flag,text){ els.btnSave.disabled=!!flag; els.btnSave.textContent=flag?(text||"…"):"Сохранить задание"; }
   function touchLastUpdated(){
-    const d=new Date(); const s=d.toLocaleDateString()+" "+d.toLocaleTimeString().slice(0,5);
+    const d=new Date(); const pad=n=>String(n).padStart(2,'0');
+    const s=`${pad(d.getDate())}.${pad(d.getMonth()+1)} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
     els.tvHomeLastUpdated.textContent="Список актуален: "+s;
   }
 
@@ -487,7 +509,7 @@
   let unsubTasks=null, lastTasks=[], filteredTasks=[];
   function initTasksFeed(){
     subscribeTasks();
-    els.btnReload.addEventListener('click', ()=>{ subscribeTasks(true); });
+    els.btnReload.addEventListener('click', ()=>{ qTryResendAll(); subscribeTasks(true); });
     els.q.addEventListener('input', applyFilter);
     els.statusFilter.addEventListener('change', applyFilter);
   }
@@ -530,12 +552,10 @@
     const list = els.tasklist;
     list.innerHTML='';
     if(!filteredTasks.length){ list.innerHTML='<div class="muted">Пока нет данных</div>'; return; }
-
     const frag=document.createDocumentFragment();
     for(const t of filteredTasks){
       const div=document.createElement('div');
       div.className='task';
-
       const badges = [];
       const st = (t.status||'assigned').toLowerCase();
       if(st==='done') badges.push(`<span class="pill ok">Готово</span>`);
@@ -543,11 +563,9 @@
       else badges.push(`<span class="pill">Назначено</span>`);
       if(t.isPickup) badges.push(`<span class="pill warn">Самовывоз</span>`);
       if(t.assembledOrder) badges.push(`<span class="pill assem">Собранный</span>`);
-
       const created = t.createdAt ? formatTime(t.createdAt) : '—';
       const filesCount = (t.files||[]).length;
       const ass = t.assigneeNames?.length ? `👥 ${escapeHtml(t.assigneeNames.join(', '))}` : '';
-
       div.innerHTML = `
         <div class="t1">
           <div class="title">${escapeHtml(t.title)}</div>
@@ -566,8 +584,6 @@
           <button class="btn btn-secondary" data-act="delete" style="border-color:#f00;color:#f00">Удалить</button>
         </div>
       `;
-
-      // обработчики
       const btnOpen = div.querySelector('[data-act="open"]');
       if(btnOpen){
         btnOpen.addEventListener('click', ()=>{
@@ -578,7 +594,6 @@
       }
       div.querySelector('[data-act="edit"]').addEventListener('click', ()=> openEditModal(t.id));
       div.querySelector('[data-act="delete"]').addEventListener('click', ()=> deleteTask(t.id));
-
       frag.appendChild(div);
     }
     list.appendChild(frag);
@@ -597,7 +612,7 @@
       id: doc.id,
       title: x.title||'',
       comment: x.comment||'',
-      status: String(x.status||'assigned'), // только отображаем (бейджи/фильтр)
+      status: String(x.status||'assigned'),
       isPickup: !!x.isPickup,
       assembledOrder: !!x.assembledOrder || String(x.status).toLowerCase()==='assembled',
       assignees: Array.isArray(x.assignees)? x.assignees : [],
@@ -610,13 +625,11 @@
     els.edAssembled.checked = !!editingTask.assembledOrder;
     els.edPickup.checked = !!editingTask.isPickup;
 
-    // исполнители
     edSelectedIds = new Set(editingTask.assignees);
     edSelectedNames = new Set(editingTask.assigneeNames);
     renderEdUsers();
 
-    // файлы
-    edExisting = [...editingTask.files];  // [{url, publicId, type, name}]
+    edExisting = [...editingTask.files];
     edRemovedPids = new Set();
     edNewSelected.length = 0;
     renderEdExistingFiles();
@@ -648,7 +661,6 @@
       : "Исполнители не выбраны";
   }
 
-  // === вложения (существующие) ===
   function renderEdExistingFiles(){
     els.edExistingFiles.innerHTML = '';
     if(!edExisting.length){
@@ -659,9 +671,10 @@
       const removed = edRemovedPids.has(f.publicId);
       const chip=document.createElement('span'); chip.className='chip';
       chip.style.opacity = removed ? '.4' : '1';
+      const name = f.name || f.publicId || `file_${i+1}`;
       chip.innerHTML = `
-        <span title="${escapeHtml(f.name||f.publicId||'file')}">
-          ${f.type==='pdf'?'📄':'🖼'} ${escapeHtml(short(f.name||f.publicId||'file'))}
+        <span title="${escapeHtml(name)}">
+          ${f.type==='pdf'?'📄':'🖼'} ${escapeHtml(short(name))}
         </span>
         <button title="Открыть" data-act="open">👁</button>
         <button title="${removed?'Вернуть':'Удалить'}" data-act="toggle">${removed?'↩':'×'}</button>`;
@@ -675,7 +688,6 @@
     });
   }
 
-  // === новые вложения (в модалке) ===
   els.edFileInput.addEventListener('change', e=>{
     [...(e.target.files||[])].forEach(f=>{ if(!edNewSelected.includes(f)) edNewSelected.push(f); });
     renderEdNewFiles();
@@ -687,7 +699,6 @@
     files.forEach(f=>{ if(!edNewSelected.includes(f)) edNewSelected.push(f); });
     renderEdNewFiles();
   });
-  // Ctrl+V внутри модалки — добавляет к новым
   els.dlg.addEventListener('paste', e=>{
     const dt=e.clipboardData; if(!dt)return;
     let added=0;
@@ -701,7 +712,6 @@
     }
     if(added){ renderEdNewFiles(); infoFlash(els.edFilesInfo, `Добавлено новых: ${added}`); e.preventDefault(); }
   });
-
   function renderEdNewFiles(){
     els.edNewFiles.innerHTML='';
     edNewSelected.forEach((f,i)=>{
@@ -713,7 +723,6 @@
     els.edFilesInfo.textContent = edNewSelected.length ? `Новых файлов: ${edNewSelected.length}` : 'Новые файлы не выбраны';
   }
 
-  // кнопки модалки
   els.btnCloseEdit.addEventListener('click', ()=> els.dlg.close());
 
   els.btnSaveEdit.addEventListener('click', async ()=>{
@@ -730,16 +739,13 @@
     const onlyNewAssignees = newAssignees.filter(id=> !oldAssignees.has(id));
 
     try{
-      // 1) оставляем существующие минус удалённые
       const kept = edExisting.filter(f=> !edRemovedPids.has(f.publicId));
-      // 2) загружаем новые (если есть)
       let uploaded = [];
       if(edNewSelected.length){
         uploaded = await uploadAllFiles(editingTask.id, edNewSelected);
       }
       const filesMerged = kept.concat(uploaded);
 
-      // 3) апдейт задачи (без изменения status)
       await db.collection('tasks').doc(editingTask.id).update({
         title:newTitle,
         comment:newComment,
@@ -750,7 +756,6 @@
         files: filesMerged
       });
 
-      // 4) уведомим только новых исполнителей
       await notifyAssigneesChanged(editingTask.id, onlyNewAssignees);
       els.dlg.close();
     }catch(e){
@@ -766,14 +771,12 @@
       alert('Ошибка удаления: '+(e?.message||e));
     }
   }
-
-  els.btnDelete.addEventListener('click', async ()=>{
+  document.getElementById('btnDelete')?.addEventListener('click', async ()=>{
     if(!editingTask) return;
     await deleteTask(editingTask.id);
     els.dlg.close();
   });
 
-  // ======= FILES DIALOG / OPEN HELPERS =======
   function openFilesChooser(task){
     els.filesDialogList.innerHTML = '';
     const files = task.files || [];
@@ -800,7 +803,6 @@
     if(!url) return;
     window.open(url, '_blank', 'noopener,noreferrer');
   }
-
   </script>
 </body>
 </html>
