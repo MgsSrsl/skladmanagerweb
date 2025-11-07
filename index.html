@@ -508,7 +508,7 @@
   let unsubTasks=null, lastTasks=[], filteredTasks=[];
   function initTasksFeed(){
     subscribeTasks();
-    els.btnReload.addEventListener('click', ()=>{ qTryResendAll(); subscribeTasks(true); });
+    els.btnReload.addEventListener('click', ()=>{ subscribeTasks(true); });
     els.q.addEventListener('input', applyFilter);
     els.statusFilter.addEventListener('change', applyFilter);
   }
