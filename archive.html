@@ -1007,16 +1007,11 @@ function render(groups){
 }
 
 async function load(){
-
   setLoading(true);
 
-  app.innerHTML = `
-    <div class="empty">
-      Загрузка архива...
-    </div>
-  `;
+  app.innerHTML = `<div class="empty">Загрузка архива...</div>`;
 
-  try{
+  try {
 
     const snap = await getDocs(collectionGroup(db,"tasks"));
 
@@ -1024,17 +1019,13 @@ async function load(){
     GLOBAL_TASKS = [];
 
     snap.forEach(doc => {
-
       const data = doc.data();
 
       const date =
         data.date ||
-        (
-          data.createdAt?.seconds
-            ? new Date(data.createdAt.seconds * 1000)
-                .toISOString()
-                .slice(0,10)
-            : "Без даты"
+        (data.createdAt?.seconds
+          ? new Date(data.createdAt.seconds * 1000).toISOString().slice(0,10)
+          : "Без даты"
         );
 
       if (!groups[date]) groups[date] = [];
@@ -1044,24 +1035,15 @@ async function load(){
     });
 
     GLOBAL_GROUPS = groups;
-
     render(groups);
 
-  }catch(err){
-
-    console.error(err);
-
-    app.innerHTML = `
-      <div class="empty">
-        Ошибка загрузки архива
-      </div>
-    `;
-
+  } catch (e) {
+    console.error(e);
+    app.innerHTML = `<div class="empty">Ошибка загрузки</div>`;
+  } finally {
+    setLoading(false);
   }
-
-  setLoading(false);
 }
-
 </script>
 
 </body>
