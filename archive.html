@@ -4,362 +4,117 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-
-  <title>Архив — СкладСборка</title>
+  <title>Archive + Task Details</title>
 
   <style>
-    *{
-      box-sizing:border-box;
+    body {
+      margin: 0;
+      font-family: Arial;
+      background: #0f0f10;
+      color: #fff;
     }
 
-    :root{
-      --bg:#0f0f10;
-      --card:#17181c;
-      --card2:#1d1f24;
-      --line:#2a2d34;
-      --text:#ffffff;
-      --muted:#90939c;
-      --red:#ff3b30;
+    header {
+      padding: 14px;
+      font-weight: bold;
+      border-bottom: 1px solid #2a2a2a;
     }
 
-    body{
-      margin:0;
-      background:var(--bg);
-      color:var(--text);
-      font-family:Inter,Arial,sans-serif;
+    .day {
+      margin: 10px;
+      border: 1px solid #2a2a2a;
+      border-radius: 10px;
+      overflow: hidden;
+      background: #1a1a1d;
     }
 
-    header{
-      position:sticky;
-      top:0;
-      z-index:20;
-
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-
-      padding:16px 18px;
-
-      background:rgba(15,15,16,.92);
-      backdrop-filter:blur(14px);
-
-      border-bottom:1px solid var(--line);
+    .day-header {
+      padding: 10px;
+      font-weight: bold;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      background: #151518;
     }
 
-    .title{
-      font-size:20px;
-      font-weight:800;
-
-      display:flex;
-      align-items:center;
-      gap:10px;
+    .task {
+      padding: 10px;
+      border-bottom: 1px solid #2a2a2a;
+      font-size: 13px;
+      cursor: pointer;
     }
 
-    .badge{
-      background:rgba(255,59,48,.12);
-      color:#ff857d;
-
-      border:1px solid rgba(255,59,48,.25);
-
-      padding:6px 10px;
-      border-radius:999px;
-
-      font-size:12px;
-      font-weight:700;
+    .task:hover {
+      background: #222;
     }
 
-    #app{
-      padding:14px;
+    .task small {
+      display: block;
+      color: #777;
+      margin-top: 4px;
     }
 
-    .day{
-      margin-bottom:14px;
-
-      border:1px solid var(--line);
-      border-radius:18px;
-
-      overflow:hidden;
-
-      background:linear-gradient(
-        180deg,
-        var(--card2),
-        var(--card)
-      );
-
-      box-shadow:
-        0 10px 30px rgba(0,0,0,.24);
-    }
-
-    .day-header{
-      padding:16px 18px;
-
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-
-      cursor:pointer;
-
-      user-select:none;
-
-      transition:.18s ease;
-    }
-
-    .day-header:hover{
-      background:rgba(255,255,255,.03);
-    }
-
-    .day-left{
-      display:flex;
-      align-items:center;
-      gap:12px;
-    }
-
-    .day-date{
-      font-size:16px;
-      font-weight:800;
-    }
-
-    .day-count{
-      font-size:12px;
-      color:var(--muted);
-
-      padding:6px 10px;
-
-      border-radius:999px;
-
-      background:#22242a;
-    }
-
-    .tasks{
-      display:none;
-
-      border-top:1px solid var(--line);
-    }
-
-    .task{
-      padding:14px 18px;
-
-      border-bottom:1px solid rgba(255,255,255,.04);
-
-      cursor:pointer;
-
-      transition:.15s ease;
-    }
-
-    .task:last-child{
-      border-bottom:none;
-    }
-
-    .task:hover{
-      background:rgba(255,255,255,.03);
-    }
-
-    .task-top{
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      gap:10px;
-    }
-
-    .task-title{
-      font-weight:700;
-      font-size:15px;
-    }
-
-    .task-id{
-      margin-top:6px;
-
-      color:var(--muted);
-
-      font-size:12px;
-    }
-
-    .task-badges{
-      display:flex;
-      gap:6px;
-      flex-wrap:wrap;
-    }
-
-    .pill{
-      font-size:11px;
-      font-weight:700;
-
-      padding:5px 8px;
-
-      border-radius:999px;
-    }
-
-    .pill.red{
-      background:rgba(255,59,48,.14);
-      color:#ff8d86;
-    }
-
-    .pill.blue{
-      background:rgba(59,130,246,.14);
-      color:#8ab8ff;
-    }
-
-    .pill.green{
-      background:rgba(34,197,94,.14);
-      color:#7df0a8;
+    .tasks {
+      display: none;
     }
 
     /* MODAL */
 
-    .modal{
-      position:fixed;
-      inset:0;
-
-      display:none;
-      align-items:center;
-      justify-content:center;
-
-      background:rgba(0,0,0,.82);
-
-      z-index:100;
-      padding:16px;
+    .modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.85);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 50;
     }
 
-    .modal-content{
-      width:100%;
-      max-width:760px;
-
-      max-height:90vh;
-      overflow:auto;
-
-      background:linear-gradient(
-        180deg,
-        #1b1d22,
-        #16171b
-      );
-
-      border:1px solid var(--line);
-
-      border-radius:24px;
-
-      padding:20px;
+    .modal-content {
+      width: 90%;
+      max-width: 600px;
+      max-height: 90vh;
+      overflow: auto;
+      background: #1a1a1d;
+      border-radius: 12px;
+      padding: 15px;
+      border: 1px solid #333;
     }
 
-    .modal-head{
-      display:flex;
-      justify-content:space-between;
-      align-items:center;
-
-      margin-bottom:16px;
+    .close {
+      float: right;
+      cursor: pointer;
+      color: #ff4d4d;
+      font-size: 20px;
+      font-weight: bold;
     }
 
-    .modal-title{
-      font-size:22px;
-      font-weight:800;
+    .section {
+      margin-top: 10px;
+      padding: 10px;
+      background: #151518;
+      border-radius: 8px;
     }
 
-    .close{
-      width:42px;
-      height:42px;
-
-      border:none;
-      border-radius:12px;
-
-      background:#262932;
-      color:#fff;
-
-      cursor:pointer;
-
-      font-size:18px;
-      font-weight:800;
+    img {
+      max-width: 100%;
+      border-radius: 8px;
+      margin-top: 5px;
     }
 
-    .section{
-      margin-top:14px;
-
-      background:#1f2128;
-
-      border:1px solid rgba(255,255,255,.05);
-
-      border-radius:16px;
-
-      padding:14px;
+    .comment {
+      padding: 6px;
+      border-bottom: 1px solid #2a2a2a;
+      font-size: 12px;
     }
 
-    .section-title{
-      font-size:13px;
-      font-weight:800;
-
-      color:#ff8d86;
-
-      margin-bottom:10px;
-
-      text-transform:uppercase;
-      letter-spacing:.04em;
-    }
-
-    .desc{
-      line-height:1.5;
-      color:#d7d7db;
-      white-space:pre-wrap;
-    }
-
-    .files{
-      display:grid;
-      grid-template-columns:repeat(auto-fill,minmax(140px,1fr));
-      gap:10px;
-    }
-
-    .file{
-      background:#262932;
-
-      border-radius:14px;
-
-      overflow:hidden;
-
-      border:1px solid rgba(255,255,255,.06);
-    }
-
-    .file img{
-      width:100%;
-      height:140px;
-      object-fit:cover;
-
-      display:block;
-    }
-
-    .file a{
-      display:block;
-
-      padding:10px;
-
-      color:#fff;
-      text-decoration:none;
-
-      font-size:12px;
-      font-weight:700;
-    }
-
-    .comment{
-      padding:10px 12px;
-
-      background:#262932;
-
-      border-radius:12px;
-
-      margin-bottom:8px;
-
-      font-size:13px;
-      line-height:1.4;
-    }
-
-    pre{
-      overflow:auto;
-
-      padding:12px;
-
-      border-radius:12px;
-
-      background:#111215;
-
-      color:#9cdcfe;
-
-      font-size:12px;
+    pre {
+      overflow: auto;
+      white-space: pre-wrap;
+      word-break: break-word;
     }
 
     /* LOADER */
@@ -374,10 +129,9 @@
       align-items:center;
       justify-content:center;
 
-      background:
-        radial-gradient(circle at top,#1b1b1f 0%,#0f0f10 60%);
+      background:#0f0f10;
 
-      transition:.35s ease;
+      transition:.3s ease;
     }
 
     .loader-wrap.hide{
@@ -390,31 +144,27 @@
     }
 
     .loader-spinner{
-      width:74px;
-      height:74px;
-
-      margin:0 auto 20px;
+      width:72px;
+      height:72px;
 
       border-radius:50%;
 
       border:5px solid rgba(255,255,255,.08);
-      border-top:5px solid var(--red);
+      border-top:5px solid #ff3b30;
 
-      animation:spin .9s linear infinite;
+      animation:spin .85s linear infinite;
 
-      box-shadow:
-        0 0 30px rgba(255,59,48,.25);
+      margin:0 auto 18px;
     }
 
     .loader-title{
-      font-size:24px;
+      font-size:22px;
       font-weight:800;
-
-      margin-bottom:8px;
     }
 
     .loader-sub{
-      color:var(--muted);
+      margin-top:8px;
+      color:#888;
       font-size:14px;
     }
 
@@ -426,6 +176,7 @@
         transform:rotate(360deg);
       }
     }
+
   </style>
 </head>
 
@@ -447,40 +198,20 @@
   </div>
 </div>
 
-<header>
-  <div class="title">
-    📦 Архив задач
-  </div>
-
-  <div class="badge" id="countBadge">
-    0 задач
-  </div>
-</header>
+<header>📦 ARCHIVE + TASK DETAILS</header>
 
 <div id="app"></div>
 
+<!-- MODAL -->
 <div class="modal" id="modal">
   <div class="modal-content">
-
-    <div class="modal-head">
-      <div class="modal-title" id="modalTitle">
-        Задача
-      </div>
-
-      <button class="close" onclick="closeModal()">
-        ✕
-      </button>
-    </div>
-
-    <div id="modalBody"></div>
-
+    <span class="close" onclick="closeModal()">✖</span>
+    <div id="modalBody">loading...</div>
   </div>
 </div>
 
 <script type="module">
-  import {
-    initializeApp
-  } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
 
   import {
     getFirestore,
@@ -499,12 +230,10 @@
   const appFirebase = initializeApp(firebaseConfig);
   const db = getFirestore(appFirebase);
 
-  const app = document.getElementById("app");
+  const appDiv = document.getElementById("app");
   const modal = document.getElementById("modal");
   const modalBody = document.getElementById("modalBody");
-  const modalTitle = document.getElementById("modalTitle");
   const loader = document.getElementById("loader");
-  const countBadge = document.getElementById("countBadge");
 
   window.closeModal = () => {
     modal.style.display = "none";
@@ -516,49 +245,29 @@
 
     const d = task.data;
 
-    modalTitle.innerText =
-      d.title || "Без названия";
-
+    // FILES
     let filesHtml = "";
 
     if (d.files && Array.isArray(d.files)) {
 
-      d.files.forEach((f, i) => {
+      d.files.forEach(f => {
 
-        const url = f.url || f.secure_url || f;
-
-        const isPdf =
-          String(url).toLowerCase().includes(".pdf");
+        const url = f.url || f;
 
         filesHtml += `
-          <div class="file">
-
-            ${
-              isPdf
-                ? `
-                  <div style="
-                    height:140px;
-                    display:flex;
-                    align-items:center;
-                    justify-content:center;
-                    font-size:54px;
-                    background:#1f2128;
-                  ">
-                    📄
-                  </div>
-                `
-                : `<img src="${url}" />`
-            }
-
-            <a href="${url}" target="_blank">
-              Открыть файл
-            </a>
-
+          <div style="margin-top:10px">
+            <img src="${url}" />
+            <div style="margin-top:5px">
+              <a href="${url}" target="_blank" style="color:#4da3ff">
+                Открыть файл
+              </a>
+            </div>
           </div>
         `;
       });
     }
 
+    // COMMENTS
     let commentsHtml = "";
 
     if (d.comments && Array.isArray(d.comments)) {
@@ -574,53 +283,29 @@
     }
 
     modalBody.innerHTML = `
+      <h3>${d.title || "Без названия"}</h3>
 
       <div class="section">
-        <div class="section-title">
-          ID
-        </div>
-
-        ${task.id}
+        <b>ID:</b> ${task.id}
       </div>
 
       <div class="section">
-        <div class="section-title">
-          Описание
-        </div>
-
-        <div class="desc">
-          ${d.description || d.comment || "Нет описания"}
-        </div>
+        <b>Описание:</b><br/>
+        ${d.description || d.comment || "нет"}
       </div>
 
       <div class="section">
-        <div class="section-title">
-          Вложения
-        </div>
-
-        ${
-          filesHtml
-            ? `<div class="files">${filesHtml}</div>`
-            : `<div class="desc">Файлов нет</div>`
-        }
+        <b>Файлы:</b><br/>
+        ${filesHtml || "нет файлов"}
       </div>
 
       <div class="section">
-        <div class="section-title">
-          Комментарии
-        </div>
-
-        ${
-          commentsHtml ||
-          `<div class="desc">Комментариев нет</div>`
-        }
+        <b>Комментарии:</b><br/>
+        ${commentsHtml || "нет комментариев"}
       </div>
 
       <div class="section">
-        <div class="section-title">
-          RAW DATA
-        </div>
-
+        <b>RAW DATA:</b>
         <pre>${JSON.stringify(d, null, 2)}</pre>
       </div>
     `;
@@ -628,13 +313,13 @@
 
   async function load() {
 
-    app.innerHTML = "";
+    appDiv.innerHTML = "";
 
-    const snap =
-      await getDocs(collectionGroup(db, "tasks"));
+    const snap = await getDocs(
+      collectionGroup(db, "tasks")
+    );
 
     const groups = {};
-    let total = 0;
 
     snap.forEach(doc => {
 
@@ -658,12 +343,7 @@
         id: doc.id,
         data
       });
-
-      total++;
     });
-
-    countBadge.innerText =
-      `${total} задач`;
 
     Object.keys(groups)
       .sort((a,b)=> b.localeCompare(a))
@@ -673,67 +353,19 @@
 
       groups[date].forEach(t => {
 
-        const d = t.data;
-
-        let badges = "";
-
-        if (d.assembledOrder) {
-          badges += `
-            <span class="pill red">
-              Собранный
-            </span>
-          `;
-        }
-
-        if (d.isPickup) {
-          badges += `
-            <span class="pill blue">
-              Самовывоз
-            </span>
-          `;
-        }
-
-        if (
-          String(d.status).toLowerCase() === "done"
-        ) {
-          badges += `
-            <span class="pill green">
-              Готово
-            </span>
-          `;
-        }
-
         html += `
-          <div class="task">
+          <div
+            class="task"
+            onclick='openTask(${JSON.stringify(t)})'
+          >
+            ${t.data.title || "Без названия"}
 
-            <div
-              onclick='openTask(${JSON.stringify(t)})'
-            >
-
-              <div class="task-top">
-
-                <div class="task-title">
-                  ${d.title || "Без названия"}
-                </div>
-
-                <div class="task-badges">
-                  ${badges}
-                </div>
-
-              </div>
-
-              <div class="task-id">
-                ${t.id}
-              </div>
-
-            </div>
-
+            <small>${t.id}</small>
           </div>
         `;
       });
 
-      app.innerHTML += `
-
+      appDiv.innerHTML += `
         <div class="day">
 
           <div
@@ -746,17 +378,11 @@
             "
           >
 
-            <div class="day-left">
+            <span>${date}</span>
 
-              <div class="day-date">
-                📅 ${date}
-              </div>
-
-            </div>
-
-            <div class="day-count">
+            <span>
               ${groups[date].length}
-            </div>
+            </span>
 
           </div>
 
@@ -770,7 +396,7 @@
 
     setTimeout(() => {
       loader.classList.add("hide");
-    }, 500);
+    }, 400);
   }
 
   load();
