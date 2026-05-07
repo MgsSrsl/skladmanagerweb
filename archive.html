@@ -6,207 +6,233 @@
   <title>Архив задач — СкладСборка</title>
 
   <style>
-    :root {
-      --brand-red: #e53935;
-      --bg: #0f1115;
-      --glass: rgba(255,255,255,0.06);
-      --stroke: rgba(255,255,255,0.12);
-      --text: #eaeaea;
-      --muted: rgba(255,255,255,0.6);
-    }
-
-    * {
-      box-sizing: border-box;
-      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial;
-    }
-
+    :root { color-scheme: dark; }
     body {
       margin: 0;
-      background: var(--bg);
-      color: var(--text);
-    }
-
-    header {
-      padding: 16px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      border-bottom: 1px solid var(--stroke);
-      position: sticky;
-      top: 0;
-      backdrop-filter: blur(10px);
-      background: rgba(15,17,21,0.8);
-    }
-
-    .title {
-      font-size: 18px;
-      font-weight: 600;
-    }
-
-    .btn {
-      background: var(--brand-red);
-      border: none;
-      color: white;
-      padding: 8px 12px;
-      border-radius: 10px;
-      font-weight: 600;
-      cursor: pointer;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial;
+      background: #0b0f14;
+      color: #fff;
     }
 
     .container {
-      padding: 16px;
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
+      max-width: 1100px;
+      margin: 24px auto 60px;
+      padding: 0 16px;
     }
 
-    .filters {
-      display: flex;
-      gap: 8px;
-      flex-wrap: wrap;
+    h1 { margin: 0 0 16px; }
+
+    .topbar {
+      display:flex;
+      justify-content: space-between;
+      align-items:center;
+      margin-bottom: 16px;
     }
 
-    .filter {
-      padding: 8px 10px;
-      border-radius: 10px;
-      background: var(--glass);
-      border: 1px solid var(--stroke);
-      color: var(--text);
-      cursor: pointer;
-      font-size: 13px;
-    }
-
-    .filter.active {
-      background: var(--brand-red);
-      border-color: transparent;
+    a.btn {
+      background:#1e293b;
+      border:1px solid #334155;
+      color:#fff;
+      padding:10px 12px;
+      border-radius:10px;
+      text-decoration:none;
+      font-weight:600;
     }
 
     .card {
-      background: var(--glass);
-      border: 1px solid var(--stroke);
-      border-radius: 14px;
-      padding: 12px;
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
+      background:#0d1422;
+      border:1px solid #1f2a44;
+      border-radius:14px;
+      padding:12px;
+      margin-bottom:12px;
     }
 
     .row {
-      display: flex;
+      display:flex;
       justify-content: space-between;
-      align-items: center;
+      gap:12px;
+      flex-wrap:wrap;
     }
 
-    .name {
-      font-weight: 600;
+    .title {
+      font-weight:700;
+      font-size:16px;
     }
 
-    .meta {
-      font-size: 12px;
-      color: var(--muted);
+    .muted {
+      color:#9ca3af;
+      font-size:13px;
     }
 
-    .status {
-      font-size: 12px;
-      padding: 4px 8px;
-      border-radius: 8px;
-      background: rgba(255,255,255,0.08);
+    .badge {
+      font-size:12px;
+      padding:4px 8px;
+      border-radius:999px;
+      border:1px solid #334155;
+      background:#0b1220;
     }
 
-    .status.done {
-      background: rgba(76,175,80,0.2);
-      color: #7CFF8A;
+    .status-assigned { border-color:#60a5fa; }
+    .status-done { border-color:#22c55e; }
+    .status-pending { border-color:#f59e0b; }
+
+    .items {
+      margin-top:8px;
+      font-size:13px;
+      color:#cbd5e1;
     }
 
-    .status.canceled {
-      background: rgba(244,67,54,0.2);
-      color: #ff6b6b;
+    .small {
+      font-size:12px;
+      color:#94a3b8;
     }
 
-    .empty {
-      text-align: center;
-      padding: 40px 10px;
-      color: var(--muted);
+    button {
+      background:#0b1220;
+      border:1px solid #334155;
+      color:#fff;
+      padding:6px 10px;
+      border-radius:8px;
+      cursor:pointer;
+    }
+
+    .details {
+      margin-top:10px;
+      padding-top:10px;
+      border-top:1px solid #1f2a44;
+      display:none;
+    }
+
+    .file {
+      font-size:12px;
+      color:#93c5fd;
     }
   </style>
 </head>
 
 <body>
+  <div class="container">
 
-<header>
-  <div class="title">📦 Архив задач</div>
-  <button class="btn" onclick="alert('Экспорт пока не подключён')">Экспорт</button>
-</header>
+    <div class="topbar">
+      <h1>📦 Архив задач</h1>
+      <a class="btn" href="index.html">← Назад</a>
+    </div>
 
-<div class="container">
+    <div id="list"></div>
 
-  <!-- фильтры -->
-  <div class="filters">
-    <div class="filter active" onclick="setFilter('all')">Все</div>
-    <div class="filter" onclick="setFilter('done')">Выполненные</div>
-    <div class="filter" onclick="setFilter('canceled')">Отменённые</div>
   </div>
 
-  <!-- список -->
-  <div id="list"></div>
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js";
+    import {
+      getFirestore,
+      collection,
+      getDocs,
+      query,
+      orderBy,
+      limit
+    } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
+    import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
 
-</div>
+    const FIREBASE_CONFIG = {
+      apiKey: "AIzaSyAH58ZpWAp64mhM589KD6jXHcOlPqU0aYU",
+      authDomain: "skladsborka-6c2a7.firebaseapp.com",
+      projectId: "skladsborka-6c2a7",
+      storageBucket: "skladsborka-6c2a7.appspot.com",
+      messagingSenderId: "516526717198"
+    };
 
-<script>
-  const tasks = [
-    { name: "Сборка заказа #1023", date: "06.05.2026", status: "done" },
-    { name: "Проверка паллет", date: "05.05.2026", status: "canceled" },
-    { name: "Инвентаризация секции A", date: "03.05.2026", status: "done" },
-    { name: "Отгрузка партии B-77", date: "01.05.2026", status: "done" }
-  ];
+    const app = initializeApp(FIREBASE_CONFIG);
+    const db = getFirestore(app);
+    const auth = getAuth(app);
 
-  let currentFilter = "all";
+    await signInAnonymously(auth);
 
-  function render() {
-    const list = document.getElementById("list");
-    list.innerHTML = "";
+    const list = document.getElementById('list');
 
-    const filtered = tasks.filter(t => {
-      if (currentFilter === "all") return true;
-      return t.status === currentFilter;
-    });
+    function badge(status){
+      const cls =
+        status === "done" ? "status-done" :
+        status === "pending" ? "status-pending" :
+        "status-assigned";
 
-    if (filtered.length === 0) {
-      list.innerHTML = <div class="empty">Архив пуст</div>;
-      return;
+      return <span class="badge ${cls}">${status || "unknown"}</span>;
     }
 
-    filtered.forEach(t => {
-      const card = document.createElement("div");
-      card.className = "card";
+    function renderTask(doc){
+      const d = doc.data();
 
-      const statusClass =
-        t.status === "done" ? "done" :
-        t.status === "canceled" ? "canceled" : "";
-      card.innerHTML = 
+      const itemsCount = (d.items || []).length;
+      const filesCount = (d.files || []).length;
+
+      const assignees = (d.assigneeNames  []).join(", ")  "—";
+
+      const created = d.createdAt?.toDate?.()
+        ? d.createdAt.toDate().toLocaleString()
+        : "—";
+
+      const id = doc.id;
+
+      const div = document.createElement('div');
+      div.className = "card";
+
+      div.innerHTML = `
         <div class="row">
-          <div class="name">${t.name}</div>
-          <div class="status ${statusClass}">${t.status}</div>
+          <div>
+            <div class="title">${d.title || "Без названия"}</div>
+            <div class="small">ID: ${id}</div>
+          </div>
+          <div>${badge(d.status)}</div>
         </div>
-        <div class="meta">Дата: ${t.date}</div>
-      ;
+[07.05.2026 15:53] Глеб: <div class="items">
+          👤 ${assignees} <br/>
+          📦 Позиции: ${itemsCount} • 📁 Файлы: ${filesCount}
+        </div>
 
-      list.appendChild(card);
-    });
-  }
+        <div class="muted">Создано: ${created}</div>
 
-  function setFilter(f) {
-    currentFilter = f;
+        <button style="margin-top:8px" onclick="this.nextElementSibling.style.display =
+          this.nextElementSibling.style.display === 'block' ? 'none' : 'block'">
+          Подробнее
+        </button>
 
-    document.querySelectorAll(".filter").forEach(el => el.classList.remove("active"));
-    event.target.classList.add("active");
+        <div class="details">
+          <div class="muted">Комментарий:</div>
+          <div>${d.comment || "—"}</div>
 
-    render();
-  }
+          <div class="muted" style="margin-top:8px">Позиции:</div>
+          <pre class="small">${JSON.stringify(d.items || [], null, 2)}</pre>
 
-  render();
-</script>
+          <div class="muted">Файлы:</div>
+          ${(d.files || []).map(f => <div class="file">• ${f.name}</div>).join("")}
+        </div>
+      `;
 
+      list.appendChild(div);
+    }
+
+    async function load(){
+      list.innerHTML = "Загрузка...";
+
+      const q = query(
+        collection(db, "tasks"),
+        orderBy("createdAt", "desc"),
+        limit(100)
+      );
+
+      const snap = await getDocs(q);
+
+      list.innerHTML = "";
+
+      if (snap.empty) {
+        list.innerHTML = "<div class='card'>Архив пуст</div>";
+        return;
+      }
+
+      snap.forEach(renderTask);
+    }
+
+    load();
+  </script>
 </body>
 </html>
-      
