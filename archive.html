@@ -3,87 +3,71 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Архив задач</title>
+  <title>ARCHIVE FULL DEBUG</title>
 
   <style>
     body {
       margin: 0;
-      font-family: Arial, sans-serif;
+      font-family: Arial;
       background: #0f0f10;
       color: #fff;
     }
 
     header {
       padding: 14px;
-      font-size: 18px;
       font-weight: bold;
       border-bottom: 1px solid #2a2a2a;
     }
 
-    .logs {
-      padding: 10px;
+    .log {
       font-size: 12px;
+      padding: 6px 10px;
       color: #aaa;
       border-bottom: 1px solid #222;
       white-space: pre-wrap;
     }
 
-    .container {
-      padding: 12px;
-    }
-
-    .day {
+    .box {
+      margin: 10px;
+      padding: 10px;
       background: #1a1a1d;
       border: 1px solid #2a2a2a;
-      border-radius: 10px;
-      margin-bottom: 10px;
-      overflow: hidden;
+      border-radius: 8px;
     }
 
-    .day-header {
-      padding: 10px;
+    .title {
       font-weight: bold;
-      cursor: pointer;
-      display: flex;
-      justify-content: space-between;
+      margin-bottom: 6px;
     }
 
-    .tasks {
-      display: none;
-      border-top: 1px solid #2a2a2a;
+    pre {
+      font-size: 11px;
+      color: #ccc;
+      overflow-x: auto;
     }
 
-    .task {
-      padding: 10px;
-      border-bottom: 1px solid #2a2a2a;
-      font-size: 14px;
-    }
-
-    .task small {
-      color: #777;
-      display: block;
-      margin-top: 4px;
-    }
-
-    .empty {
-      color: #777;
-      padding: 10px;
-    }
+    .ok { color: #4dff88; }
+    .bad { color: #ff4d4d; }
   </style>
 </head>
 
 <body>
 
-<header>📦 Архив задач</header>
+<header>🧪 FULL FIREBASE ARCHIVE DEBUG</header>
 
-<div class="logs" id="logs">starting...</div>
-<div class="container" id="app"></div>
+<div id="logs"></div>
+<div id="out"></div>
 
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
-  import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
+  import {
+    getFirestore,
+    collection,
+    getDocs,
+    doc,
+    getDoc
+  } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 
-  // 🔥 ТВОЙ FIREBASE
   const firebaseConfig = {
     apiKey: "AIzaSyAH58ZpWAp64mhM589KD6jXHcOlPqU0aYU",
     authDomain: "skladsborka-6c2a7.firebaseapp.com",
@@ -96,89 +80,84 @@
   const db = getFirestore(app);
 
   const logs = document.getElementById("logs");
-  const root = document.getElementById("app");
+  const out = document.getElementById("out");
 
-  function log(msg) {
+  function log(msg, cls = "") {
     console.log(msg);
-    logs.innerText += "\n" + msg;
+    logs.innerHTML += `<div class="log ${cls}">${msg}</div>`;
   }
 
-  window.toggle = (el) => {
-    const t = el.nextElementSibling;
-    t.style.display = t.style.display === "block" ? "none" : "block";
-  };
-
-  async function load() {
+  async function run() {
     try {
-      log("🚀 START");
+      log("🚀 START DEBUG");
       log("PROJECT: " + firebaseConfig.projectId);
 
+      // 1. CHECK ROOT COLLECTION
       const archivesSnap = await getDocs(collection(db, "archives"));
 
-      log("📁 archives count: " + archivesSnap.size);
+      log("📁 archives SIZE: " + archivesSnap.size);
 
       if (archivesSnap.empty) {
-        log("❌ archives EMPTY — проверь Firebase Console");
-        root.innerHTML = "<div class='empty'>Архив пуст</div>";
-        return;
+        log("❌ archives EMPTY", "bad");
+      } else {
+        log("✔ archives FOUND", "ok");
       }
 
-      for (const dayDoc of archivesSnap.docs) {
-        const date = dayDoc.id;
+      // 2. SHOW ALL ARCHIVE DOCS
+      archivesSnap.forEach(d => {
+        log("📅 ARCHIVE DOC: " + d.id);
 
-        log("📅 date: " + date);
-
-        const tasksSnap = await getDocs(
-          collection(db, "archives", date, "tasks")
-        );
-
-        log("   tasks: " + tasksSnap.size);
-
-        let html = "";
-
-        if (tasksSnap.empty) {
-          html = `<div class="empty">Нет задач</div>`;
-        } else {
-          tasksSnap.forEach(task => {
-            const d = task.data();
-
-            html += `
-              <div class="task">
-                ${d.title || "Без названия"}
-                <small>${task.id}</small>
-              </div>
-            `;
-          });
-        }
-
-        root.innerHTML += `
-          <div class="day">
-            <div class="day-header" onclick="toggle(this)">
-              <span>${date}</span>
-              <span>▼</span>
-            </div>
-            <div class="tasks">
-              ${html}
-            </div>
+        out.innerHTML += `
+          <div class="box">
+            <div class="title">ARCHIVE: ${d.id}</div>
+            <pre>${JSON.stringify(d.data(), null, 2)}</pre>
           </div>
         `;
+      });
+
+      // 3. HARD CHECK FIXED DATE (ВАЖНО)
+      const testDate = "2025-11-05";
+
+      log("🔍 CHECKING DIRECT DOC: " + testDate);
+
+      const docRef = doc(db, "archives", testDate);
+      const docSnap = await getDoc(docRef);
+
+      log("EXISTS: " + docSnap.exists());
+
+      if (docSnap.exists()) {
+        log("✔ DATE DOC FOUND", "ok");
+      } else {
+        log("❌ DATE DOC NOT FOUND", "bad");
       }
+
+      // 4. CHECK TASKS SUBCOLLECTION
+      const tasksSnap = await getDocs(
+        collection(db, "archives", testDate, "tasks")
+      );
+
+      log("📦 TASKS SIZE: " + tasksSnap.size);
+
+      tasksSnap.forEach(t => {
+        const data = t.data();
+
+        out.innerHTML += `
+          <div class="box">
+            <div class="title">TASK: ${t.id}</div>
+            <pre>${JSON.stringify(data, null, 2)}</pre>
+          </div>
+        `;
+      });
 
       log("✅ DONE");
 
     } catch (e) {
-      log("🔥 ERROR: " + e.message);
+      log("🔥 ERROR: " + e.message, "bad");
       console.error(e);
     }
   }
-import { doc, getDoc } from "firebase/firestore";
 
-const testRef = doc(db, "archives", "2025-11-05");
-const testSnap = await getDoc(testRef);
-
-console.log("EXISTS:", testSnap.exists());
-console.log("DATA:", testSnap.data());
-  load();
+  run();
 </script>
 
 </body>
