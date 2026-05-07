@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Архив задач — СкладСборка</title>
+
+  <style>
+    :root {
+      --brand-red: #e53935;
+      --bg: #0f1115;
+      --glass: rgba(255,255,255,0.06);
+      --stroke: rgba(255,255,255,0.12);
+      --text: #eaeaea;
+      --muted: rgba(255,255,255,0.6);
+    }
+
+    * {
+      box-sizing: border-box;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial;
+    }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    header {
+      padding: 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid var(--stroke);
+      position: sticky;
+      top: 0;
+      backdrop-filter: blur(10px);
+      background: rgba(15,17,21,0.8);
+    }
+
+    .title {
+      font-size: 18px;
+      font-weight: 600;
+    }
+
+    .btn {
+      background: var(--brand-red);
+      border: none;
+      color: white;
+      padding: 8px 12px;
+      border-radius: 10px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .container {
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .filters {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .filter {
+      padding: 8px 10px;
+      border-radius: 10px;
+      background: var(--glass);
+      border: 1px solid var(--stroke);
+      color: var(--text);
+      cursor: pointer;
+      font-size: 13px;
+    }
+
+    .filter.active {
+      background: var(--brand-red);
+      border-color: transparent;
+    }
+
+    .card {
+      background: var(--glass);
+      border: 1px solid var(--stroke);
+      border-radius: 14px;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .name {
+      font-weight: 600;
+    }
+
+    .meta {
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .status {
+      font-size: 12px;
+      padding: 4px 8px;
+      border-radius: 8px;
+      background: rgba(255,255,255,0.08);
+    }
+
+    .status.done {
+      background: rgba(76,175,80,0.2);
+      color: #7CFF8A;
+    }
+
+    .status.canceled {
+      background: rgba(244,67,54,0.2);
+      color: #ff6b6b;
+    }
+
+    .empty {
+      text-align: center;
+      padding: 40px 10px;
+      color: var(--muted);
+    }
+  </style>
+</head>
+
+<body>
+
+<header>
+  <div class="title">📦 Архив задач</div>
+  <button class="btn" onclick="alert('Экспорт пока не подключён')">Экспорт</button>
+</header>
+
+<div class="container">
+
+  <!-- фильтры -->
+  <div class="filters">
+    <div class="filter active" onclick="setFilter('all')">Все</div>
+    <div class="filter" onclick="setFilter('done')">Выполненные</div>
+    <div class="filter" onclick="setFilter('canceled')">Отменённые</div>
+  </div>
+
+  <!-- список -->
+  <div id="list"></div>
+
+</div>
+
+<script>
+  const tasks = [
+    { name: "Сборка заказа #1023", date: "06.05.2026", status: "done" },
+    { name: "Проверка паллет", date: "05.05.2026", status: "canceled" },
+    { name: "Инвентаризация секции A", date: "03.05.2026", status: "done" },
+    { name: "Отгрузка партии B-77", date: "01.05.2026", status: "done" }
+  ];
+
+  let currentFilter = "all";
+
+  function render() {
+    const list = document.getElementById("list");
+    list.innerHTML = "";
+
+    const filtered = tasks.filter(t => {
+      if (currentFilter === "all") return true;
+      return t.status === currentFilter;
+    });
+
+    if (filtered.length === 0) {
+      list.innerHTML = <div class="empty">Архив пуст</div>;
+      return;
+    }
+
+    filtered.forEach(t => {
+      const card = document.createElement("div");
+      card.className = "card";
+
+      const statusClass =
+        t.status === "done" ? "done" :
+        t.status === "canceled" ? "canceled" : "";
+      card.innerHTML = 
+        <div class="row">
+          <div class="name">${t.name}</div>
+          <div class="status ${statusClass}">${t.status}</div>
+        </div>
+        <div class="meta">Дата: ${t.date}</div>
+      ;
+
+      list.appendChild(card);
+    });
+  }
+
+  function setFilter(f) {
+    currentFilter = f;
+
+    document.querySelectorAll(".filter").forEach(el => el.classList.remove("active"));
+    event.target.classList.add("active");
+
+    render();
+  }
+
+  render();
+</script>
+
+</body>
+</html>
+      
