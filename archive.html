@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>ARCHIVE FULL DEBUG</title>
+  <title>Archives Debug Only</title>
 
   <style>
     body {
@@ -35,38 +35,24 @@
       border-radius: 8px;
     }
 
-    .title {
-      font-weight: bold;
-      margin-bottom: 6px;
-    }
-
     pre {
       font-size: 11px;
       color: #ccc;
       overflow-x: auto;
     }
-
-    .ok { color: #4dff88; }
-    .bad { color: #ff4d4d; }
   </style>
 </head>
 
 <body>
 
-<header>🧪 FULL FIREBASE ARCHIVE DEBUG</header>
+<header>🧪 ARCHIVES COLLECTION DEBUG</header>
 
 <div id="logs"></div>
 <div id="out"></div>
 
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
-  import {
-    getFirestore,
-    collection,
-    getDocs,
-    doc,
-    getDoc
-  } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
+  import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 
   const firebaseConfig = {
     apiKey: "AIzaSyAH58ZpWAp64mhM589KD6jXHcOlPqU0aYU",
@@ -82,78 +68,42 @@
   const logs = document.getElementById("logs");
   const out = document.getElementById("out");
 
-  function log(msg, cls = "") {
+  function log(msg) {
     console.log(msg);
-    logs.innerHTML += `<div class="log ${cls}">${msg}</div>`;
+    logs.innerHTML += `<div class="log">${msg}</div>`;
   }
 
   async function run() {
     try {
-      log("🚀 START DEBUG");
+      log("🚀 START ARCHIVES DEBUG");
       log("PROJECT: " + firebaseConfig.projectId);
 
-      // 1. CHECK ROOT COLLECTION
-      const archivesSnap = await getDocs(collection(db, "archives"));
+      const snap = await getDocs(collection(db, "archives"));
 
-      log("📁 archives SIZE: " + archivesSnap.size);
+      log("📁 archives SIZE: " + snap.size);
 
-      if (archivesSnap.empty) {
-        log("❌ archives EMPTY", "bad");
+      if (snap.empty) {
+        log("❌ archives IS EMPTY");
       } else {
-        log("✔ archives FOUND", "ok");
+        log("✔ archives FOUND");
+
+        snap.forEach(doc => {
+          const data = doc.data();
+
+          out.innerHTML += `
+            <div class="box">
+              <b>ID:</b> ${doc.id}<br/><br/>
+              <b>DATA:</b>
+              <pre>${JSON.stringify(data, null, 2)}</pre>
+            </div>
+          `;
+        });
       }
-
-      // 2. SHOW ALL ARCHIVE DOCS
-      archivesSnap.forEach(d => {
-        log("📅 ARCHIVE DOC: " + d.id);
-
-        out.innerHTML += `
-          <div class="box">
-            <div class="title">ARCHIVE: ${d.id}</div>
-            <pre>${JSON.stringify(d.data(), null, 2)}</pre>
-          </div>
-        `;
-      });
-
-      // 3. HARD CHECK FIXED DATE (ВАЖНО)
-      const testDate = "2025-11-05";
-
-      log("🔍 CHECKING DIRECT DOC: " + testDate);
-
-      const docRef = doc(db, "archives", testDate);
-      const docSnap = await getDoc(docRef);
-
-      log("EXISTS: " + docSnap.exists());
-
-      if (docSnap.exists()) {
-        log("✔ DATE DOC FOUND", "ok");
-      } else {
-        log("❌ DATE DOC NOT FOUND", "bad");
-      }
-
-      // 4. CHECK TASKS SUBCOLLECTION
-      const tasksSnap = await getDocs(
-        collection(db, "archives", testDate, "tasks")
-      );
-
-      log("📦 TASKS SIZE: " + tasksSnap.size);
-
-      tasksSnap.forEach(t => {
-        const data = t.data();
-
-        out.innerHTML += `
-          <div class="box">
-            <div class="title">TASK: ${t.id}</div>
-            <pre>${JSON.stringify(data, null, 2)}</pre>
-          </div>
-        `;
-      });
 
       log("✅ DONE");
 
     } catch (e) {
-      log("🔥 ERROR: " + e.message, "bad");
-      console.error(e);
+      log("🔥 ERROR: " + e.message);
     }
   }
 
