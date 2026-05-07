@@ -51,9 +51,7 @@
 <div id="out"></div>
 
 <script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
-  import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
-import { collection, getDocs } from "firebase/firestore";
+  import { collection, getDocs } from "firebase/firestore";
 
 const snap = await getDocs(collection(db, "archives"));
 
