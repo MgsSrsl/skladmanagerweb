@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Archive (from tasks)</title>
+  <title>Archive + Task Details</title>
 
   <style>
     body {
@@ -36,38 +36,90 @@
       background: #151518;
     }
 
-    .tasks {
-      display: none;
-      border-top: 1px solid #2a2a2a;
-    }
-
     .task {
       padding: 10px;
       border-bottom: 1px solid #2a2a2a;
       font-size: 13px;
+      cursor: pointer;
+    }
+
+    .task:hover {
+      background: #222;
     }
 
     .task small {
-      color: #777;
       display: block;
+      color: #777;
       margin-top: 4px;
     }
 
-    .log {
-      font-size: 12px;
-      padding: 6px 10px;
-      color: #aaa;
-      border-bottom: 1px solid #222;
-      white-space: pre-wrap;
+    .tasks {
+      display: none;
     }
+
+    /* MODAL */
+    .modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.85);
+      display: none;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .modal-content {
+      width: 90%;
+      max-width: 600px;
+      background: #1a1a1d;
+      border-radius: 12px;
+      padding: 15px;
+      border: 1px solid #333;
+    }
+
+    .close {
+      float: right;
+      cursor: pointer;
+      color: #ff4d4d;
+    }
+
+    .section {
+      margin-top: 10px;
+      padding: 10px;
+      background: #151518;
+      border-radius: 8px;
+    }
+
+    img {
+      max-width: 100%;
+      border-radius: 8px;
+      margin-top: 5px;
+    }
+
+    .comment {
+      padding: 6px;
+      border-bottom: 1px solid #2a2a2a;
+      font-size: 12px;
+    }
+
   </style>
 </head>
 
 <body>
 
-<header>📦 ARCHIVE FROM 1708 TASKS</header>
-<div id="logs"></div>
+<header>📦 ARCHIVE + TASK DETAILS</header>
+
 <div id="app"></div>
+
+<!-- MODAL -->
+<div class="modal" id="modal">
+  <div class="modal-content">
+    <span class="close" onclick="closeModal()">✖</span>
+    <div id="modalBody">loading...</div>
+  </div>
+</div>
 
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
@@ -84,54 +136,87 @@
   const app = initializeApp(firebaseConfig);
   const db = getFirestore(app);
 
-  const logs = document.getElementById("logs");
   const appDiv = document.getElementById("app");
+  const modal = document.getElementById("modal");
+  const modalBody = document.getElementById("modalBody");
 
-  function log(msg) {
-    console.log(msg);
-    logs.innerHTML += `<div class="log">${msg}</div>`;
-  }
-
-  window.toggle = (el) => {
-    const block = el.nextElementSibling;
-    block.style.display = block.style.display === "block" ? "none" : "block";
+  window.closeModal = () => {
+    modal.style.display = "none";
   };
 
-  function getDate(task) {
-    return (
-      task.date ||
-      task.createdAt?.toDate?.().toISOString().split("T")[0] ||
-      "Без даты"
-    );
-  }
+  window.openTask = (task) => {
+    modal.style.display = "flex";
+
+    const d = task.data;
+
+    // 🔥 Cloudinary files (если есть массив)
+    let filesHtml = "";
+    if (d.files && Array.isArray(d.files)) {
+      d.files.forEach(f => {
+        filesHtml += `<img src="${f.url || f}" />`;
+      });
+    }
+
+    // 💬 comments
+    let commentsHtml = "";
+    if (d.comments && Array.isArray(d.comments)) {
+      d.comments.forEach(c => {
+        commentsHtml += `<div class="comment">${c.text || c}</div>`;
+      });
+    }
+
+    modalBody.innerHTML = `
+      <h3>${d.title || "Без названия"}</h3>
+
+      <div class="section">
+        <b>ID:</b> ${task.id}
+      </div>
+
+      <div class="section">
+        <b>Описание:</b><br/>
+        ${d.description || "нет"}
+      </div>
+
+      <div class="section">
+        <b>Файлы (Cloudinary):</b><br/>
+        ${filesHtml || "нет файлов"}
+      </div>
+
+      <div class="section">
+        <b>Комментарии:</b><br/>
+        ${commentsHtml || "нет комментариев"}
+      </div>
+
+      <div class="section">
+        <b>RAW DATA:</b>
+        <pre>${JSON.stringify(d, null, 2)}</pre>
+      </div>
+    `;
+  };
 
   async function load() {
-    log("🚀 loading tasks...");
-
     const snap = await getDocs(collectionGroup(db, "tasks"));
-
-    log("📦 TOTAL TASKS: " + snap.size);
 
     const groups = {};
 
     snap.forEach(doc => {
       const data = doc.data();
-      const date = getDate(data);
+      const date = data.date || "Без даты";
 
       if (!groups[date]) groups[date] = [];
-      groups[date].push({ id: doc.id, data });
+
+      groups[date].push({
+        id: doc.id,
+        data
+      });
     });
 
-    const sortedDates = Object.keys(groups).sort().reverse();
-
-    sortedDates.forEach(date => {
-      const tasks = groups[date];
-
+    Object.keys(groups).forEach(date => {
       let html = "";
 
-      tasks.forEach(t => {
+      groups[date].forEach(t => {
         html += `
-          <div class="task">
+          <div class="task" onclick='openTask(${JSON.stringify(t)})'>
             ${t.data.title || "Без названия"}
             <small>${t.id}</small>
           </div>
@@ -140,9 +225,10 @@
 
       appDiv.innerHTML += `
         <div class="day">
-          <div class="day-header" onclick="toggle(this)">
+          <div class="day-header" onclick="this.nextElementSibling.style.display =
+            this.nextElementSibling.style.display === 'block' ? 'none' : 'block'">
             <span>${date}</span>
-            <span>${tasks.length}</span>
+            <span>${groups[date].length}</span>
           </div>
           <div class="tasks">
             ${html}
@@ -150,8 +236,6 @@
         </div>
       `;
     });
-
-    log("✅ DONE");
   }
 
   load();
