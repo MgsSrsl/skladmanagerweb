@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Архив MAX — СкладСборка</title>
+<title>Архив задач — Stable</title>
 
 <style>
 body{
@@ -28,8 +28,8 @@ header{
   display:flex;
   justify-content:space-between;
   align-items:center;
-  flex-wrap:wrap;
   gap:10px;
+  flex-wrap:wrap;
 }
 
 .pills{display:flex;gap:8px;flex-wrap:wrap}
@@ -102,8 +102,7 @@ import {
   orderBy,
   limit,
   startAfter,
-  getDocs,
-  onSnapshot
+  getDocs
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -115,113 +114,110 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-let cache = [];
-let grouped = {};
+let tasksCache = [];
 let lastDoc = null;
 let loading = false;
 let hasMore = true;
 
-const el = id => document.getElementById(id);
-
-function groupTasks(tasks){
-
+/* -------------------- GROUP -------------------- */
+function groupByDate(list){
   const g = {};
-
-  for (const t of tasks){
-
-    const d = t.data;
+  for (const t of list){
+    const d = t.data || {};
 
     const date =
       d.date ||
       (d.createdAt?.seconds
-        ? new Date(d.createdAt.seconds*1000).toISOString().slice(0,10)
-        : "no-date");
+        ? new Date(d.createdAt.seconds * 1000).toISOString().slice(0,10)
+        : "Без даты");
 
     if (!g[date]) g[date]=[];
     g[date].push(t);
   }
-
   return g;
 }
 
-function stats(){
+/* -------------------- DASHBOARD -------------------- */
+function renderStats(){
 
-  let total = cache.length;
+  let total = tasksCache.length;
   let pickup = 0;
   let assigned = 0;
-
   const workers = {};
 
-  cache.forEach(t=>{
-    const d = t.data;
+  for (const t of tasksCache){
+    const d = t.data || {};
 
     if (d.isPickup) pickup++;
     else assigned++;
 
-    (d.assigneeNames||[]).forEach(n=>{
+    (d.assigneeNames || []).forEach(n=>{
       workers[n]=(workers[n]||0)+1;
     });
-  });
+  }
 
   const top = Object.entries(workers)
     .sort((a,b)=>b[1]-a[1])[0];
 
-  el("dash").innerHTML = `
+  document.getElementById("dash").innerHTML = `
     <div class="pill">📦 ${total}</div>
     <div class="pill">🚚 ${pickup}</div>
     <div class="pill">👷 ${assigned}</div>
-    <div class="pill">🏆 ${top?top[0]+" "+top[1]:"—"}</div>
+    <div class="pill">🏆 ${top ? top[0]+" "+top[1] : "—"}</div>
   `;
 }
 
-function render(data){
+/* -------------------- RENDER -------------------- */
+function render(list){
 
-  const app = el("app");
-  app.innerHTML="";
+  const app = document.getElementById("app");
+  app.innerHTML = "";
 
-  const dates = Object.keys(data).sort((a,b)=>b.localeCompare(a));
+  const grouped = groupByDate(list);
+  const dates = Object.keys(grouped).sort((a,b)=>b.localeCompare(a));
 
-  dates.forEach((d,i)=>{
+  let total = 0;
 
-    const tasks = data[d];
+  dates.forEach((date,i)=>{
 
-    let html="";
-
-    tasks.forEach(t=>{
-      html += `
-        <div class="task" onclick="openTask('${t.id}')">
-          ${t.data.title||"no title"}
-          <div class="small">${t.id.slice(0,8)}</div>
-        </div>
-      `;
-    });
+    const tasks = grouped[date];
+    total += tasks.length;
 
     app.innerHTML += `
       <div class="day">
         <div class="day-h" onclick="toggle(${i})">
-          <div>${d}</div>
+          <div>${date}</div>
           <div>${tasks.length}</div>
         </div>
+
         <div class="tasks" id="t${i}">
-          ${html}
+          ${tasks.map(t=>`
+            <div class="task" onclick="openTask('${t.id}')">
+              <div>${t.data?.title || "Без названия"}</div>
+              <div class="small">${t.id.slice(0,8)}</div>
+            </div>
+          `).join("")}
         </div>
       </div>
     `;
   });
 
-  stats();
+  document.getElementById("total").textContent = "Задач: " + total;
+
+  renderStats();
 }
 
+/* -------------------- LOAD (PAGINATION FIXED) -------------------- */
 async function load(reset=true){
 
   if (loading) return;
-  loading=true;
+  loading = true;
 
   if (reset){
-    cache=[];
-    grouped={};
-    lastDoc=null;
-    hasMore=true;
+    tasksCache = [];
+    lastDoc = null;
+    hasMore = true;
+    document.getElementById("app").innerHTML = "Загрузка...";
   }
 
   let q;
@@ -244,80 +240,62 @@ async function load(reset=true){
   const snap = await getDocs(q);
 
   if (snap.empty){
-    hasMore=false;
-    loading=false;
+    hasMore = false;
+    loading = false;
+    render(tasksCache);
     return;
   }
 
-  lastDoc = snap.docs.at(-1);
+  lastDoc = snap.docs[snap.docs.length - 1];
 
   snap.forEach(d=>{
-    const data=d.data();
-
-    const task={
-      id:d.id,
-      data,
-      searchIndex:(
-        (data.title||"")+" "+
-        (data.description||"")
-      ).toLowerCase()
-    };
-
-    cache.push(task);
+    tasksCache.push({
+      id: d.id,
+      data: d.data()
+    });
   });
 
-  grouped = groupTasks(cache);
+  render(tasksCache);
 
-  render(grouped);
-
-  loading=false;
+  loading = false;
 }
 
+/* -------------------- UI -------------------- */
 window.toggle = (i)=>{
-  el("t"+i).classList.toggle("open");
+  document.getElementById("t"+i).classList.toggle("open");
 };
 
 window.openTask = (id)=>{
-  const t = cache.find(x=>x.id===id);
+  const t = tasksCache.find(x=>x.id===id);
   alert(JSON.stringify(t.data,null,2));
 };
 
+/* -------------------- SEARCH -------------------- */
 window.search = (v)=>{
 
-  v=v.toLowerCase();
+  v = v.toLowerCase();
 
-  if (!v) return render(grouped);
+  if (!v) return render(tasksCache);
 
-  const filtered={};
-
-  for (const t of cache){
-
-    if ((t.searchIndex||"").includes(v)){
-
-      const d = t.data;
-      const date = d.date || "no-date";
-
-      if (!filtered[date]) filtered[date]=[];
-      filtered[date].push(t);
-    }
-  }
+  const filtered = tasksCache.filter(t=>{
+    const d = t.data || {};
+    return (
+      (d.title||"") + " " +
+      (d.description||"") + " " +
+      t.id
+    ).toLowerCase().includes(v);
+  });
 
   render(filtered);
 };
 
+/* -------------------- SCROLL -------------------- */
 window.addEventListener("scroll",()=>{
-  if (window.innerHeight+window.scrollY > document.body.offsetHeight-500){
-    if (hasMore) load(false);
-  }
-});
-
-/* 🔥 REALTIME */
-onSnapshot(collectionGroup(db,"tasks"), snap=>{
-  snap.docChanges().forEach(ch=>{
-    if (ch.type==="added"){
-      // можно расширить позже
+  if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 600){
+    if (hasMore && !loading){
+      load(false);
     }
-  });
+  }
 });
 
 window.onload = load;
@@ -330,8 +308,12 @@ window.onload = load;
 
 <header>
   <div class="top">
-    <div>📦 ARCHIVE MAX</div>
-    <div class="pills" id="dash"></div>
+    <div>📦 Архив задач</div>
+
+    <div class="pills">
+      <div class="pill" id="total">0</div>
+      <div class="pill" id="dash"></div>
+    </div>
   </div>
 </header>
 
