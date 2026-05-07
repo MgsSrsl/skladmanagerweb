@@ -3,12 +3,12 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Архив задач — СкладСборка</title>
+  <title>Архив задач — Debug</title>
 
   <style>
     body{
       margin:0;
-      font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;
+      font-family:system-ui;
       background:#0b0f14;
       color:#fff;
     }
@@ -21,25 +21,6 @@
 
     h1{ margin:0 0 16px; }
 
-    a.back{
-      display:inline-block;
-      margin-bottom:12px;
-      text-decoration:none;
-      color:#fff;
-      background:#1e293b;
-      padding:10px 12px;
-      border-radius:10px;
-      border:1px solid #334155;
-      font-weight:600;
-    }
-
-    .day{
-      margin:18px 0 8px;
-      color:#60a5fa;
-      font-weight:800;
-      font-size:16px;
-    }
-
     .card{
       background:#0d1422;
       border:1px solid #1f2a44;
@@ -48,19 +29,9 @@
       margin-bottom:10px;
     }
 
-    .row{
-      display:flex;
-      justify-content:space-between;
-      gap:10px;
-    }
+    .muted{ color:#9ca3af; font-size:13px; }
 
-    .title{ font-weight:700; font-size:15px; }
-
-    .muted{
-      color:#9ca3af;
-      font-size:13px;
-      margin-top:4px;
-    }
+    .title{ font-weight:700; }
 
     .badge{
       font-size:12px;
@@ -68,14 +39,20 @@
       border-radius:999px;
       border:1px solid #334155;
       background:#0b1220;
-      white-space:nowrap;
-      height:fit-content;
     }
 
-    .items{
-      margin-top:6px;
-      font-size:13px;
-      color:#cbd5e1;
+    .day{
+      margin:18px 0 6px;
+      color:#60a5fa;
+      font-weight:800;
+    }
+
+    pre{
+      background:#0b1220;
+      padding:10px;
+      border-radius:10px;
+      overflow:auto;
+      font-size:12px;
     }
   </style>
 </head>
@@ -83,8 +60,7 @@
 <body>
 <div class="container">
 
-  <h1>📦 Архив задач</h1>
-  <a class="back" href="index.html">← назад</a>
+  <h1>📦 Архив (DEBUG MODE)</h1>
 
   <div id="list">Загрузка...</div>
 
@@ -103,7 +79,7 @@
     signInAnonymously
   } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
 
-  const firebaseConfig = {
+  const config = {
     apiKey: "AIzaSyAH58ZpWAp64mhM589KD6jXHcOlPqU0aYU",
     authDomain: "skladsborka-6c2a7.firebaseapp.com",
     projectId: "skladsborka-6c2a7",
@@ -111,7 +87,7 @@
     appId: "1:516526717198:android:e470c17aed370572757f5f"
   };
 
-  const app = initializeApp(firebaseConfig);
+  const app = initializeApp(config);
   const db = getFirestore(app);
   const auth = getAuth(app);
 
@@ -119,85 +95,93 @@
 
   const list = document.getElementById("list");
 
-  function renderTask(day, id, data){
+  function render(task, meta){
     const div = document.createElement("div");
     div.className = "card";
 
     div.innerHTML = `
-      <div class="row">
-        <div>
-          <div class="title">${data.title || "Без названия"}</div>
-          <div class="muted">ID: ${id}</div>
-        </div>
-        <div class="badge">${data.status || "unknown"}</div>
-      </div>
-
-      <div class="items">
-        👤 ${(data.assigneeNames || []).join(", ") || "—"}<br>
-        📦 ${(data.items || []).length} позиций<br>
-        📅 ${day}
-      </div>
-
-      <div class="muted">${data.comment || ""}</div>
+      <div class="title">${task.title || "Без названия"}</div>
+      <div class="muted">📅 ${meta}</div>
+      <div class="badge">${task.status || "unknown"}</div>
+      <div class="muted">${task.comment || ""}</div>
     `;
 
     list.appendChild(div);
   }
 
-  async function loadArchive(){
-    try{
-      list.innerHTML = "";
+  async function load(){
 
-      const archivesSnap = await getDocs(collection(db, "archives"));
+    list.innerHTML = "";
 
-      if (archivesSnap.empty){
-        list.innerHTML = "<div class='card'>Архив пуст</div>";
-        return;
+    const archivesSnap = await getDocs(collection(db, "archives"));
+
+    console.log("📦 archives docs:", archivesSnap.docs.map(d => d.id));
+
+    if (archivesSnap.empty){
+      list.innerHTML = "<div class='card'>❌ Нет коллекции archives</div>";
+      return;
+    }
+
+    let foundAny = false;
+
+    for (const dayDoc of archivesSnap.docs){
+
+      const day = dayDoc.id;
+
+      console.log("📅 checking day:", day);
+
+      // ===== ВАРИАНТ 1: subcollection tasks =====
+      const subRef = collection(db, "archives", day, "tasks");
+      const subSnap = await getDocs(subRef);
+
+      console.log("   subcollection tasks:", subSnap.size);
+
+      if (!subSnap.empty){
+        foundAny = true;
+
+        const header = document.createElement("div");
+        header.className = "day";
+        header.textContent = "📅 " + day + " (subcollection)";
+        list.appendChild(header);
+
+        subSnap.forEach(d=>{
+          render(d.data(), day);
+        });
+
+        continue;
       }
 
-      // сортируем дни (2026-04-14 → 2026-04-15 ...)
-      const days = archivesSnap.docs
-        .map(d => d.id)
-        .sort()
-        .reverse();
+      // ===== ВАРИАНТ 2: tasks внутри doc (field array) =====
+      const data = dayDoc.data();
+      if (data && Array.isArray(data.tasks)){
+        console.log("   found array tasks inside doc");
 
-      let total = 0;
+        foundAny = true;
 
-      for (const day of days){
+        const header = document.createElement("div");
+        header.className = "day";
+        header.textContent = "📅 " + day + " (array)";
+        list.appendChild(header);
 
-        const dayHeader = document.createElement("div");
-        dayHeader.className = "day";
-        dayHeader.textContent = "📅 " + day;
-        list.appendChild(dayHeader);
-
-        const tasksSnap = await getDocs(
-          collection(db, "archives", day, "tasks")
-        );
-
-        if (tasksSnap.empty) continue;
-
-        tasksSnap.forEach(doc=>{
-          total++;
-          renderTask(day, doc.id, doc.data());
+        data.tasks.forEach(t=>{
+          render(t, day);
         });
       }
+    }
 
-      if (!total){
-        list.innerHTML = "<div class='card'>Архив пуст</div>";
-      }
-
-    }catch(e){
-      console.error(e);
+    if (!foundAny){
       list.innerHTML = `
         <div class="card">
-          ❌ Ошибка загрузки архива<br><br>
-          ${e.message}
+          ❌ НИЧЕГО НЕ НАЙДЕНО<br><br>
+          Открой Console (F12) и посмотри:
+          <pre>archives docs / subcollection sizes</pre>
+          Скорее всего структура отличается от ожидаемой.
         </div>
       `;
     }
   }
 
-  loadArchive();
+  load();
 </script>
 
 </body>
