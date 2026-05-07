@@ -11,6 +11,50 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 
   <style>
+    .loader{
+  position:fixed;
+  inset:0;
+  z-index:9999;
+
+  display:flex;
+  align-items:center;
+  justify-content:center;
+
+  background:rgba(0,0,0,.65);
+  backdrop-filter:blur(10px);
+
+  transition:.35s ease;
+}
+
+.loader.hide{
+  opacity:0;
+  pointer-events:none;
+}
+
+.loaderBox{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:14px;
+}
+
+.spinner{
+  width:54px;
+  height:54px;
+  border-radius:50%;
+  border:4px solid rgba(255,255,255,.12);
+  border-top-color:#ef4444;
+  animation:spin 1s linear infinite;
+}
+
+@keyframes spin{
+  to{transform:rotate(360deg);}
+}
+
+.loaderText{
+  color:#94a3b8;
+  font-size:14px;
+}
     :root{
       --bg:#0b0f14;
       --card:#111827;
@@ -42,7 +86,13 @@
       font-family:Inter,Arial,sans-serif;
       min-height:100vh;
     }
-
+<!-- LOADER OVERLAY -->
+<div id="loader" class="loader">
+  <div class="loaderBox">
+    <div class="spinner"></div>
+    <div class="loaderText">Загрузка архива...</div>
+  </div>
+</div>
     header{
       position:sticky;
       top:0;
@@ -591,7 +641,12 @@
 </div>
 
 <script type="module">
+const loader = document.getElementById("loader");
 
+function hideLoader(){
+  loader.classList.add("hide");
+  setTimeout(()=> loader.style.display="none", 350);
+}
 import { initializeApp }
 from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
 
@@ -1061,7 +1116,42 @@ document
     render(filtered);
   });
 
-load();
+load();async function load(){
+
+  try{
+
+    const snap = await getDocs(collectionGroup(db,"tasks"));
+
+    const groups = {};
+    GLOBAL_TASKS = [];
+
+    snap.forEach(doc => {
+
+      const data = doc.data();
+      const date = data.date || "Без даты";
+
+      if (!groups[date]) groups[date] = [];
+
+      const task = { id: doc.id, data };
+
+      groups[date].push(task);
+      GLOBAL_TASKS.push(task);
+    });
+
+    GLOBAL_GROUPS = groups;
+
+    render(groups);
+
+  }catch(err){
+
+    console.error(err);
+    app.innerHTML = `<div class="empty">Ошибка загрузки архива</div>`;
+
+  }
+
+  hideLoader(); // 👈 ВОТ ЭТО ВСЁ
+
+}
 
 </script>
 
