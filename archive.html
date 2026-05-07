@@ -24,22 +24,45 @@
       padding: 16px;
     }
 
-    .task {
+    .day {
       background: #1a1a1d;
-      padding: 12px;
-      border-radius: 10px;
-      margin-bottom: 10px;
       border: 1px solid #2a2a2a;
+      border-radius: 12px;
+      margin-bottom: 10px;
+      overflow: hidden;
     }
 
-    .date {
-      font-size: 12px;
-      color: #aaa;
-      margin-bottom: 6px;
+    .day-header {
+      padding: 12px;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-weight: bold;
     }
 
-    .title {
-      font-size: 16px;
+    .tasks {
+      display: none;
+      border-top: 1px solid #2a2a2a;
+    }
+
+    .task {
+      padding: 10px 12px;
+      border-bottom: 1px solid #2a2a2a;
+    }
+
+    .task:last-child {
+      border-bottom: none;
+    }
+
+    .task-title {
+      font-size: 14px;
+    }
+
+    .task-id {
+      font-size: 11px;
+      color: #777;
+      margin-top: 4px;
     }
 
     .empty {
@@ -53,16 +76,13 @@
 
 <header>📦 Архив задач</header>
 
-<div class="container" id="archive-list">
-  Загрузка...
-</div>
+<div class="container" id="archive-list">Загрузка...</div>
 
-<!-- Firebase -->
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
   import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 
-  // ⚠️ ВСТАВЬ СВОЙ firebaseConfig
+  // 🔥 ВСТАВЬ СВОЙ CONFIG
   const firebaseConfig = {
     apiKey: "YOUR_KEY",
     authDomain: "YOUR_DOMAIN",
@@ -79,38 +99,53 @@
     const container = document.getElementById("archive-list");
     container.innerHTML = "Загрузка...";
 
-    const archivesRef = collection(db, "archives");
-    const archivesSnap = await getDocs(archivesRef);
+    const archivesSnap = await getDocs(collection(db, "archives"));
 
-    const tasks = [];
-
-    for (const docSnap of archivesSnap.docs) {
-      const date = docSnap.id;
-
-      const tasksRef = collection(db, "archives", date, "tasks");
-      const tasksSnap = await getDocs(tasksRef);
-
-      tasksSnap.forEach(t => {
-        tasks.push({
-          id: t.id,
-          date,
-          ...t.data()
-        });
-      });
-    }
-
-    if (tasks.length === 0) {
-      container.innerHTML = `<div class="empty">Архив пуст</div>`;
+    if (archivesSnap.empty) {
+      container.innerHTML = "<div class='empty'>Архив пуст</div>";
       return;
     }
 
-    container.innerHTML = tasks.map(t => `
-      <div class="task">
-        <div class="date">${t.date}</div>
-        <div class="title">${t.title || "Без названия"}</div>
-      </div>
-    `).join("");
+    const htmlBlocks = [];
+
+    for (const dayDoc of archivesSnap.docs) {
+      const date = dayDoc.id;
+
+      const tasksSnap = await getDocs(
+        collection(db, "archives", date, "tasks")
+      );
+
+      const tasksHtml = tasksSnap.docs.map(t => {
+        const data = t.data();
+
+        return `
+          <div class="task">
+            <div class="task-title">${data.title || "Без названия"}</div>
+            <div class="task-id">ID: ${t.id}</div>
+          </div>
+        `;
+      }).join("");
+
+      htmlBlocks.push(`
+        <div class="day">
+          <div class="day-header" onclick="toggleDay(this)">
+            <span>${date}</span>
+            <span>▼</span>
+          </div>
+          <div class="tasks">
+            ${tasksHtml || "<div class='task'>Нет задач</div>"}
+          </div>
+        </div>
+      `);
+    }
+
+    container.innerHTML = htmlBlocks.join("");
   }
+
+  window.toggleDay = function(el) {
+    const tasks = el.nextElementSibling;
+    tasks.style.display = tasks.style.display === "block" ? "none" : "block";
+  };
 
   loadArchive();
 </script>
