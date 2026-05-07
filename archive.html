@@ -3,12 +3,12 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Архив задач — СкладСборка</title>
+  <title>Архив задач</title>
 
   <style>
     body{
       margin:0;
-      font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;
+      font-family:system-ui;
       background:#0b0f14;
       color:#fff;
     }
@@ -29,32 +29,13 @@
       margin-bottom:12px;
     }
 
-    .top{
-      display:flex;
-      justify-content:space-between;
-      align-items:center;
-      margin-bottom:16px;
-    }
-
-    a{
-      text-decoration:none;
-      background:#1e293b;
-      border:1px solid #334155;
-      padding:10px 12px;
-      border-radius:10px;
-      color:#fff;
-      font-weight:600;
-    }
-
-    .title{ font-weight:700; font-size:16px; }
-
+    .title{ font-weight:700; }
     .muted{ color:#9ca3af; font-size:13px; }
 
     .row{
       display:flex;
       justify-content:space-between;
       gap:10px;
-      flex-wrap:wrap;
     }
 
     .badge{
@@ -71,22 +52,15 @@
       color:#cbd5e1;
     }
 
-    button{
-      margin-top:8px;
-      background:#0b1220;
-      border:1px solid #334155;
+    a.back{
+      display:inline-block;
+      margin-bottom:12px;
+      text-decoration:none;
       color:#fff;
-      padding:6px 10px;
-      border-radius:8px;
-      cursor:pointer;
-    }
-
-    pre{
-      font-size:12px;
-      background:#0b1220;
-      padding:8px;
+      background:#1e293b;
+      padding:10px 12px;
       border-radius:10px;
-      overflow:auto;
+      border:1px solid #334155;
     }
   </style>
 </head>
@@ -94,10 +68,8 @@
 <body>
 <div class="container">
 
-  <div class="top">
-    <h1>📦 Архив задач</h1>
-    <a href="index.html">← Назад</a>
-  </div>
+  <h1>📦 Архив</h1>
+  <a class="back" href="index.html">← назад</a>
 
   <div id="list">Загрузка...</div>
 
@@ -116,7 +88,7 @@
     signInAnonymously
   } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
 
-  const FIREBASE_CONFIG = {
+  const firebaseConfig = {
     apiKey: "AIzaSyAH58ZpWAp64mhM589KD6jXHcOlPqU0aYU",
     authDomain: "skladsborka-6c2a7.firebaseapp.com",
     projectId: "skladsborka-6c2a7",
@@ -124,7 +96,7 @@
     appId: "1:516526717198:android:e470c17aed370572757f5f"
   };
 
-  const app = initializeApp(FIREBASE_CONFIG);
+  const app = initializeApp(firebaseConfig);
   const db = getFirestore(app);
   const auth = getAuth(app);
 
@@ -132,83 +104,74 @@
 
   const list = document.getElementById("list");
 
-  function renderTask(id, data){
+  function renderTask(date, id, data){
     const div = document.createElement("div");
     div.className = "card";
-
-    const items = data.items || [];
-    const files = data.files || [];
 
     div.innerHTML = `
       <div class="row">
         <div>
           <div class="title">${data.title || "Без названия"}</div>
-          <div class="muted">ID: ${id}</div>
+          <div class="muted">${date} • ID: ${id}</div>
         </div>
         <div class="badge">${data.status || "unknown"}</div>
       </div>
 
       <div class="items">
         👤 ${(data.assigneeNames || []).join(", ") || "—"}<br>
-        📦 Позиции: ${items.length} • 📁 Файлы: ${files.length}
+        📦 ${ (data.items || []).length } позиций
       </div>
 
-      <div class="muted">Комментарий: ${data.comment || "—"}</div>
-
-      <button onclick="this.nextElementSibling.style.display =
-        this.nextElementSibling.style.display === 'block' ? 'none' : 'block'">
-        Подробнее
-      </button>
-
-      <div style="display:none">
-        <pre>${JSON.stringify(items, null, 2)}</pre>
-      </div>
+      <div class="muted">${data.comment || ""}</div>
     `;
 
     list.appendChild(div);
   }
 
-  async function load(){
-    try{
-      const snap = await getDocs(collection(db, "tasks"));
+  async function loadArchive(){
+    list.innerHTML = "";
 
-      list.innerHTML = "";
+    const archivesSnap = await getDocs(collection(db, "archives"));
 
-      if(snap.empty){
-        list.innerHTML = "<div class='card'>Архив пуст</div>";
-        return;
-      }
+    if (archivesSnap.empty){
+      list.innerHTML = "<div class='card'>Архив пуст</div>";
+      return;
+    }
 
-      const docs = [];
+    const allTasks = [];
 
-      snap.forEach(d=>{
-        docs.push({
-          id: d.id,
-          data: d.data()
+    for (const dayDoc of archivesSnap.docs){
+      const date = dayDoc.id; // 2026-04-17
+
+      const tasksSnap = await getDocs(
+        collection(db, "archives", date, "tasks")
+      );
+
+      tasksSnap.forEach(t=>{
+        allTasks.push({
+          date,
+          id: t.id,
+          data: t.data()
         });
       });
-
-      // 🔥 САМАЯ ВАЖНАЯ ЧАСТЬ — безопасная сортировка
-      docs.sort((a,b)=>{
-        const ta = a.data.createdAt?.seconds || 0;
-        const tb = b.data.createdAt?.seconds || 0;
-        return tb - ta;
-      });
-
-      docs.forEach(d => renderTask(d.id, d.data));
-
-    }catch(e){
-      console.error(e);
-      list.innerHTML = `
-        <div class="card">
-          ❌ Ошибка загрузки<br><br>
-          ${e.message}
-        </div>
-      `;
     }
+
+    if (!allTasks.length){
+      list.innerHTML = "<div class='card'>Архив пуст</div>";
+      return;
+    }
+
+    // сортировка по дате + времени
+    allTasks.sort((a,b)=>{
+      return (b.date.localeCompare(a.date));
+    });
+
+    allTasks.forEach(t=>{
+      renderTask(t.date, t.id, t.data);
+    });
   }
 
-  load();
+  loadArchive();
 </script>
 
 </body>
