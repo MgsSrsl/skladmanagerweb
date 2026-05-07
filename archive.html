@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Firestore Archives Test</title>
+  <title>Tasks CollectionGroup Debug</title>
 
   <style>
     body {
@@ -27,6 +27,15 @@
       white-space: pre-wrap;
     }
 
+    .box {
+      margin: 10px;
+      padding: 10px;
+      background: #1a1a1d;
+      border: 1px solid #2a2a2a;
+      border-radius: 8px;
+      font-size: 12px;
+    }
+
     .ok { color: #4dff88; }
     .bad { color: #ff4d4d; }
   </style>
@@ -34,13 +43,14 @@
 
 <body>
 
-<header>🧪 ARCHIVES RAW TEST</header>
+<header>🧪 GLOBAL TASKS DEBUG (collectionGroup)</header>
 
 <div id="logs"></div>
+<div id="out"></div>
 
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
-  import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
+  import { getFirestore, collectionGroup, getDocs } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 
   const firebaseConfig = {
     apiKey: "AIzaSyAH58ZpWAp64mhM589KD6jXHcOlPqU0aYU",
@@ -54,30 +64,39 @@
   const db = getFirestore(app);
 
   const logs = document.getElementById("logs");
+  const out = document.getElementById("out");
 
   function log(msg, type = "") {
     console.log(msg);
     logs.innerHTML += `<div class="log ${type}">${msg}</div>`;
   }
 
-  async function test() {
+  async function run() {
     try {
-      log("🚀 START TEST");
-      log("PROJECT: " + firebaseConfig.projectId);
+      log("🚀 START COLLECTION GROUP TEST");
 
-      const snap = await getDocs(collection(db, "archives"));
+      const snap = await getDocs(collectionGroup(db, "tasks"));
 
-      log("📁 ARCHIVES SIZE: " + snap.size, snap.size ? "ok" : "bad");
+      log("📦 GLOBAL TASKS SIZE: " + snap.size, snap.size ? "ok" : "bad");
 
       if (snap.empty) {
-        log("❌ NO DATA IN archives", "bad");
-      } else {
-        log("✔ DATA FOUND", "ok");
-
-        snap.forEach(d => {
-          log("DOC: " + d.id + " → " + JSON.stringify(d.data()));
-        });
+        log("❌ NO TASKS FOUND ANYWHERE", "bad");
+        return;
       }
+
+      snap.forEach(t => {
+        const data = t.data();
+
+        log("📍 PATH: " + t.ref.path);
+
+        out.innerHTML += `
+          <div class="box">
+            <b>PATH:</b> ${t.ref.path}<br/><br/>
+            <b>DATA:</b>
+            <pre>${JSON.stringify(data, null, 2)}</pre>
+          </div>
+        `;
+      });
 
       log("✅ DONE");
 
@@ -86,7 +105,7 @@
     }
   }
 
-  test();
+  run();
 </script>
 
 </body>
