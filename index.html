@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Создать задание — СкладСборка</title> 
+  <title>Создать задание — СкладСборка</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
@@ -125,10 +125,7 @@
               <option value="done">Готово</option>
             </select>
             <div></div>
-            <div style="display:flex;gap:8px">
-  <button id="btnArchive" class="btn btn-secondary" type="button">Архив</button>
-  <button id="btnReload" class="btn btn-secondary" type="button" title="Обновить">Обновить</button>
-</div>
+            <button id="btnReload" class="btn btn-secondary" type="button" title="Обновить">Обновить</button>
           </div>
         </div>
         <div class="search">
@@ -215,42 +212,7 @@
       <div class="muted" style="margin-top:6px">Кликни «Открыть» напротив нужного файла.</div>
     </form>
   </dialog>
-<!-- Архив -->
-  <dialog id="archiveDialog">
-    <form method="dialog" class="modal" style="width:min(1200px,96vw)">
-      <div class="hdr" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-        <div style="font-weight:800;font-size:20px">Архив задач</div>
-        <button type="submit" class="btn-ghost">Закрыть</button>
-      </div>
 
-      <div style="display:flex;gap:10px;margin-bottom:12px;flex-wrap:wrap">
-        <input
-          id="archiveSearch"
-          type="search"
-          placeholder="Поиск по названию/комменту"
-          style="flex:1;min-width:240px;padding:12px;border-radius:12px;border:1px solid rgba(0,0,0,.12)"
-        />
-
-        <select id="archiveStatus">
-          <option value="">Все статусы</option>
-          <option value="assigned">Назначено</option>
-          <option value="in_progress">В работе</option>
-          <option value="done">Готово</option>
-        </select>
-      </div>
-
-      <div
-        id="archiveList"
-        style="
-          display:flex;
-          flex-direction:column;
-          gap:10px;
-          max-height:70vh;
-          overflow:auto;
-        "
-      ></div>
-    </form>
-  </dialog>
   <!-- Firebase (compat) -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
@@ -309,13 +271,7 @@
     edNewFiles: document.getElementById('edNewFiles'),
     edFilesInfo: document.getElementById('edFilesInfo'),
     filesDialog: document.getElementById('filesDialog'),
-    filesDialogList: document.getElementById('filesDialogList'),
-
-archiveDialog: document.getElementById('archiveDialog'),
-archiveList: document.getElementById('archiveList'),
-archiveSearch: document.getElementById('archiveSearch'),
-archiveStatus: document.getElementById('archiveStatus'),
-btnArchive: document.getElementById('btnArchive')
+    filesDialogList: document.getElementById('filesDialogList')
   };
 
   const selectedFiles = [];
@@ -550,12 +506,7 @@ btnArchive: document.getElementById('btnArchive')
 
   // ======= TASKS FEED (правый сайдбар) =======
   let unsubTasks=null, lastTasks=[], filteredTasks=[];
-    let archiveTasks=[],
   function initTasksFeed(){
-      els.btnArchive.addEventListener('click', openArchive);
-
-    els.archiveSearch.addEventListener('input', renderArchive);
-    els.archiveStatus.addEventListener('change', renderArchive);
     subscribeTasks();
     els.btnReload.addEventListener('click', ()=>{ subscribeTasks(true); });
     els.q.addEventListener('input', applyFilter);
@@ -850,170 +801,6 @@ btnArchive: document.getElementById('btnArchive')
   function openFile(url){
     if(!url) return;
     window.open(url, '_blank', 'noopener,noreferrer');
-  }
-    // ======= ARCHIVE =======
-
-  async function openArchive(){
-    els.archiveDialog.showModal();
-    els.archiveList.innerHTML = '<div class="muted">Загрузка архива...</div>';
-
-    try{
-      const snap = await db
-        .collection('tasks')
-        .orderBy('createdAt', 'desc')
-        .limit(300)
-        .get();
-
-      archiveTasks = [];
-
-      snap.forEach(doc=>{
-        const x = doc.data() || {};
-
-        archiveTasks.push({
-          id: doc.id,
-          title: x.title || '(без названия)',
-          comment: x.comment || '',
-          status: String(x.status || 'assigned').toLowerCase(),
-          isPickup: !!x.isPickup,
-          assembledOrder: !!x.assembledOrder,
-          files: Array.isArray(x.files) ? x.files : [],
-          assigneeNames: Array.isArray(x.assigneeNames)
-            ? x.assigneeNames
-            : [],
-          createdAt: x.createdAt?.toDate
-            ? x.createdAt.toDate()
-            : null
-        });
-      });
-
-      renderArchive();
-
-    }catch(e){
-      els.archiveList.innerHTML =
-        '<div class="muted">Ошибка загрузки архива</div>';
-
-      console.error(e);
-    }
-  }
-
-  function renderArchive(){
-
-    const q = (els.archiveSearch.value || '').trim().toLowerCase();
-    const st = (els.archiveStatus.value || '').trim();
-
-    const filtered = archiveTasks.filter(t=>{
-
-      const okText =
-        !q ||
-        (t.title  '').toLowerCase().includes(q) 
-        (t.comment || '').toLowerCase().includes(q);
-
-      const okStatus =
-        !st ||
-        t.status === st;
-
-      return okText && okStatus;
-    });
-
-    els.archiveList.innerHTML = '';
-
-    if(!filtered.length){
-      els.archiveList.innerHTML =
-        '<div class="muted">Ничего не найдено</div>';
-      return;
-    }
-
-    const frag = document.createDocumentFragment();
-
-    filtered.forEach(t=>{
-
-      const div = document.createElement('div');
-      div.className = 'task';
-
-      const badges = [];
-
-      if(t.status === 'done'){
-        badges.push('<span class="pill ok">Готово</span>');
-      }else if(t.status === 'in_progress'){
-        badges.push('<span class="pill info">В работе</span>');
-      }else{
-        badges.push('<span class="pill">Назначено</span>');
-      }
-
-      if(t.isPickup){
-        badges.push('<span class="pill warn">Самовывоз</span>');
-      }
-
-      if(t.assembledOrder){
-        badges.push('<span class="pill assem">Собранный</span>');
-      }
-
-      div.innerHTML = 
-        <div class="t1">
-          <div class="title">${escapeHtml(t.title)}</div>
-          <div class="badges">${badges.join(' ')}</div>
-        </div>
-
-        <div class="meta">
-          <span>⏱️ ${t.createdAt ? formatTime(t.createdAt) : '—'}</span>
-          <span>📎 ${(t.files || []).length}</span>
-        </div>
-
-        ${
-          t.assigneeNames?.length
-            ? <div class="assignees">👥 ${escapeHtml(t.assigneeNames.join(', '))}</div>
-            : ''
-        }
-
-        ${
-          t.comment
-            ? <div class="line"></div><div class="assignees">${escapeHtml(t.comment)}</div>
-            : ''
-        }
-
-        <div
-          style="
-            display:flex;
-            gap:8px;
-            margin-top:8px;
-            flex-wrap:wrap;
-          "
-        >
-          <button class="btn btn-secondary" data-open>
-            Открыть
-          </button>
-
-          <button class="btn btn-secondary" data-edit>
-            Редактировать
-          </button>
-
-          <button
-            class="btn btn-secondary"
-            style="border-color:#f00;color:#f00"
-            data-delete
-          >
-            Удалить
-          </button>
-        </div>
-      ;
-
-      div.querySelector('[data-open]')?.addEventListener('click', ()=>{
-        openFilesChooser(t);
-      });
-
-      div.querySelector('[data-edit]')?.addEventListener('click', ()=>{
-        openEditModal(t.id);
-      });
-
-      div.querySelector('[data-delete]')?.addEventListener('click', async ()=>{
-        await deleteTask(t.id);
-        openArchive();
-      });
-
-      frag.appendChild(div);
-    });
-
-    els.archiveList.appendChild(frag);
   }
   </script>
 </body>
