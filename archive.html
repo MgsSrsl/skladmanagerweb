@@ -171,7 +171,13 @@
       console.error(e);
     }
   }
+import { doc, getDoc } from "firebase/firestore";
 
+const testRef = doc(db, "archives", "2025-11-05");
+const testSnap = await getDoc(testRef);
+
+console.log("EXISTS:", testSnap.exists());
+console.log("DATA:", testSnap.data());
   load();
 </script>
 
