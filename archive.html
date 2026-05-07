@@ -6,38 +6,20 @@
   <title>Архив задач — СкладСборка</title>
 
   <style>
-    :root { color-scheme: dark; }
     body {
-      margin: 0;
-      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial;
-      background: #0b0f14;
-      color: #fff;
+      margin:0;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto;
+      background:#0b0f14;
+      color:#fff;
     }
 
     .container {
-      max-width: 1100px;
-      margin: 24px auto 60px;
-      padding: 0 16px;
+      max-width:1100px;
+      margin:24px auto;
+      padding:0 16px;
     }
 
-    h1 { margin: 0 0 16px; }
-
-    .topbar {
-      display:flex;
-      justify-content: space-between;
-      align-items:center;
-      margin-bottom: 16px;
-    }
-
-    a.btn {
-      background:#1e293b;
-      border:1px solid #334155;
-      color:#fff;
-      padding:10px 12px;
-      border-radius:10px;
-      text-decoration:none;
-      font-weight:600;
-    }
+    h1 { margin:0 0 16px; }
 
     .card {
       background:#0d1422;
@@ -47,269 +29,40 @@
       margin-bottom:12px;
     }
 
-    .row {
+    .top {
       display:flex;
-      justify-content: space-between;
-      gap:12px;
-      flex-wrap:wrap;
-    }
-
-    .title {
-      font-weight:700;
-      font-size:16px;
-    }
-
-    .muted {
-      color:#9ca3af;
-      font-size:13px;
-    }
-
-    .badge {
-      font-size:12px;
-      padding:4px 8px;
-      border-radius:999px;
-      border:1px solid #334155;
-      background:#0b1220;
-    }
-
-    .status-assigned { border-color:#60a5fa; }
-    .status-done { border-color:#22c55e; }
-    .status-pending { border-color:#f59e0b; }
-
-    .items {
-      margin-top:8px;
-      font-size:13px;
-      color:#cbd5e1;
-    }
-
-    .small {
-      font-size:12px;
-      color:#94a3b8;
-    }
-
-    button {
-      background:#0b1220;
-      border:1px solid #334155;
-      color:#fff;
-      padding:6px 10px;
-      border-radius:8px;
-      cursor:pointer;
-    }
-
-    .details {
-      margin-top:10px;
-      padding-top:10px;
-      border-top:1px solid #1f2a44;
-      display:none;
-    }
-
-    .file {
-      font-size:12px;
-      color:#93c5fd;
-    }
-  </style>
-</head>
-
-<body>
-  <div class="container">
-
-    <div class="topbar">
-      <h1>📦 Архив задач</h1>
-      <a class="btn" href="index.html">← Назад</a>
-    </div>
-
-    <div id="list"></div>
-
-  </div>
-
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js";
-    import {
-      getFirestore,
-      collection,
-      getDocs,
-      query,
-      orderBy,
-      limit
-    } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
-    import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
-
-    const FIREBASE_CONFIG = {
-      apiKey: "AIzaSyAH58ZpWAp64mhM589KD6jXHcOlPqU0aYU",
-      authDomain: "skladsborka-6c2a7.firebaseapp.com",
-      projectId: "skladsborka-6c2a7",
-      storageBucket: "skladsborka-6c2a7.appspot.com",
-      messagingSenderId: "516526717198"
-    };
-
-    const app = initializeApp(FIREBASE_CONFIG);
-    const db = getFirestore(app);
-    const auth = getAuth(app);
-
-    await signInAnonymously(auth);
-
-    const list = document.getElementById('list');
-
-    function badge(status){
-      const cls =
-        status === "done" ? "status-done" :
-        status === "pending" ? "status-pending" :
-        "status-assigned";
-
-      return <span class="badge ${cls}">${status || "unknown"}</span>;
-    }
-
-    function renderTask(doc){
-      const d = doc.data();
-
-      const itemsCount = (d.items || []).length;
-      const filesCount = (d.files || []).length;
-
-      const assignees = (d.assigneeNames  []).join(", ")  "—";
-
-      const created = d.createdAt?.toDate?.()
-        ? d.createdAt.toDate().toLocaleString()
-        : "—";
-
-      const id = doc.id;
-
-      const div = document.createElement('div');
-      div.className = "card";
-
-      div.innerHTML = `
-        <div class="row">
-          <div>
-            <div class="title">${d.title || "Без названия"}</div>
-            <div class="small">ID: ${id}</div>
-          </div>
-          <div>${badge(d.status)}</div>
-        </div>
- <div class="items">
-          👤 ${assignees} <br/>
-          📦 Позиции: ${itemsCount} • 📁 Файлы: ${filesCount}
-        </div>
-
-        <div class="muted">Создано: ${created}</div>
-
-        <button style="margin-top:8px" onclick="this.nextElementSibling.style.display =
-          this.nextElementSibling.style.display === 'block' ? 'none' : 'block'">
-          Подробнее
-        </button>
-
-        <div class="details">
-          <div class="muted">Комментарий:</div>
-          <div>${d.comment || "—"}</div>
-
-          <div class="muted" style="margin-top:8px">Позиции:</div>
-          <pre class="small">${JSON.stringify(d.items || [], null, 2)}</pre>
-
-          <div class="muted">Файлы:</div>
-          ${(d.files || []).map(f => <div class="file">• ${f.name}</div>).join("")}
-        </div>
-      `;
-
-      list.appendChild(div);
-    }
-
-    async function load(){
-      list.innerHTML = "Загрузка...";
-
-      const q = query(
-        collection(db, "tasks"),
-        orderBy("createdAt", "desc"),
-        limit(100)
-      );
-
-      const snap = await getDocs(q);
-
-      list.innerHTML = "";
-
-      if (snap.empty) {
-        list.innerHTML = "<div class='card'>Архив пуст</div>";
-        return;
-      }
-
-      snap.forEach(renderTask);
-    }
-
-    load();
-    [07.05.2026 15:53] Глеб: <!doctype html>
-<html lang="ru">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Архив задач — СкладСборка</title>
-
-  <style>
-    :root { color-scheme: dark; }
-    body {
-      margin: 0;
-      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial;
-      background: #0b0f14;
-      color: #fff;
-    }
-
-    .container {
-      max-width: 1100px;
-      margin: 24px auto 60px;
-      padding: 0 16px;
-    }
-
-    h1 { margin: 0 0 16px; }
-
-    .topbar {
-      display:flex;
-      justify-content: space-between;
+      justify-content:space-between;
       align-items:center;
-      margin-bottom: 16px;
+      margin-bottom:16px;
     }
 
-    a.btn {
-      background:#1e293b;
-      border:1px solid #334155;
+    a {
       color:#fff;
+      text-decoration:none;
+      background:#1e293b;
       padding:10px 12px;
       border-radius:10px;
-      text-decoration:none;
-      font-weight:600;
+      border:1px solid #334155;
     }
 
-    .card {
-      background:#0d1422;
-      border:1px solid #1f2a44;
-      border-radius:14px;
-      padding:12px;
-      margin-bottom:12px;
-    }
+    .title { font-weight:700; font-size:16px; }
+
+    .muted { color:#9ca3af; font-size:13px; }
 
     .row {
       display:flex;
-      justify-content: space-between;
-      gap:12px;
+      justify-content:space-between;
+      gap:10px;
       flex-wrap:wrap;
     }
 
-    .title {
-      font-weight:700;
-      font-size:16px;
-    }
-
-    .muted {
-      color:#9ca3af;
-      font-size:13px;
-    }
-
     .badge {
-      font-size:12px;
       padding:4px 8px;
       border-radius:999px;
+      font-size:12px;
       border:1px solid #334155;
       background:#0b1220;
     }
-
-    .status-assigned { border-color:#60a5fa; }
-    .status-done { border-color:#22c55e; }
-    .status-pending { border-color:#f59e0b; }
 
     .items {
       margin-top:8px;
@@ -317,12 +70,8 @@
       color:#cbd5e1;
     }
 
-    .small {
-      font-size:12px;
-      color:#94a3b8;
-    }
-
     button {
+      margin-top:8px;
       background:#0b1220;
       border:1px solid #334155;
       color:#fff;
@@ -331,131 +80,96 @@
       cursor:pointer;
     }
 
-    .details {
-      margin-top:10px;
-      padding-top:10px;
-      border-top:1px solid #1f2a44;
-      display:none;
-    }
-
-    .file {
+    pre {
       font-size:12px;
-      color:#93c5fd;
+      background:#0b1220;
+      padding:8px;
+      border-radius:10px;
+      overflow:auto;
     }
   </style>
 </head>
 
 <body>
-  <div class="container">
+<div class="container">
 
-    <div class="topbar">
-      <h1>📦 Архив задач</h1>
-      <a class="btn" href="index.html">← Назад</a>
-    </div>
-
-    <div id="list"></div>
-
+  <div class="top">
+    <h1>📦 Архив задач</h1>
+    <a href="index.html">← Назад</a>
   </div>
 
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js";
-    import {
-      getFirestore,
-      collection,
-      getDocs,
-      query,
-      orderBy,
-      limit
-    } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
-    import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
+  <div id="list">Загрузка...</div>
 
-    const FIREBASE_CONFIG = {
-      apiKey: "AIzaSyAH58ZpWAp64mhM589KD6jXHcOlPqU0aYU",
-      authDomain: "skladsborka-6c2a7.firebaseapp.com",
-      projectId: "skladsborka-6c2a7",
-      storageBucket: "skladsborka-6c2a7.appspot.com",
-      messagingSenderId: "516526717198"
-    };
+</div>
 
-    const app = initializeApp(FIREBASE_CONFIG);
-    const db = getFirestore(app);
-    const auth = getAuth(app);
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js";
+  import {
+    getFirestore,
+    collection,
+    getDocs
+  } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
 
-    await signInAnonymously(auth);
+  import {
+    getAuth,
+    signInAnonymously
+  } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
 
-    const list = document.getElementById('list');
+  const FIREBASE_CONFIG = {
+    apiKey: "AIzaSyAH58ZpWAp64mhM589KD6jXHcOlPqU0aYU",
+    authDomain: "skladsborka-6c2a7.firebaseapp.com",
+    projectId: "skladsborka-6c2a7",
+    storageBucket: "skladsborka-6c2a7.firebasestorage.app",
+    appId: "1:516526717198:android:e470c17aed370572757f5f"
+  };
 
-    function badge(status){
-      const cls =
-        status === "done" ? "status-done" :
-        status === "pending" ? "status-pending" :
-        "status-assigned";
+  const app = initializeApp(FIREBASE_CONFIG);
+  const db = getFirestore(app);
+  const auth = getAuth(app);
 
-      return <span class="badge ${cls}">${status || "unknown"}</span>;
-    }
+  await signInAnonymously(auth);
 
-    function renderTask(doc){
-      const d = doc.data();
+  const list = document.getElementById("list");
 
-      const itemsCount = (d.items || []).length;
-      const filesCount = (d.files || []).length;
+  function renderTask(id, data) {
+    const div = document.createElement("div");
+    div.className = "card";
 
-      const assignees = (d.assigneeNames  []).join(", ")  "—";
+    const items = data.items || [];
+    const files = data.files || [];
 
-      const created = d.createdAt?.toDate?.()
-        ? d.createdAt.toDate().toLocaleString()
-        : "—";
-
-      const id = doc.id;
-
-      const div = document.createElement('div');
-      div.className = "card";
-
-      div.innerHTML = `
-        <div class="row">
-          <div>
-            <div class="title">${d.title || "Без названия"}</div>
-            <div class="small">ID: ${id}</div>
-          </div>
-          <div>${badge(d.status)}</div>
+    div.innerHTML = 
+      <div class="row">
+        <div>
+          <div class="title">${data.title || "Без названия"}</div>
+          <div class="muted">ID: ${id}</div>
         </div>
-[07.05.2026 15:53] Глеб: <div class="items">
-          👤 ${assignees} <br/>
-          📦 Позиции: ${itemsCount} • 📁 Файлы: ${filesCount}
-        </div>
+        <div class="badge">${data.status || "unknown"}</div>
+      </div>
 
-        <div class="muted">Создано: ${created}</div>
+      <div class="items">
+        👤 ${(data.assigneeNames || []).join(", ") || "—"}<br>
+        📦 Позиций: ${items.length} • 📁 Файлов: ${files.length}
+      </div>
 
-        <button style="margin-top:8px" onclick="this.nextElementSibling.style.display =
-          this.nextElementSibling.style.display === 'block' ? 'none' : 'block'">
-          Подробнее
-        </button>
+      <div class="muted">Комментарий: ${data.comment || "—"}</div>
 
-        <div class="details">
-          <div class="muted">Комментарий:</div>
-          <div>${d.comment || "—"}</div>
+      <button onclick="this.nextElementSibling.style.display =
+        this.nextElementSibling.style.display === 'block' ? 'none' : 'block'">
+        Подробнее
+      </button>
 
-          <div class="muted" style="margin-top:8px">Позиции:</div>
-          <pre class="small">${JSON.stringify(d.items || [], null, 2)}</pre>
+      <div style="display:none">
+        <pre>${JSON.stringify(items, null, 2)}</pre>
+      </div>
+    ;
 
-          <div class="muted">Файлы:</div>
-          ${(d.files || []).map(f => <div class="file">• ${f.name}</div>).join("")}
-        </div>
-      `;
+    list.appendChild(div);
+  }
 
-      list.appendChild(div);
-    }
-
-    async function load(){
-      list.innerHTML = "Загрузка...";
-
-      const q = query(
-        collection(db, "tasks"),
-        orderBy("createdAt", "desc"),
-        limit(100)
-      );
-
-      const snap = await getDocs(q);
+  async function load() {
+    try {
+      const snap = await getDocs(collection(db, "tasks"));
 
       list.innerHTML = "";
 
@@ -464,15 +178,30 @@
         return;
       }
 
-      snap.forEach(renderTask);
+      const docs = [];
+      snap.forEach(d => docs.push({ id: d.id, data: d.data() }));
+      // безопасная сортировка (без createdAt orderBy)
+      docs.sort((a, b) => {
+        const ta = a.data.createdAt?.seconds || 0;
+        const tb = b.data.createdAt?.seconds || 0;
+        return tb - ta;
+      });
+
+      docs.forEach(d => renderTask(d.id, d.data));
+
+    } catch (e) {
+      console.error(e);
+      list.innerHTML = 
+        <div class="card">
+          ❌ Ошибка загрузки<br><br>
+          ${e.message}
+        </div>
+      ;
     }
+  }
 
-    load();
+  load();
+</script>
 
-</body>
-</html>
- console.log("TASKS SIZE:", snap.size);
-snap.forEach(d => console.log(d.id, d.data()));
-  </script>
 </body>
 </html>
