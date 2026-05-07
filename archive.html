@@ -62,13 +62,19 @@
       border-radius:10px;
       border:1px solid #334155;
     }
+
+    .day{
+      margin:18px 0 6px;
+      color:#60a5fa;
+      font-weight:700;
+    }
   </style>
 </head>
 
 <body>
 <div class="container">
 
-  <h1>📦 Архив</h1>
+  <h1>📦 Архив задач</h1>
   <a class="back" href="index.html">← назад</a>
 
   <div id="list">Загрузка...</div>
@@ -112,14 +118,14 @@
       <div class="row">
         <div>
           <div class="title">${data.title || "Без названия"}</div>
-          <div class="muted">${date} • ID: ${id}</div>
+          <div class="muted">ID: ${id}</div>
         </div>
         <div class="badge">${data.status || "unknown"}</div>
       </div>
 
       <div class="items">
         👤 ${(data.assigneeNames || []).join(", ") || "—"}<br>
-        📦 ${ (data.items || []).length } позиций
+        📦 ${(data.items || []).length} позиций
       </div>
 
       <div class="muted">${data.comment || ""}</div>
@@ -128,7 +134,7 @@
     list.appendChild(div);
   }
 
-  async function loadArchive(){
+  async function load(){
     list.innerHTML = "";
 
     const archivesSnap = await getDocs(collection(db, "archives"));
@@ -138,40 +144,36 @@
       return;
     }
 
-    const allTasks = [];
+    let total = 0;
 
-    for (const dayDoc of archivesSnap.docs){
-      const date = dayDoc.id; // 2026-04-17
+    // сортируем дни по убыванию
+    const days = archivesSnap.docs.map(d => d.id).sort().reverse();
+
+    for (const day of days){
+
+      const dayHeader = document.createElement("div");
+      dayHeader.className = "day";
+      dayHeader.textContent = day;
+      list.appendChild(dayHeader);
 
       const tasksSnap = await getDocs(
-        collection(db, "archives", date, "tasks")
+        collection(db, "archives", day, "tasks")
       );
 
+      if (tasksSnap.empty) continue;
+
       tasksSnap.forEach(t=>{
-        allTasks.push({
-          date,
-          id: t.id,
-          data: t.data()
-        });
+        total++;
+        renderTask(day, t.id, t.data());
       });
     }
 
-    if (!allTasks.length){
+    if (!total){
       list.innerHTML = "<div class='card'>Архив пуст</div>";
-      return;
     }
-
-    // сортировка по дате + времени
-    allTasks.sort((a,b)=>{
-      return (b.date.localeCompare(a.date));
-    });
-
-    allTasks.forEach(t=>{
-      renderTask(t.date, t.id, t.data);
-    });
   }
 
-  loadArchive();
+  load();
 </script>
 
 </body>
