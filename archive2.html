@@ -1,1069 +1,347 @@
 <!doctype html>
 <html lang="ru">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-
-  <title>Архив задач — СкладСборка</title>
-
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-
-  <style>
-    :root{
-      --bg:#0b0f14;
-      --card:#111827;
-      --card2:#0f1724;
-      --line:#1f2937;
-      --text:#f3f4f6;
-      --muted:#94a3b8;
-
-      --brand:#ef4444;
-      --brand2:#dc2626;
-
-      --green:#22c55e;
-      --yellow:#f59e0b;
-      --blue:#3b82f6;
-
-      --shadow:0 10px 30px rgba(0,0,0,.35);
-      --radius:22px;
-    }
-
-    *{
-      box-sizing:border-box;
-    }
-
-    body{
-      margin:0;
-      background:
-        radial-gradient(circle at top,#1a2233 0%,#0b0f14 40%);
-      color:var(--text);
-      font-family:Inter,Arial,sans-serif;
-      min-height:100vh;
-    }
-
-    header{
-      position:sticky;
-      top:0;
-      z-index:50;
-
-      backdrop-filter: blur(16px);
-      background:rgba(11,15,20,.72);
-
-      border-bottom:1px solid rgba(255,255,255,.06);
-
-      padding:18px 20px;
-    }
-
-    .topbar{
-      max-width:1400px;
-      margin:auto;
-
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      gap:16px;
-    }
-
-    .titleWrap{
-      display:flex;
-      flex-direction:column;
-      gap:4px;
-    }
-
-    .title{
-      font-size:24px;
-      font-weight:800;
-      letter-spacing:.3px;
-    }
-
-    .subtitle{
-      color:var(--muted);
-      font-size:13px;
-    }
-
-    .stats{
-      display:flex;
-      gap:10px;
-      flex-wrap:wrap;
-    }
-
-    .pill{
-      background:rgba(255,255,255,.05);
-      border:1px solid rgba(255,255,255,.08);
-
-      padding:10px 14px;
-      border-radius:999px;
-
-      font-size:13px;
-      color:#dbeafe;
-    }
-
-    .container{
-      max-width:1400px;
-      margin:auto;
-      padding:20px;
-    }
-
-    .toolbar{
-      display:flex;
-      gap:12px;
-      flex-wrap:wrap;
-      margin-bottom:20px;
-    }
-
-    .search{
-      flex:1;
-      min-width:260px;
-      position:relative;
-    }
-
-    .search input{
-      width:100%;
-      border:none;
-      outline:none;
-
-      background:rgba(255,255,255,.05);
-      border:1px solid rgba(255,255,255,.08);
-
-      color:#fff;
-      padding:14px 18px;
-
-      border-radius:18px;
-      font-size:14px;
-    }
-
-    .search input::placeholder{
-      color:#64748b;
-    }
-
-    .glass{
-      background:rgba(17,24,39,.72);
-      border:1px solid rgba(255,255,255,.07);
-
-      backdrop-filter:blur(16px);
-
-      border-radius:var(--radius);
-
-      box-shadow:var(--shadow);
-    }
-
-    .day{
-      overflow:hidden;
-      margin-bottom:18px;
-    }
-
-    .day-header{
-      padding:18px 20px;
-      cursor:pointer;
-
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      gap:20px;
-
-      transition:.18s;
-    }
-
-    .day-header:hover{
-      background:rgba(255,255,255,.03);
-    }
-
-    .day-left{
-      display:flex;
-      align-items:center;
-      gap:14px;
-    }
-
-    .calendar{
-      width:48px;
-      height:48px;
-
-      border-radius:16px;
-
-      display:flex;
-      align-items:center;
-      justify-content:center;
-
-      background:linear-gradient(135deg,var(--brand),var(--brand2));
-
-      font-size:20px;
-      font-weight:700;
-    }
-
-    .day-title{
-      font-size:18px;
-      font-weight:700;
-    }
-
-    .day-sub{
-      margin-top:4px;
-      color:var(--muted);
-      font-size:13px;
-    }
-
-    .count{
-      background:rgba(239,68,68,.15);
-      color:#fecaca;
-
-      border:1px solid rgba(239,68,68,.25);
-
-      padding:8px 14px;
-      border-radius:999px;
-      font-weight:700;
-    }
-
-    .tasks{
-      display:none;
-      padding:0 14px 14px;
-    }
-
-    .tasks.open{
-      display:grid;
-      grid-template-columns:repeat(auto-fill,minmax(320px,1fr));
-      gap:14px;
-    }
-
-    .task{
-      position:relative;
-
-      background:linear-gradient(180deg,#131d2c 0%, #0f1724 100%);
-
-      border:1px solid rgba(255,255,255,.06);
-
-      border-radius:22px;
-
-      padding:18px;
-
-      cursor:pointer;
-      overflow:hidden;
-
-      transition:.18s;
-    }
-
-    .task:hover{
-      transform:translateY(-3px);
-      border-color:rgba(255,255,255,.12);
-    }
-
-    .task::after{
-      content:"";
-      position:absolute;
-      inset:auto -50px -50px auto;
-
-      width:140px;
-      height:140px;
-
-      background:radial-gradient(circle,rgba(239,68,68,.18),transparent 70%);
-      pointer-events:none;
-    }
-
-    .task-top{
-      display:flex;
-      justify-content:space-between;
-      align-items:flex-start;
-      gap:10px;
-    }
-
-    .task-title{
-      font-size:16px;
-      font-weight:700;
-      line-height:1.3;
-    }
-
-    .badge{
-      flex-shrink:0;
-
-      padding:6px 10px;
-      border-radius:999px;
-
-      font-size:11px;
-      font-weight:700;
-      text-transform:uppercase;
-    }
-
-    .assigned{
-      background:rgba(34,197,94,.15);
-      color:#bbf7d0;
-      border:1px solid rgba(34,197,94,.22);
-    }
-
-    .pickup{
-      background:rgba(245,158,11,.15);
-      color:#fde68a;
-      border:1px solid rgba(245,158,11,.22);
-    }
-
-    .task-desc{
-      margin-top:12px;
-      color:#cbd5e1;
-      font-size:13px;
-      line-height:1.5;
-
-      display:-webkit-box;
-      -webkit-line-clamp:3;
-      -webkit-box-orient:vertical;
-      overflow:hidden;
-    }
-
-    .meta{
-      margin-top:16px;
-
-      display:grid;
-      grid-template-columns:1fr 1fr;
-      gap:10px;
-    }
-
-    .metaBox{
-      background:rgba(255,255,255,.04);
-      border-radius:14px;
-      padding:10px;
-    }
-
-    .metaLabel{
-      font-size:11px;
-      color:#94a3b8;
-      margin-bottom:6px;
-      text-transform:uppercase;
-    }
-
-    .metaValue{
-      font-size:13px;
-      font-weight:600;
-    }
-
-    .task-footer{
-      margin-top:16px;
-
-      display:flex;
-      justify-content:space-between;
-      align-items:center;
-      gap:10px;
-
-      color:#94a3b8;
-      font-size:12px;
-    }
-
-    .empty{
-      text-align:center;
-      padding:80px 20px;
-      color:#64748b;
-    }
-
-    /* MODAL */
-
-    .modal{
-      position:fixed;
-      inset:0;
-
-      background:rgba(0,0,0,.7);
-      backdrop-filter:blur(8px);
-
-      display:none;
-      align-items:center;
-      justify-content:center;
-
-      z-index:100;
-      padding:20px;
-    }
-
-    .modal.show{
-      display:flex;
-    }
-
-    .modal-content{
-      width:100%;
-      max-width:1100px;
-      max-height:92vh;
-
-      overflow:auto;
-
-      background:#0f1724;
-      border:1px solid rgba(255,255,255,.08);
-
-      border-radius:28px;
-
-      box-shadow:0 30px 80px rgba(0,0,0,.5);
-
-      padding:24px;
-      position:relative;
-    }
-
-    .close{
-      position:absolute;
-      top:18px;
-      right:18px;
-
-      width:42px;
-      height:42px;
-
-      border:none;
-      border-radius:14px;
-
-      background:rgba(255,255,255,.06);
-      color:#fff;
-
-      cursor:pointer;
-      font-size:18px;
-    }
-
-    .modal-title{
-      font-size:28px;
-      font-weight:800;
-      margin-bottom:8px;
-      padding-right:60px;
-    }
-
-    .modal-sub{
-      color:#94a3b8;
-      margin-bottom:22px;
-    }
-
-    .grid{
-      display:grid;
-      grid-template-columns:1fr 1fr;
-      gap:16px;
-    }
-
-    .section{
-      background:rgba(255,255,255,.04);
-      border:1px solid rgba(255,255,255,.05);
-
-      border-radius:22px;
-      padding:18px;
-    }
-
-    .section.full{
-      grid-column:1/-1;
-    }
-
-    .section h3{
-      margin:0 0 14px;
-      font-size:16px;
-    }
-
-    .kv{
-      display:flex;
-      justify-content:space-between;
-      gap:12px;
-
-      padding:10px 0;
-      border-bottom:1px solid rgba(255,255,255,.05);
-
-      font-size:14px;
-    }
-
-    .kv:last-child{
-      border-bottom:none;
-      padding-bottom:0;
-    }
-
-    .kv span:first-child{
-      color:#94a3b8;
-    }
-
-    .files{
-      display:grid;
-      grid-template-columns:repeat(auto-fill,minmax(180px,1fr));
-      gap:12px;
-    }
-
-    .file{
-      background:#111827;
-      border-radius:16px;
-      overflow:hidden;
-      border:1px solid rgba(255,255,255,.05);
-    }
-
-    .file img{
-      width:100%;
-      height:180px;
-      object-fit:cover;
-      display:block;
-    }
-
-    .file a{
-      display:block;
-      padding:10px;
-      color:#fff;
-      text-decoration:none;
-      font-size:13px;
-      word-break:break-all;
-    }
-
-    .comments{
-      display:flex;
-      flex-direction:column;
-      gap:10px;
-    }
-
-    .comment{
-      background:#111827;
-      border-radius:16px;
-      padding:14px;
-      border:1px solid rgba(255,255,255,.05);
-    }
-
-    .comment-top{
-      display:flex;
-      justify-content:space-between;
-      margin-bottom:8px;
-      color:#94a3b8;
-      font-size:12px;
-    }
-
-    .raw{
-      margin:0;
-      font-size:12px;
-      line-height:1.5;
-      overflow:auto;
-      white-space:pre-wrap;
-      color:#cbd5e1;
-    }
-
-    @media(max-width:900px){
-
-      .grid{
-        grid-template-columns:1fr;
-      }
-
-      .tasks.open{
-        grid-template-columns:1fr;
-      }
-
-      .modal-content{
-        padding:18px;
-      }
-
-      .modal-title{
-        font-size:22px;
-      }
-    }
-  </style>
-</head>
-
-<body>
-
-<header>
-  <div class="topbar">
-
-    <div class="titleWrap">
-      <div class="title">📦 Архив задач</div>
-      <div class="subtitle">
-        Firebase Archive Viewer • Cloudinary • Комментарии
-      </div>
-    </div>
-
-    <div class="stats">
-      <div class="pill" id="totalDays">Дней: 0</div>
-      <div class="pill" id="totalTasks">Задач: 0</div>
-    </div>
-
-  </div>
-</header>
-
-<div class="container">
-
-  <div class="toolbar">
-    <div class="search">
-      <input
-        id="search"
-        placeholder="Поиск по названию, ID, описанию..."
-      />
-    </div>
-  </div>
-
-  <div id="app"></div>
-
-</div>
-
-<!-- MODAL -->
-
-<div class="modal" id="modal">
-  <div class="modal-content">
-
-    <button class="close" onclick="closeModal()">✕</button>
-
-    <div id="modalBody"></div>
-
-  </div>
-</div>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Архив MAX — СкладСборка</title>
+
+<style>
+body{
+  margin:0;
+  background:#0b0f14;
+  color:#fff;
+  font-family:Arial;
+}
+
+header{
+  position:sticky;
+  top:0;
+  background:#0b0f14ee;
+  backdrop-filter:blur(10px);
+  padding:14px;
+  border-bottom:1px solid #1f2937;
+}
+
+.container{max-width:1200px;margin:auto;padding:14px}
+
+.top{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  flex-wrap:wrap;
+  gap:10px;
+}
+
+.pills{display:flex;gap:8px;flex-wrap:wrap}
+
+.pill{
+  background:#111827;
+  padding:6px 10px;
+  border-radius:999px;
+  font-size:12px;
+}
+
+input{
+  width:100%;
+  padding:12px;
+  margin-top:10px;
+  background:#0f1724;
+  border:1px solid #1f2937;
+  color:#fff;
+  border-radius:12px;
+}
+
+.day{
+  margin-top:14px;
+  background:#111827;
+  border-radius:16px;
+  overflow:hidden;
+  border:1px solid #1f2937;
+}
+
+.day-h{
+  padding:12px;
+  display:flex;
+  justify-content:space-between;
+  cursor:pointer;
+}
+
+.tasks{
+  display:none;
+  padding:10px;
+}
+
+.tasks.open{
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(280px,1fr));
+  gap:10px;
+}
+
+.task{
+  background:#0f1724;
+  padding:12px;
+  border-radius:12px;
+  cursor:pointer;
+}
+
+.task:hover{background:#1f2937}
+
+.small{color:#94a3b8;font-size:12px}
+</style>
 
 <script type="module">
 
-import { initializeApp }
-from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
+import {
+  initializeApp
+} from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
 
 import {
   getFirestore,
   collectionGroup,
-  getDocs
-}
-from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
+  query,
+  orderBy,
+  limit,
+  startAfter,
+  getDocs,
+  onSnapshot
+} from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyAH58ZP...",
+  apiKey: "AIzaSy...",
   authDomain: "skladsborka-6c2a7.firebaseapp.com",
-  projectId: "skladsborka-6c2a7",
-  storageBucket: "skladsborka-6c2a7.firebasestorage.app",
-  appId: "1:516526717198:android:e470c17aed370572757f5f"
+  projectId: "skladsborka-6c2a7"
 };
 
-const appFirebase = initializeApp(firebaseConfig);
-const db = getFirestore(appFirebase);
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
 
-const app = document.getElementById("app");
-const modal = document.getElementById("modal");
-const modalBody = document.getElementById("modalBody");
+let cache = [];
+let grouped = {};
+let lastDoc = null;
+let loading = false;
+let hasMore = true;
 
-const totalDays = document.getElementById("totalDays");
-const totalTasks = document.getElementById("totalTasks");
+const el = id => document.getElementById(id);
 
-let GLOBAL_GROUPS = {};
-let GLOBAL_TASKS = [];
+function groupTasks(tasks){
 
-window.closeModal = () => {
-  modal.classList.remove("show");
-};
+  const g = {};
 
-window.onclick = (e) => {
-  if (e.target === modal) {
-    closeModal();
+  for (const t of tasks){
+
+    const d = t.data;
+
+    const date =
+      d.date ||
+      (d.createdAt?.seconds
+        ? new Date(d.createdAt.seconds*1000).toISOString().slice(0,10)
+        : "no-date");
+
+    if (!g[date]) g[date]=[];
+    g[date].push(t);
   }
-};
 
-function esc(str = "") {
-  return String(str)
-    .replaceAll("&","&amp;")
-    .replaceAll("<","&lt;")
-    .replaceAll(">","&gt;");
+  return g;
 }
 
-window.toggleDay = (id) => {
-  const el = document.getElementById(id);
-  el.classList.toggle("open");
-};
+function stats(){
 
-window.openTask = (taskId) => {
+  let total = cache.length;
+  let pickup = 0;
+  let assigned = 0;
 
-  const task = GLOBAL_TASKS.find(x => x.id === taskId);
+  const workers = {};
 
-  if (!task) return;
+  cache.forEach(t=>{
+    const d = t.data;
 
-  const d = task.data || {};
+    if (d.isPickup) pickup++;
+    else assigned++;
 
-  modal.classList.add("show");
-
-  let filesHtml = "";
-
-  if (Array.isArray(d.files) && d.files.length) {
-
-    d.files.forEach(file => {
-
-      const url = file.url || file;
-
-      const isImage =
-        url.includes(".png") ||
-        url.includes(".jpg") ||
-        url.includes(".jpeg") ||
-        url.includes(".webp");
-
-      filesHtml += `
-        <div class="file">
-
-          ${
-            isImage
-            ? `<img src="${url}" loading="lazy" />`
-            : ""
-          }
-
-          <a href="${url}" target="_blank">
-            ${file.name || "Открыть файл"}
-          </a>
-
-        </div>
-      `;
+    (d.assigneeNames||[]).forEach(n=>{
+      workers[n]=(workers[n]||0)+1;
     });
-  }
+  });
 
-  let commentsHtml = "";
+  const top = Object.entries(workers)
+    .sort((a,b)=>b[1]-a[1])[0];
 
-  if (Array.isArray(d.comments) && d.comments.length) {
-
-    d.comments.forEach(c => {
-
-      commentsHtml += `
-        <div class="comment">
-
-          <div class="comment-top">
-            <span>${esc(c.authorName || c.user || "Пользователь")}</span>
-            <span>${esc(c.createdAt || "")}</span>
-          </div>
-
-          <div>
-            ${esc(c.text || c)}
-          </div>
-
-        </div>
-      `;
-    });
-  }
-
-  let itemsHtml = "";
-
-  if (Array.isArray(d.items) && d.items.length) {
-
-    d.items.forEach(item => {
-
-      itemsHtml += `
-        <div class="kv">
-          <span>${esc(item.title || "Товар")}</span>
-          <span>
-            ${esc(item.qty || item.qtyUnits || "")}
-            ${esc(item.unit || "")}
-          </span>
-        </div>
-      `;
-    });
-  }
-
-  modalBody.innerHTML = `
-
-    <div class="modal-title">
-      ${esc(d.title || "Без названия")}
-    </div>
-
-    <div class="modal-sub">
-      ID: ${task.id}
-    </div>
-
-    <div class="grid">
-
-      <div class="section">
-
-        <h3>📋 Информация</h3>
-
-        <div class="kv">
-          <span>Статус</span>
-          <span>${esc(d.status || "unknown")}</span>
-        </div>
-
-        <div class="kv">
-          <span>Дата</span>
-          <span>${esc(d.date || "—")}</span>
-        </div>
-
-        <div class="kv">
-          <span>Создатель</span>
-          <span>${esc(d.creatorName || "—")}</span>
-        </div>
-
-        <div class="kv">
-          <span>Исполнители</span>
-          <span>
-            ${Array.isArray(d.assigneeNames)
-              ? d.assigneeNames.join(", ")
-              : "—"
-            }
-          </span>
-        </div>
-
-      </div>
-
-      <div class="section">
-
-        <h3>📦 Позиции</h3>
-
-        ${itemsHtml || "<div style='color:#94a3b8'>Нет позиций</div>"}
-
-      </div>
-
-      <div class="section full">
-
-        <h3>📝 Описание</h3>
-
-        <div style="line-height:1.7;color:#dbeafe">
-          ${esc(d.description || d.comment || "Нет описания")}
-        </div>
-
-      </div>
-
-      <div class="section full">
-
-        <h3>📎 Файлы</h3>
-
-        <div class="files">
-          ${filesHtml || "<div style='color:#94a3b8'>Нет файлов</div>"}
-        </div>
-
-      </div>
-
-      <div class="section full">
-
-        <h3>💬 Комментарии</h3>
-
-        <div class="comments">
-          ${commentsHtml || "<div style='color:#94a3b8'>Нет комментариев</div>"}
-        </div>
-
-      </div>
-
-      <div class="section full">
-
-        <h3>🧠 RAW DATA</h3>
-
-        <pre class="raw">${esc(JSON.stringify(d,null,2))}</pre>
-
-      </div>
-
-    </div>
+  el("dash").innerHTML = `
+    <div class="pill">📦 ${total}</div>
+    <div class="pill">🚚 ${pickup}</div>
+    <div class="pill">👷 ${assigned}</div>
+    <div class="pill">🏆 ${top?top[0]+" "+top[1]:"—"}</div>
   `;
-};
+}
 
-function render(groups){
+function render(data){
 
-  app.innerHTML = "";
+  const app = el("app");
+  app.innerHTML="";
 
-  const dates = Object.keys(groups)
-    .sort((a,b) => b.localeCompare(a));
+  const dates = Object.keys(data).sort((a,b)=>b.localeCompare(a));
 
-  totalDays.textContent = `Дней: ${dates.length}`;
+  dates.forEach((d,i)=>{
 
-  let total = 0;
+    const tasks = data[d];
 
-  dates.forEach((date,index) => {
+    let html="";
 
-    const tasks = groups[date];
-
-    total += tasks.length;
-
-    let tasksHtml = "";
-
-    tasks.forEach(task => {
-
-      const d = task.data || {};
-
-      tasksHtml += `
-
-        <div
-          class="task"
-          onclick="openTask('${task.id}')"
-        >
-
-          <div class="task-top">
-
-            <div class="task-title">
-              ${esc(d.title || "Без названия")}
-            </div>
-
-            <div class="badge ${d.isPickup ? "pickup" : "assigned"}">
-              ${d.isPickup ? "Самовывоз" : "Назначена"}
-            </div>
-
-          </div>
-
-          <div class="task-desc">
-            ${esc(d.description || d.comment || "Нет описания")}
-          </div>
-
-          <div class="meta">
-
-            <div class="metaBox">
-              <div class="metaLabel">Файлы</div>
-              <div class="metaValue">
-                ${Array.isArray(d.files) ? d.files.length : 0}
-              </div>
-            </div>
-
-            <div class="metaBox">
-              <div class="metaLabel">Комментарии</div>
-              <div class="metaValue">
-                ${Array.isArray(d.comments) ? d.comments.length : 0}
-              </div>
-            </div>
-
-          </div>
-
-          <div class="task-footer">
-
-            <div>
-              ${Array.isArray(d.assigneeNames)
-                ? d.assigneeNames.join(", ")
-                : "Без исполнителя"
-              }
-            </div>
-
-            <div>
-              ${task.id.slice(0,8)}
-            </div>
-
-          </div>
-
+    tasks.forEach(t=>{
+      html += `
+        <div class="task" onclick="openTask('${t.id}')">
+          ${t.data.title||"no title"}
+          <div class="small">${t.id.slice(0,8)}</div>
         </div>
       `;
     });
 
     app.innerHTML += `
-
-      <div class="day glass">
-
-        <div
-          class="day-header"
-          onclick="toggleDay('tasks-${index}')"
-        >
-
-          <div class="day-left">
-
-            <div class="calendar">
-              📅
-            </div>
-
-            <div>
-
-              <div class="day-title">
-                ${date}
-              </div>
-
-              <div class="day-sub">
-                Архив задач за день
-              </div>
-
-            </div>
-
-          </div>
-
-          <div class="count">
-            ${tasks.length}
-          </div>
-
+      <div class="day">
+        <div class="day-h" onclick="toggle(${i})">
+          <div>${d}</div>
+          <div>${tasks.length}</div>
         </div>
-
-        <div
-          class="tasks"
-          id="tasks-${index}"
-        >
-          ${tasksHtml}
+        <div class="tasks" id="t${i}">
+          ${html}
         </div>
-
       </div>
     `;
   });
 
-  totalTasks.textContent = `Задач: ${total}`;
-
-  if (!dates.length) {
-    app.innerHTML = `
-      <div class="empty">
-        Архив пуст
-      </div>
-    `;
-  }
+  stats();
 }
 
-async function load(){
+async function load(reset=true){
 
-  app.innerHTML = `
-    <div class="empty">
-      ЗАГРУЗКА АРХИВА НУЖНО ПОДОЖДАТЬ НЕ ОБНОВЛЯЙТЕСЬ И НЕ УХОДИТЕ С САЙТА
-      Тут должен быть лоадер но мне лень............................................
-    </div>
-  `;
+  if (loading) return;
+  loading=true;
 
-  try{
+  if (reset){
+    cache=[];
+    grouped={};
+    lastDoc=null;
+    hasMore=true;
+  }
 
-    const snap = await getDocs(
-      collectionGroup(db,"tasks")
+  let q;
+
+  if (!lastDoc){
+    q = query(
+      collectionGroup(db,"tasks"),
+      orderBy("createdAt","desc"),
+      limit(40)
     );
-
-    const groups = {};
-    GLOBAL_TASKS = [];
-
-    snap.forEach(doc => {
-
-      const data = doc.data();
-
-      const date =
-        data.date ||
-        (
-          data.createdAt?.seconds
-            ? new Date(data.createdAt.seconds * 1000)
-                .toISOString()
-                .slice(0,10)
-            : "Без даты"
-        );
-
-      if (!groups[date]) {
-        groups[date] = [];
-      }
-
-      const task = {
-        id: doc.id,
-        data
-      };
-
-      groups[date].push(task);
-      GLOBAL_TASKS.push(task);
-    });
-
-    GLOBAL_GROUPS = groups;
-
-    render(groups);
-
-  }catch(err){
-
-    console.error(err);
-
-    app.innerHTML = `
-      <div class="empty">
-        Ошибка загрузки архива
-      </div>
-    `;
+  } else {
+    q = query(
+      collectionGroup(db,"tasks"),
+      orderBy("createdAt","desc"),
+      startAfter(lastDoc),
+      limit(40)
+    );
   }
-}
 
-document
-  .getElementById("search")
-  .addEventListener("input",(e)=>{
+  const snap = await getDocs(q);
 
-    const q = e.target.value
-      .trim()
-      .toLowerCase();
+  if (snap.empty){
+    hasMore=false;
+    loading=false;
+    return;
+  }
 
-    if (!q) {
-      render(GLOBAL_GROUPS);
-      return;
-    }
+  lastDoc = snap.docs.at(-1);
 
-    const filtered = {};
+  snap.forEach(d=>{
+    const data=d.data();
 
-    Object.keys(GLOBAL_GROUPS).forEach(date => {
+    const task={
+      id:d.id,
+      data,
+      searchIndex:(
+        (data.title||"")+" "+
+        (data.description||"")
+      ).toLowerCase()
+    };
 
-      const found = GLOBAL_GROUPS[date].filter(task => {
-
-        const d = task.data || {};
-
-        return JSON.stringify({
-          id:task.id,
-          title:d.title,
-          description:d.description,
-          comment:d.comment
-        })
-        .toLowerCase()
-        .includes(q);
-
-      });
-
-      if (found.length) {
-        filtered[date] = found;
-      }
-    });
-
-    render(filtered);
+    cache.push(task);
   });
 
-load();
+  grouped = groupTasks(cache);
+
+  render(grouped);
+
+  loading=false;
+}
+
+window.toggle = (i)=>{
+  el("t"+i).classList.toggle("open");
+};
+
+window.openTask = (id)=>{
+  const t = cache.find(x=>x.id===id);
+  alert(JSON.stringify(t.data,null,2));
+};
+
+window.search = (v)=>{
+
+  v=v.toLowerCase();
+
+  if (!v) return render(grouped);
+
+  const filtered={};
+
+  for (const t of cache){
+
+    if ((t.searchIndex||"").includes(v)){
+
+      const d = t.data;
+      const date = d.date || "no-date";
+
+      if (!filtered[date]) filtered[date]=[];
+      filtered[date].push(t);
+    }
+  }
+
+  render(filtered);
+};
+
+window.addEventListener("scroll",()=>{
+  if (window.innerHeight+window.scrollY > document.body.offsetHeight-500){
+    if (hasMore) load(false);
+  }
+});
+
+/* 🔥 REALTIME */
+onSnapshot(collectionGroup(db,"tasks"), snap=>{
+  snap.docChanges().forEach(ch=>{
+    if (ch.type==="added"){
+      // можно расширить позже
+    }
+  });
+});
+
+window.onload = load;
 
 </script>
+
+</head>
+
+<body>
+
+<header>
+  <div class="top">
+    <div>📦 ARCHIVE MAX</div>
+    <div class="pills" id="dash"></div>
+  </div>
+</header>
+
+<div class="container">
+
+<input placeholder="поиск..." oninput="search(this.value)">
+
+<div id="app"></div>
+
+</div>
 
 </body>
 </html>
