@@ -1,3 +1,58 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Archives Debug Only</title>
+
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial;
+      background: #0f0f10;
+      color: #fff;
+    }
+
+    header {
+      padding: 14px;
+      font-weight: bold;
+      border-bottom: 1px solid #2a2a2a;
+    }
+
+    .log {
+      font-size: 12px;
+      padding: 6px 10px;
+      color: #aaa;
+      border-bottom: 1px solid #222;
+      white-space: pre-wrap;
+    }
+
+    .box {
+      margin: 10px;
+      padding: 10px;
+      background: #1a1a1d;
+      border: 1px solid #2a2a2a;
+      border-radius: 8px;
+    }
+
+    pre {
+      font-size: 11px;
+      color: #ccc;
+      overflow-x: auto;
+    }
+  </style>
+</head>
+
+<body>
+
+<header>🧪 ARCHIVES COLLECTION DEBUG</header>
+
+<div id="logs"></div>
+<div id="out"></div>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
+  import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 import { collection, getDocs } from "firebase/firestore";
 
 const snap = await getDocs(collection(db, "archives"));
@@ -8,3 +63,61 @@ snap.forEach(d => {
   console.log("DOC ID:", d.id);
   console.log("DATA:", d.data());
 });
+  const firebaseConfig = {
+    apiKey: "AIzaSyAH58ZpWAp64mhM589KD6jXHcOlPqU0aYU",
+    authDomain: "skladsborka-6c2a7.firebaseapp.com",
+    projectId: "skladsborka-6c2a7",
+    storageBucket: "skladsborka-6c2a7.firebasestorage.app",
+    appId: "1:516526717198:android:e470c17aed370572757f5f"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+
+  const logs = document.getElementById("logs");
+  const out = document.getElementById("out");
+
+  function log(msg) {
+    console.log(msg);
+    logs.innerHTML += `<div class="log">${msg}</div>`;
+  }
+
+  async function run() {
+    try {
+      log("🚀 START ARCHIVES DEBUG");
+      log("PROJECT: " + firebaseConfig.projectId);
+
+      const snap = await getDocs(collection(db, "archives"));
+
+      log("📁 archives SIZE: " + snap.size);
+
+      if (snap.empty) {
+        log("❌ archives IS EMPTY");
+      } else {
+        log("✔ archives FOUND");
+
+        snap.forEach(doc => {
+          const data = doc.data();
+
+          out.innerHTML += `
+            <div class="box">
+              <b>ID:</b> ${doc.id}<br/><br/>
+              <b>DATA:</b>
+              <pre>${JSON.stringify(data, null, 2)}</pre>
+            </div>
+          `;
+        });
+      }
+
+      log("✅ DONE");
+
+    } catch (e) {
+      log("🔥 ERROR: " + e.message);
+    }
+  }
+
+  run();
+</script>
+
+</body>
+</html>
