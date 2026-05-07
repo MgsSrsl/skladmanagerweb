@@ -29,92 +29,72 @@
       --radius:22px;
     }
 
-    *{ box-sizing:border-box; }
+    *{
+      box-sizing:border-box;
+    }
 
     body{
       margin:0;
-      background: radial-gradient(circle at top,#1a2233 0%,#0b0f14 40%);
+      background:
+        radial-gradient(circle at top,#1a2233 0%,#0b0f14 40%);
       color:var(--text);
       font-family:Inter,Arial,sans-serif;
       min-height:100vh;
     }
 
-    /* ===== LOADER (ADDED ONLY THIS) ===== */
-    .loaderOverlay{
-      position:fixed;
-      inset:0;
-      background:rgba(11,15,20,.85);
-      backdrop-filter:blur(10px);
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      z-index:9999;
-      transition:.25s ease;
-    }
-
-    .loaderBox{
-      display:flex;
-      flex-direction:column;
-      align-items:center;
-      gap:14px;
-    }
-
-    .spinner{
-      width:52px;
-      height:52px;
-      border-radius:50%;
-      border:3px solid rgba(255,255,255,.12);
-      border-top:3px solid var(--brand);
-      animation:spin 1s linear infinite;
-    }
-
-    @keyframes spin{
-      0%{ transform:rotate(0deg); }
-      100%{ transform:rotate(360deg); }
-    }
-
-    .loaderText{
-      color:#cbd5e1;
-      font-size:14px;
-      letter-spacing:.3px;
-    }
-
-    .loaderHide{
-      opacity:0;
-      pointer-events:none;
-    }
-    /* ===== END LOADER ===== */
-
     header{
       position:sticky;
       top:0;
       z-index:50;
+
       backdrop-filter: blur(16px);
       background:rgba(11,15,20,.72);
+
       border-bottom:1px solid rgba(255,255,255,.06);
+
       padding:18px 20px;
     }
 
     .topbar{
       max-width:1400px;
       margin:auto;
+
       display:flex;
       align-items:center;
       justify-content:space-between;
       gap:16px;
     }
 
-    .titleWrap{ display:flex; flex-direction:column; gap:4px; }
-    .title{ font-size:24px; font-weight:800; letter-spacing:.3px; }
-    .subtitle{ color:var(--muted); font-size:13px; }
+    .titleWrap{
+      display:flex;
+      flex-direction:column;
+      gap:4px;
+    }
 
-    .stats{ display:flex; gap:10px; flex-wrap:wrap; }
+    .title{
+      font-size:24px;
+      font-weight:800;
+      letter-spacing:.3px;
+    }
+
+    .subtitle{
+      color:var(--muted);
+      font-size:13px;
+    }
+
+    .stats{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+    }
 
     .pill{
       background:rgba(255,255,255,.05);
       border:1px solid rgba(255,255,255,.08);
+
       padding:10px 14px;
       border-radius:999px;
+
       font-size:13px;
       color:#dbeafe;
     }
@@ -132,70 +112,111 @@
       margin-bottom:20px;
     }
 
-    .search{ flex:1; min-width:260px; position:relative; }
+    .search{
+      flex:1;
+      min-width:260px;
+      position:relative;
+    }
 
     .search input{
       width:100%;
       border:none;
       outline:none;
+
       background:rgba(255,255,255,.05);
       border:1px solid rgba(255,255,255,.08);
+
       color:#fff;
       padding:14px 18px;
+
       border-radius:18px;
       font-size:14px;
     }
 
-    .search input::placeholder{ color:#64748b; }
+    .search input::placeholder{
+      color:#64748b;
+    }
 
     .glass{
       background:rgba(17,24,39,.72);
       border:1px solid rgba(255,255,255,.07);
+
       backdrop-filter:blur(16px);
+
       border-radius:var(--radius);
+
       box-shadow:var(--shadow);
     }
 
-    .day{ overflow:hidden; margin-bottom:18px; }
+    .day{
+      overflow:hidden;
+      margin-bottom:18px;
+    }
 
     .day-header{
       padding:18px 20px;
       cursor:pointer;
+
       display:flex;
       align-items:center;
       justify-content:space-between;
       gap:20px;
+
       transition:.18s;
     }
 
-    .day-header:hover{ background:rgba(255,255,255,.03); }
+    .day-header:hover{
+      background:rgba(255,255,255,.03);
+    }
 
-    .day-left{ display:flex; align-items:center; gap:14px; }
+    .day-left{
+      display:flex;
+      align-items:center;
+      gap:14px;
+    }
 
     .calendar{
-      width:48px; height:48px;
+      width:48px;
+      height:48px;
+
       border-radius:16px;
+
       display:flex;
       align-items:center;
       justify-content:center;
+
       background:linear-gradient(135deg,var(--brand),var(--brand2));
+
       font-size:20px;
       font-weight:700;
     }
 
-    .day-title{ font-size:18px; font-weight:700; }
-    .day-sub{ margin-top:4px; color:var(--muted); font-size:13px; }
+    .day-title{
+      font-size:18px;
+      font-weight:700;
+    }
+
+    .day-sub{
+      margin-top:4px;
+      color:var(--muted);
+      font-size:13px;
+    }
 
     .count{
       background:rgba(239,68,68,.15);
       color:#fecaca;
+
       border:1px solid rgba(239,68,68,.25);
+
       padding:8px 14px;
       border-radius:999px;
       font-weight:700;
     }
 
-    .tasks{ display:none; padding:0 14px 14px; }
+    .tasks{
+      display:none;
+      padding:0 14px 14px;
+    }
 
     .tasks.open{
       display:grid;
@@ -204,13 +225,20 @@
     }
 
     .task{
+      position:relative;
+
       background:linear-gradient(180deg,#131d2c 0%, #0f1724 100%);
+
       border:1px solid rgba(255,255,255,.06);
+
       border-radius:22px;
+
       padding:18px;
+
       cursor:pointer;
-      transition:.18s;
       overflow:hidden;
+
+      transition:.18s;
     }
 
     .task:hover{
@@ -218,103 +246,819 @@
       border-color:rgba(255,255,255,.12);
     }
 
-    .empty{ text-align:center; padding:80px 20px; color:#64748b; }
+    .task::after{
+      content:"";
+      position:absolute;
+      inset:auto -50px -50px auto;
+
+      width:140px;
+      height:140px;
+
+      background:radial-gradient(circle,rgba(239,68,68,.18),transparent 70%);
+      pointer-events:none;
+    }
+
+    .task-top{
+      display:flex;
+      justify-content:space-between;
+      align-items:flex-start;
+      gap:10px;
+    }
+
+    .task-title{
+      font-size:16px;
+      font-weight:700;
+      line-height:1.3;
+    }
+
+    .badge{
+      flex-shrink:0;
+
+      padding:6px 10px;
+      border-radius:999px;
+
+      font-size:11px;
+      font-weight:700;
+      text-transform:uppercase;
+    }
+
+    .assigned{
+      background:rgba(34,197,94,.15);
+      color:#bbf7d0;
+      border:1px solid rgba(34,197,94,.22);
+    }
+
+    .pickup{
+      background:rgba(245,158,11,.15);
+      color:#fde68a;
+      border:1px solid rgba(245,158,11,.22);
+    }
+
+    .task-desc{
+      margin-top:12px;
+      color:#cbd5e1;
+      font-size:13px;
+      line-height:1.5;
+
+      display:-webkit-box;
+      -webkit-line-clamp:3;
+      -webkit-box-orient:vertical;
+      overflow:hidden;
+    }
+
+    .meta{
+      margin-top:16px;
+
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:10px;
+    }
+
+    .metaBox{
+      background:rgba(255,255,255,.04);
+      border-radius:14px;
+      padding:10px;
+    }
+
+    .metaLabel{
+      font-size:11px;
+      color:#94a3b8;
+      margin-bottom:6px;
+      text-transform:uppercase;
+    }
+
+    .metaValue{
+      font-size:13px;
+      font-weight:600;
+    }
+
+    .task-footer{
+      margin-top:16px;
+
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:10px;
+
+      color:#94a3b8;
+      font-size:12px;
+    }
+
+    .empty{
+      text-align:center;
+      padding:80px 20px;
+      color:#64748b;
+    }
+
+    /* MODAL */
+
+    .modal{
+      position:fixed;
+      inset:0;
+
+      background:rgba(0,0,0,.7);
+      backdrop-filter:blur(8px);
+
+      display:none;
+      align-items:center;
+      justify-content:center;
+
+      z-index:100;
+      padding:20px;
+    }
+
+    .modal.show{
+      display:flex;
+    }
+
+    .modal-content{
+      width:100%;
+      max-width:1100px;
+      max-height:92vh;
+
+      overflow:auto;
+
+      background:#0f1724;
+      border:1px solid rgba(255,255,255,.08);
+
+      border-radius:28px;
+
+      box-shadow:0 30px 80px rgba(0,0,0,.5);
+
+      padding:24px;
+      position:relative;
+    }
+
+    .close{
+      position:absolute;
+      top:18px;
+      right:18px;
+
+      width:42px;
+      height:42px;
+
+      border:none;
+      border-radius:14px;
+
+      background:rgba(255,255,255,.06);
+      color:#fff;
+
+      cursor:pointer;
+      font-size:18px;
+    }
+
+    .modal-title{
+      font-size:28px;
+      font-weight:800;
+      margin-bottom:8px;
+      padding-right:60px;
+    }
+
+    .modal-sub{
+      color:#94a3b8;
+      margin-bottom:22px;
+    }
+
+    .grid{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:16px;
+    }
+
+    .section{
+      background:rgba(255,255,255,.04);
+      border:1px solid rgba(255,255,255,.05);
+
+      border-radius:22px;
+      padding:18px;
+    }
+
+    .section.full{
+      grid-column:1/-1;
+    }
+
+    .section h3{
+      margin:0 0 14px;
+      font-size:16px;
+    }
+
+    .kv{
+      display:flex;
+      justify-content:space-between;
+      gap:12px;
+
+      padding:10px 0;
+      border-bottom:1px solid rgba(255,255,255,.05);
+
+      font-size:14px;
+    }
+
+    .kv:last-child{
+      border-bottom:none;
+      padding-bottom:0;
+    }
+
+    .kv span:first-child{
+      color:#94a3b8;
+    }
+
+    .files{
+      display:grid;
+      grid-template-columns:repeat(auto-fill,minmax(180px,1fr));
+      gap:12px;
+    }
+
+    .file{
+      background:#111827;
+      border-radius:16px;
+      overflow:hidden;
+      border:1px solid rgba(255,255,255,.05);
+    }
+
+    .file img{
+      width:100%;
+      height:180px;
+      object-fit:cover;
+      display:block;
+    }
+
+    .file a{
+      display:block;
+      padding:10px;
+      color:#fff;
+      text-decoration:none;
+      font-size:13px;
+      word-break:break-all;
+    }
+
+    .comments{
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+    }
+
+    .comment{
+      background:#111827;
+      border-radius:16px;
+      padding:14px;
+      border:1px solid rgba(255,255,255,.05);
+    }
+
+    .comment-top{
+      display:flex;
+      justify-content:space-between;
+      margin-bottom:8px;
+      color:#94a3b8;
+      font-size:12px;
+    }
+
+    .raw{
+      margin:0;
+      font-size:12px;
+      line-height:1.5;
+      overflow:auto;
+      white-space:pre-wrap;
+      color:#cbd5e1;
+    }
+
+    @media(max-width:900px){
+
+      .grid{
+        grid-template-columns:1fr;
+      }
+
+      .tasks.open{
+        grid-template-columns:1fr;
+      }
+
+      .modal-content{
+        padding:18px;
+      }
+
+      .modal-title{
+        font-size:22px;
+      }
+    }
   </style>
 </head>
 
 <body>
 
-<!-- ===== LOADER (ADDED ONLY THIS) ===== -->
-<div id="loader" class="loaderOverlay">
-  <div class="loaderBox">
-    <div class="spinner"></div>
-    <div class="loaderText">Загрузка архива...</div>
-  </div>
-</div>
-<!-- ===== END LOADER ===== -->
-
 <header>
   <div class="topbar">
+
     <div class="titleWrap">
       <div class="title">📦 Архив задач</div>
-      <div class="subtitle">Firebase Archive Viewer • Cloudinary • Комментарии</div>
+      <div class="subtitle">
+        Firebase Archive Viewer • Cloudinary • Комментарии
+      </div>
     </div>
 
     <div class="stats">
       <div class="pill" id="totalDays">Дней: 0</div>
       <div class="pill" id="totalTasks">Задач: 0</div>
     </div>
+
   </div>
 </header>
 
 <div class="container">
+
   <div class="toolbar">
     <div class="search">
-      <input id="search" placeholder="Поиск по названию, ID, описанию..." />
+      <input
+        id="search"
+        placeholder="Поиск по названию, ID, описанию..."
+      />
     </div>
   </div>
 
   <div id="app"></div>
+
 </div>
+
+<!-- MODAL -->
 
 <div class="modal" id="modal">
   <div class="modal-content">
+
     <button class="close" onclick="closeModal()">✕</button>
+
     <div id="modalBody"></div>
+
   </div>
 </div>
 
 <script type="module">
 
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
-import { getFirestore, collectionGroup, getDocs } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
+import { initializeApp }
+from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
 
-const appFirebase = initializeApp({
-  apiKey: "AIzaSyAH58Zp...",
+import {
+  getFirestore,
+  collectionGroup,
+  getDocs
+}
+from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyAH58ZP...",
   authDomain: "skladsborka-6c2a7.firebaseapp.com",
-  projectId: "skladsborka-6c2a7"
-});
+  projectId: "skladsborka-6c2a7",
+  storageBucket: "skladsborka-6c2a7.firebasestorage.app",
+  appId: "1:516526717198:android:e470c17aed370572757f5f"
+};
 
+const appFirebase = initializeApp(firebaseConfig);
 const db = getFirestore(appFirebase);
 
-const loader = document.getElementById("loader");
+const app = document.getElementById("app");
+const modal = document.getElementById("modal");
+const modalBody = document.getElementById("modalBody");
 
-function hideLoader(){
-  loader.classList.add("loaderHide");
-  setTimeout(()=> loader.style.display="none", 300);
+const totalDays = document.getElementById("totalDays");
+const totalTasks = document.getElementById("totalTasks");
+
+let GLOBAL_GROUPS = {};
+let GLOBAL_TASKS = [];
+
+window.closeModal = () => {
+  modal.classList.remove("show");
+};
+
+window.onclick = (e) => {
+  if (e.target === modal) {
+    closeModal();
+  }
+};
+
+function esc(str = "") {
+  return String(str)
+    .replaceAll("&","&amp;")
+    .replaceAll("<","&lt;")
+    .replaceAll(">","&gt;");
 }
 
-const app = document.getElementById("app");
+window.toggleDay = (id) => {
+  const el = document.getElementById(id);
+  el.classList.toggle("open");
+};
+
+window.openTask = (taskId) => {
+
+  const task = GLOBAL_TASKS.find(x => x.id === taskId);
+
+  if (!task) return;
+
+  const d = task.data || {};
+
+  modal.classList.add("show");
+
+  let filesHtml = "";
+
+  if (Array.isArray(d.files) && d.files.length) {
+
+    d.files.forEach(file => {
+
+      const url = file.url || file;
+
+      const isImage =
+        url.includes(".png") ||
+        url.includes(".jpg") ||
+        url.includes(".jpeg") ||
+        url.includes(".webp");
+
+      filesHtml += `
+        <div class="file">
+
+          ${
+            isImage
+            ? `<img src="${url}" loading="lazy" />`
+            : ""
+          }
+
+          <a href="${url}" target="_blank">
+            ${file.name || "Открыть файл"}
+          </a>
+
+        </div>
+      `;
+    });
+  }
+
+  let commentsHtml = "";
+
+  if (Array.isArray(d.comments) && d.comments.length) {
+
+    d.comments.forEach(c => {
+
+      commentsHtml += `
+        <div class="comment">
+
+          <div class="comment-top">
+            <span>${esc(c.authorName || c.user || "Пользователь")}</span>
+            <span>${esc(c.createdAt || "")}</span>
+          </div>
+
+          <div>
+            ${esc(c.text || c)}
+          </div>
+
+        </div>
+      `;
+    });
+  }
+
+  let itemsHtml = "";
+
+  if (Array.isArray(d.items) && d.items.length) {
+
+    d.items.forEach(item => {
+
+      itemsHtml += `
+        <div class="kv">
+          <span>${esc(item.title || "Товар")}</span>
+          <span>
+            ${esc(item.qty || item.qtyUnits || "")}
+            ${esc(item.unit || "")}
+          </span>
+        </div>
+      `;
+    });
+  }
+
+  modalBody.innerHTML = `
+
+    <div class="modal-title">
+      ${esc(d.title || "Без названия")}
+    </div>
+
+    <div class="modal-sub">
+      ID: ${task.id}
+    </div>
+
+    <div class="grid">
+
+      <div class="section">
+
+        <h3>📋 Информация</h3>
+
+        <div class="kv">
+          <span>Статус</span>
+          <span>${esc(d.status || "unknown")}</span>
+        </div>
+
+        <div class="kv">
+          <span>Дата</span>
+          <span>${esc(d.date || "—")}</span>
+        </div>
+
+        <div class="kv">
+          <span>Создатель</span>
+          <span>${esc(d.creatorName || "—")}</span>
+        </div>
+
+        <div class="kv">
+          <span>Исполнители</span>
+          <span>
+            ${Array.isArray(d.assigneeNames)
+              ? d.assigneeNames.join(", ")
+              : "—"
+            }
+          </span>
+        </div>
+
+      </div>
+
+      <div class="section">
+
+        <h3>📦 Позиции</h3>
+
+        ${itemsHtml || "<div style='color:#94a3b8'>Нет позиций</div>"}
+
+      </div>
+
+      <div class="section full">
+
+        <h3>📝 Описание</h3>
+
+        <div style="line-height:1.7;color:#dbeafe">
+          ${esc(d.description || d.comment || "Нет описания")}
+        </div>
+
+      </div>
+
+      <div class="section full">
+
+        <h3>📎 Файлы</h3>
+
+        <div class="files">
+          ${filesHtml || "<div style='color:#94a3b8'>Нет файлов</div>"}
+        </div>
+
+      </div>
+
+      <div class="section full">
+
+        <h3>💬 Комментарии</h3>
+
+        <div class="comments">
+          ${commentsHtml || "<div style='color:#94a3b8'>Нет комментариев</div>"}
+        </div>
+
+      </div>
+
+      <div class="section full">
+
+        <h3>🧠 RAW DATA</h3>
+
+        <pre class="raw">${esc(JSON.stringify(d,null,2))}</pre>
+
+      </div>
+
+    </div>
+  `;
+};
 
 function render(groups){
-  app.innerHTML = "";
-  const dates = Object.keys(groups || {});
-  document.getElementById("totalDays").textContent = "Дней: " + dates.length;
-  document.getElementById("totalTasks").textContent = "Задач: " + dates.reduce((a,d)=>a+(groups[d].length||0),0);
 
-  if(!dates.length){
-    app.innerHTML = `<div class="empty">Архив пуст</div>`;
+  app.innerHTML = "";
+
+  const dates = Object.keys(groups)
+    .sort((a,b) => b.localeCompare(a));
+
+  totalDays.textContent = `Дней: ${dates.length}`;
+
+  let total = 0;
+
+  dates.forEach((date,index) => {
+
+    const tasks = groups[date];
+
+    total += tasks.length;
+
+    let tasksHtml = "";
+
+    tasks.forEach(task => {
+
+      const d = task.data || {};
+
+      tasksHtml += `
+
+        <div
+          class="task"
+          onclick="openTask('${task.id}')"
+        >
+
+          <div class="task-top">
+
+            <div class="task-title">
+              ${esc(d.title || "Без названия")}
+            </div>
+
+            <div class="badge ${d.isPickup ? "pickup" : "assigned"}">
+              ${d.isPickup ? "Самовывоз" : "Назначена"}
+            </div>
+
+          </div>
+
+          <div class="task-desc">
+            ${esc(d.description || d.comment || "Нет описания")}
+          </div>
+
+          <div class="meta">
+
+            <div class="metaBox">
+              <div class="metaLabel">Файлы</div>
+              <div class="metaValue">
+                ${Array.isArray(d.files) ? d.files.length : 0}
+              </div>
+            </div>
+
+            <div class="metaBox">
+              <div class="metaLabel">Комментарии</div>
+              <div class="metaValue">
+                ${Array.isArray(d.comments) ? d.comments.length : 0}
+              </div>
+            </div>
+
+          </div>
+
+          <div class="task-footer">
+
+            <div>
+              ${Array.isArray(d.assigneeNames)
+                ? d.assigneeNames.join(", ")
+                : "Без исполнителя"
+              }
+            </div>
+
+            <div>
+              ${task.id.slice(0,8)}
+            </div>
+
+          </div>
+
+        </div>
+      `;
+    });
+
+    app.innerHTML += `
+
+      <div class="day glass">
+
+        <div
+          class="day-header"
+          onclick="toggleDay('tasks-${index}')"
+        >
+
+          <div class="day-left">
+
+            <div class="calendar">
+              📅
+            </div>
+
+            <div>
+
+              <div class="day-title">
+                ${date}
+              </div>
+
+              <div class="day-sub">
+                Архив задач за день
+              </div>
+
+            </div>
+
+          </div>
+
+          <div class="count">
+            ${tasks.length}
+          </div>
+
+        </div>
+
+        <div
+          class="tasks"
+          id="tasks-${index}"
+        >
+          ${tasksHtml}
+        </div>
+
+      </div>
+    `;
+  });
+
+  totalTasks.textContent = `Задач: ${total}`;
+
+  if (!dates.length) {
+    app.innerHTML = `
+      <div class="empty">
+        Архив пуст
+      </div>
+    `;
   }
 }
 
 async function load(){
-  try{
-    const snap = await getDocs(collectionGroup(db,"tasks"));
-    const groups = {};
 
-    snap.forEach(d=>{
-      const data = d.data();
-      const date = data.date || "Без даты";
-      if(!groups[date]) groups[date] = [];
-      groups[date].push({id:d.id, data});
+  app.innerHTML = `
+    <div class="empty">
+      Загрузка архива...
+    </div>
+  `;
+
+  try{
+
+    const snap = await getDocs(
+      collectionGroup(db,"tasks")
+    );
+
+    const groups = {};
+    GLOBAL_TASKS = [];
+
+    snap.forEach(doc => {
+
+      const data = doc.data();
+
+      const date =
+        data.date ||
+        (
+          data.createdAt?.seconds
+            ? new Date(data.createdAt.seconds * 1000)
+                .toISOString()
+                .slice(0,10)
+            : "Без даты"
+        );
+
+      if (!groups[date]) {
+        groups[date] = [];
+      }
+
+      const task = {
+        id: doc.id,
+        data
+      };
+
+      groups[date].push(task);
+      GLOBAL_TASKS.push(task);
     });
+
+    GLOBAL_GROUPS = groups;
 
     render(groups);
 
-  } finally {
-    hideLoader(); // <-- ВАЖНО: только это добавлено
+  }catch(err){
+
+    console.error(err);
+
+    app.innerHTML = `
+      <div class="empty">
+        Ошибка загрузки архива
+      </div>
+    `;
   }
 }
+
+document
+  .getElementById("search")
+  .addEventListener("input",(e)=>{
+
+    const q = e.target.value
+      .trim()
+      .toLowerCase();
+
+    if (!q) {
+      render(GLOBAL_GROUPS);
+      return;
+    }
+
+    const filtered = {};
+
+    Object.keys(GLOBAL_GROUPS).forEach(date => {
+
+      const found = GLOBAL_GROUPS[date].filter(task => {
+
+        const d = task.data || {};
+
+        return JSON.stringify({
+          id:task.id,
+          title:d.title,
+          description:d.description,
+          comment:d.comment
+        })
+        .toLowerCase()
+        .includes(q);
+
+      });
+
+      if (found.length) {
+        filtered[date] = found;
+      }
+    });
+
+    render(filtered);
+  });
 
 load();
 
