@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Firebase Safe Debug</title>
+  <title>Archive (from tasks)</title>
 
   <style>
     body {
@@ -19,78 +19,142 @@
       border-bottom: 1px solid #2a2a2a;
     }
 
-    #log {
-      padding: 10px;
-      font-size: 12px;
-      white-space: pre-wrap;
-      color: #aaa;
+    .day {
+      margin: 10px;
+      border: 1px solid #2a2a2a;
+      border-radius: 10px;
+      overflow: hidden;
+      background: #1a1a1d;
     }
 
-    .err { color: #ff4d4d; }
-    .ok { color: #4dff88; }
+    .day-header {
+      padding: 10px;
+      font-weight: bold;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      background: #151518;
+    }
+
+    .tasks {
+      display: none;
+      border-top: 1px solid #2a2a2a;
+    }
+
+    .task {
+      padding: 10px;
+      border-bottom: 1px solid #2a2a2a;
+      font-size: 13px;
+    }
+
+    .task small {
+      color: #777;
+      display: block;
+      margin-top: 4px;
+    }
+
+    .log {
+      font-size: 12px;
+      padding: 6px 10px;
+      color: #aaa;
+      border-bottom: 1px solid #222;
+      white-space: pre-wrap;
+    }
   </style>
 </head>
 
 <body>
 
-<header>🧪 SAFE FIREBASE DEBUG</header>
-
-<div id="log">loading...</div>
+<header>📦 ARCHIVE FROM 1708 TASKS</header>
+<div id="logs"></div>
+<div id="app"></div>
 
 <script type="module">
-  const logEl = document.getElementById("log");
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
+  import { getFirestore, collectionGroup, getDocs } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 
-  function log(msg, cls = "") {
-    console.log(msg);
-    logEl.innerHTML += `\n<span class="${cls}">${msg}</span>`;
-  }
-
-  window.onerror = function(msg) {
-    log("🔥 JS ERROR: " + msg, "err");
+  const firebaseConfig = {
+    apiKey: "AIzaSyAH58ZP...",
+    authDomain: "skladsborka-6c2a7.firebaseapp.com",
+    projectId: "skladsborka-6c2a7",
+    storageBucket: "skladsborka-6c2a7.firebasestorage.app",
+    appId: "1:516526717198:android:e470c17aed370572757f5f"
   };
 
-  try {
-    log("🚀 SCRIPT START");
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
 
-    import("https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js").then(appMod => {
-      import("https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js").then(fsMod => {
+  const logs = document.getElementById("logs");
+  const appDiv = document.getElementById("app");
 
-        const { initializeApp } = appMod;
-        const { getFirestore, collectionGroup, getDocs } = fsMod;
-
-        const firebaseConfig = {
-          apiKey: "AIzaSyAH58ZpWAp64mhM589KD6jXHcOlPqU0aYU",
-          authDomain: "skladsborka-6c2a7.firebaseapp.com",
-          projectId: "skladsborka-6c2a7",
-          storageBucket: "skladsborka-6c2a7.firebasestorage.app",
-          appId: "1:516526717198:android:e470c17aed370572757f5f"
-        };
-
-        const app = initializeApp(firebaseConfig);
-        const db = getFirestore(app);
-
-        log("✔ Firebase init OK");
-
-        getDocs(collectionGroup(db, "tasks"))
-          .then(snap => {
-            log("📦 TASKS SIZE: " + snap.size);
-
-            snap.forEach(t => {
-              log("PATH: " + t.ref.path);
-            });
-
-            log("✅ DONE", "ok");
-          })
-          .catch(e => {
-            log("🔥 FIREBASE ERROR: " + e.message, "err");
-          });
-
-      }).catch(e => log("🔥 FIRESTORE LOAD FAIL: " + e.message, "err"));
-    }).catch(e => log("🔥 APP LOAD FAIL: " + e.message, "err"));
-
-  } catch (e) {
-    log("🔥 FATAL: " + e.message, "err");
+  function log(msg) {
+    console.log(msg);
+    logs.innerHTML += `<div class="log">${msg}</div>`;
   }
+
+  window.toggle = (el) => {
+    const block = el.nextElementSibling;
+    block.style.display = block.style.display === "block" ? "none" : "block";
+  };
+
+  function getDate(task) {
+    return (
+      task.date ||
+      task.createdAt?.toDate?.().toISOString().split("T")[0] ||
+      "Без даты"
+    );
+  }
+
+  async function load() {
+    log("🚀 loading tasks...");
+
+    const snap = await getDocs(collectionGroup(db, "tasks"));
+
+    log("📦 TOTAL TASKS: " + snap.size);
+
+    const groups = {};
+
+    snap.forEach(doc => {
+      const data = doc.data();
+      const date = getDate(data);
+
+      if (!groups[date]) groups[date] = [];
+      groups[date].push({ id: doc.id, data });
+    });
+
+    const sortedDates = Object.keys(groups).sort().reverse();
+
+    sortedDates.forEach(date => {
+      const tasks = groups[date];
+
+      let html = "";
+
+      tasks.forEach(t => {
+        html += `
+          <div class="task">
+            ${t.data.title || "Без названия"}
+            <small>${t.id}</small>
+          </div>
+        `;
+      });
+
+      appDiv.innerHTML += `
+        <div class="day">
+          <div class="day-header" onclick="toggle(this)">
+            <span>${date}</span>
+            <span>${tasks.length}</span>
+          </div>
+          <div class="tasks">
+            ${html}
+          </div>
+        </div>
+      `;
+    });
+
+    log("✅ DONE");
+  }
+
+  load();
 </script>
 
 </body>
