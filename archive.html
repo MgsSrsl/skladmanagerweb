@@ -3,185 +3,116 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Архив задач — Debug</title>
+  <title>Архив задач</title>
 
   <style>
-    body{
-      margin:0;
-      font-family:system-ui;
-      background:#0b0f14;
-      color:#fff;
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #0f0f10;
+      color: #fff;
     }
 
-    .container{
-      max-width:1100px;
-      margin:24px auto;
-      padding:0 16px;
+    header {
+      padding: 16px;
+      font-size: 20px;
+      font-weight: bold;
+      border-bottom: 1px solid #2a2a2a;
     }
 
-    h1{ margin:0 0 16px; }
-
-    .card{
-      background:#0d1422;
-      border:1px solid #1f2a44;
-      border-radius:14px;
-      padding:12px;
-      margin-bottom:10px;
+    .container {
+      padding: 16px;
     }
 
-    .muted{ color:#9ca3af; font-size:13px; }
-
-    .title{ font-weight:700; }
-
-    .badge{
-      font-size:12px;
-      padding:4px 8px;
-      border-radius:999px;
-      border:1px solid #334155;
-      background:#0b1220;
+    .task {
+      background: #1a1a1d;
+      padding: 12px;
+      border-radius: 10px;
+      margin-bottom: 10px;
+      border: 1px solid #2a2a2a;
     }
 
-    .day{
-      margin:18px 0 6px;
-      color:#60a5fa;
-      font-weight:800;
+    .date {
+      font-size: 12px;
+      color: #aaa;
+      margin-bottom: 6px;
     }
 
-    pre{
-      background:#0b1220;
-      padding:10px;
-      border-radius:10px;
-      overflow:auto;
-      font-size:12px;
+    .title {
+      font-size: 16px;
+    }
+
+    .empty {
+      color: #888;
+      margin-top: 20px;
     }
   </style>
 </head>
 
 <body>
-<div class="container">
 
-  <h1>📦 Архив (DEBUG MODE)</h1>
+<header>📦 Архив задач</header>
 
-  <div id="list">Загрузка...</div>
-
+<div class="container" id="archive-list">
+  Загрузка...
 </div>
 
+<!-- Firebase -->
 <script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js";
-  import {
-    getFirestore,
-    collection,
-    getDocs
-  } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
+  import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 
-  import {
-    getAuth,
-    signInAnonymously
-  } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
-
-  const config = {
-    apiKey: "AIzaSyAH58ZpWAp64mhM589KD6jXHcOlPqU0aYU",
-    authDomain: "skladsborka-6c2a7.firebaseapp.com",
-    projectId: "skladsborka-6c2a7",
-    storageBucket: "skladsborka-6c2a7.firebasestorage.app",
-    appId: "1:516526717198:android:e470c17aed370572757f5f"
+  // ⚠️ ВСТАВЬ СВОЙ firebaseConfig
+  const firebaseConfig = {
+    apiKey: "YOUR_KEY",
+    authDomain: "YOUR_DOMAIN",
+    projectId: "YOUR_PROJECT_ID",
+    storageBucket: "YOUR_BUCKET",
+    messagingSenderId: "YOUR_SENDER_ID",
+    appId: "YOUR_APP_ID"
   };
 
-  const app = initializeApp(config);
+  const app = initializeApp(firebaseConfig);
   const db = getFirestore(app);
-  const auth = getAuth(app);
 
-  await signInAnonymously(auth);
+  async function loadArchive() {
+    const container = document.getElementById("archive-list");
+    container.innerHTML = "Загрузка...";
 
-  const list = document.getElementById("list");
+    const archivesRef = collection(db, "archives");
+    const archivesSnap = await getDocs(archivesRef);
 
-  function render(task, meta){
-    const div = document.createElement("div");
-    div.className = "card";
+    const tasks = [];
 
-    div.innerHTML = `
-      <div class="title">${task.title || "Без названия"}</div>
-      <div class="muted">📅 ${meta}</div>
-      <div class="badge">${task.status || "unknown"}</div>
-      <div class="muted">${task.comment || ""}</div>
-    `;
+    for (const docSnap of archivesSnap.docs) {
+      const date = docSnap.id;
 
-    list.appendChild(div);
-  }
+      const tasksRef = collection(db, "archives", date, "tasks");
+      const tasksSnap = await getDocs(tasksRef);
 
-  async function load(){
+      tasksSnap.forEach(t => {
+        tasks.push({
+          id: t.id,
+          date,
+          ...t.data()
+        });
+      });
+    }
 
-    list.innerHTML = "";
-
-    const archivesSnap = await getDocs(collection(db, "archives"));
-
-    console.log("📦 archives docs:", archivesSnap.docs.map(d => d.id));
-
-    if (archivesSnap.empty){
-      list.innerHTML = "<div class='card'>❌ Нет коллекции archives</div>";
+    if (tasks.length === 0) {
+      container.innerHTML = `<div class="empty">Архив пуст</div>`;
       return;
     }
 
-    let foundAny = false;
-
-    for (const dayDoc of archivesSnap.docs){
-
-      const day = dayDoc.id;
-
-      console.log("📅 checking day:", day);
-
-      // ===== ВАРИАНТ 1: subcollection tasks =====
-      const subRef = collection(db, "archives", day, "tasks");
-      const subSnap = await getDocs(subRef);
-
-      console.log("   subcollection tasks:", subSnap.size);
-
-      if (!subSnap.empty){
-        foundAny = true;
-
-        const header = document.createElement("div");
-        header.className = "day";
-        header.textContent = "📅 " + day + " (subcollection)";
-        list.appendChild(header);
-
-        subSnap.forEach(d=>{
-          render(d.data(), day);
-        });
-
-        continue;
-      }
-
-      // ===== ВАРИАНТ 2: tasks внутри doc (field array) =====
-      const data = dayDoc.data();
-      if (data && Array.isArray(data.tasks)){
-        console.log("   found array tasks inside doc");
-
-        foundAny = true;
-
-        const header = document.createElement("div");
-        header.className = "day";
-        header.textContent = "📅 " + day + " (array)";
-        list.appendChild(header);
-
-        data.tasks.forEach(t=>{
-          render(t, day);
-        });
-      }
-    }
-
-    if (!foundAny){
-      list.innerHTML = `
-        <div class="card">
-          ❌ НИЧЕГО НЕ НАЙДЕНО<br><br>
-          Открой Console (F12) и посмотри:
-          <pre>archives docs / subcollection sizes</pre>
-          Скорее всего структура отличается от ожидаемой.
-        </div>
-      `;
-    }
+    container.innerHTML = tasks.map(t => `
+      <div class="task">
+        <div class="date">${t.date}</div>
+        <div class="title">${t.title || "Без названия"}</div>
+      </div>
+    `).join("");
   }
 
-  load();
+  loadArchive();
 </script>
 
 </body>
