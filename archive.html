@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Tasks CollectionGroup Debug</title>
+  <title>Firebase Safe Debug</title>
 
   <style>
     body {
@@ -19,93 +19,78 @@
       border-bottom: 1px solid #2a2a2a;
     }
 
-    .log {
-      padding: 6px 10px;
-      font-size: 12px;
-      color: #aaa;
-      border-bottom: 1px solid #222;
-      white-space: pre-wrap;
-    }
-
-    .box {
-      margin: 10px;
+    #log {
       padding: 10px;
-      background: #1a1a1d;
-      border: 1px solid #2a2a2a;
-      border-radius: 8px;
       font-size: 12px;
+      white-space: pre-wrap;
+      color: #aaa;
     }
 
+    .err { color: #ff4d4d; }
     .ok { color: #4dff88; }
-    .bad { color: #ff4d4d; }
   </style>
 </head>
 
 <body>
 
-<header>🧪 GLOBAL TASKS DEBUG (collectionGroup)</header>
+<header>🧪 SAFE FIREBASE DEBUG</header>
 
-<div id="logs"></div>
-<div id="out"></div>
+<div id="log">loading...</div>
 
 <script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
-  import { getFirestore, collectionGroup, getDocs } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
+  const logEl = document.getElementById("log");
 
-  const firebaseConfig = {
-    apiKey: "AIzaSyAH58ZpWAp64mhM589KD6jXHcOlPqU0aYU",
-    authDomain: "skladsborka-6c2a7.firebaseapp.com",
-    projectId: "skladsborka-6c2a7",
-    storageBucket: "skladsborka-6c2a7.firebasestorage.app",
-    appId: "1:516526717198:android:e470c17aed370572757f5f"
+  function log(msg, cls = "") {
+    console.log(msg);
+    logEl.innerHTML += `\n<span class="${cls}">${msg}</span>`;
+  }
+
+  window.onerror = function(msg) {
+    log("🔥 JS ERROR: " + msg, "err");
   };
 
-  const app = initializeApp(firebaseConfig);
-  const db = getFirestore(app);
+  try {
+    log("🚀 SCRIPT START");
 
-  const logs = document.getElementById("logs");
-  const out = document.getElementById("out");
+    import("https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js").then(appMod => {
+      import("https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js").then(fsMod => {
 
-  function log(msg, type = "") {
-    console.log(msg);
-    logs.innerHTML += `<div class="log ${type}">${msg}</div>`;
+        const { initializeApp } = appMod;
+        const { getFirestore, collectionGroup, getDocs } = fsMod;
+
+        const firebaseConfig = {
+          apiKey: "AIzaSyAH58ZpWAp64mhM589KD6jXHcOlPqU0aYU",
+          authDomain: "skladsborka-6c2a7.firebaseapp.com",
+          projectId: "skladsborka-6c2a7",
+          storageBucket: "skladsborka-6c2a7.firebasestorage.app",
+          appId: "1:516526717198:android:e470c17aed370572757f5f"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        log("✔ Firebase init OK");
+
+        getDocs(collectionGroup(db, "tasks"))
+          .then(snap => {
+            log("📦 TASKS SIZE: " + snap.size);
+
+            snap.forEach(t => {
+              log("PATH: " + t.ref.path);
+            });
+
+            log("✅ DONE", "ok");
+          })
+          .catch(e => {
+            log("🔥 FIREBASE ERROR: " + e.message, "err");
+          });
+
+      }).catch(e => log("🔥 FIRESTORE LOAD FAIL: " + e.message, "err"));
+    }).catch(e => log("🔥 APP LOAD FAIL: " + e.message, "err"));
+
+  } catch (e) {
+    log("🔥 FATAL: " + e.message, "err");
   }
-
-  async function run() {
-    try {
-      log("🚀 START COLLECTION GROUP TEST");
-
-      const snap = await getDocs(collectionGroup(db, "tasks"));
-
-      log("📦 GLOBAL TASKS SIZE: " + snap.size, snap.size ? "ok" : "bad");
-
-      if (snap.empty) {
-        log("❌ NO TASKS FOUND ANYWHERE", "bad");
-        return;
-      }
-
-      snap.forEach(t => {
-        const data = t.data();
-
-        log("📍 PATH: " + t.ref.path);
-
-        out.innerHTML += `
-          <div class="box">
-            <b>PATH:</b> ${t.ref.path}<br/><br/>
-            <b>DATA:</b>
-            <pre>${JSON.stringify(data, null, 2)}</pre>
-          </div>
-        `;
-      });
-
-      log("✅ DONE");
-
-    } catch (e) {
-      log("🔥 ERROR: " + e.message, "bad");
-    }
-  }
-
-  run();
 </script>
 
 </body>
