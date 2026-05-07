@@ -3,23 +3,24 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Archives Debug</title>
+  <title>Архив задач</title>
 
   <style>
     body {
       margin: 0;
-      font-family: Arial;
+      font-family: Arial, sans-serif;
       background: #0f0f10;
       color: #fff;
     }
 
     header {
       padding: 14px;
-      border-bottom: 1px solid #2a2a2a;
+      font-size: 18px;
       font-weight: bold;
+      border-bottom: 1px solid #2a2a2a;
     }
 
-    .log {
+    .logs {
       padding: 10px;
       font-size: 12px;
       color: #aaa;
@@ -27,32 +28,62 @@
       white-space: pre-wrap;
     }
 
-    .item {
-      margin: 10px;
-      padding: 10px;
+    .container {
+      padding: 12px;
+    }
+
+    .day {
       background: #1a1a1d;
       border: 1px solid #2a2a2a;
-      border-radius: 8px;
+      border-radius: 10px;
+      margin-bottom: 10px;
+      overflow: hidden;
+    }
+
+    .day-header {
+      padding: 10px;
+      font-weight: bold;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .tasks {
+      display: none;
+      border-top: 1px solid #2a2a2a;
+    }
+
+    .task {
+      padding: 10px;
+      border-bottom: 1px solid #2a2a2a;
+      font-size: 14px;
+    }
+
+    .task small {
+      color: #777;
+      display: block;
+      margin-top: 4px;
     }
 
     .empty {
-      padding: 10px;
       color: #777;
+      padding: 10px;
     }
   </style>
 </head>
 
 <body>
 
-<header>🧪 RAW ARCHIVES DEBUG</header>
+<header>📦 Архив задач</header>
 
-<div id="logs"></div>
-<div id="out"></div>
+<div class="logs" id="logs">starting...</div>
+<div class="container" id="app"></div>
 
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
   import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 
+  // 🔥 ТВОЙ FIREBASE
   const firebaseConfig = {
     apiKey: "AIzaSyAH58ZpWAp64mhM589KD6jXHcOlPqU0aYU",
     authDomain: "skladsborka-6c2a7.firebaseapp.com",
@@ -65,46 +96,83 @@
   const db = getFirestore(app);
 
   const logs = document.getElementById("logs");
-  const out = document.getElementById("out");
+  const root = document.getElementById("app");
 
   function log(msg) {
     console.log(msg);
-    logs.innerHTML += `<div class="log">${msg}</div>`;
+    logs.innerText += "\n" + msg;
   }
 
-  async function run() {
+  window.toggle = (el) => {
+    const t = el.nextElementSibling;
+    t.style.display = t.style.display === "block" ? "none" : "block";
+  };
+
+  async function load() {
     try {
-      log("🚀 Connecting...");
+      log("🚀 START");
+      log("PROJECT: " + firebaseConfig.projectId);
 
-      const snap = await getDocs(collection(db, "archives"));
+      const archivesSnap = await getDocs(collection(db, "archives"));
 
-      log("📁 archives size: " + snap.size);
+      log("📁 archives count: " + archivesSnap.size);
 
-      if (snap.empty) {
-        out.innerHTML = "<div class='empty'>archives EMPTY</div>";
+      if (archivesSnap.empty) {
+        log("❌ archives EMPTY — проверь Firebase Console");
+        root.innerHTML = "<div class='empty'>Архив пуст</div>";
         return;
       }
 
-      snap.forEach(doc => {
-        const data = doc.data();
+      for (const dayDoc of archivesSnap.docs) {
+        const date = dayDoc.id;
 
-        out.innerHTML += `
-          <div class="item">
-            <b>ID:</b> ${doc.id}<br/><br/>
-            <b>DATA:</b><br/>
-            <pre>${JSON.stringify(data, null, 2)}</pre>
+        log("📅 date: " + date);
+
+        const tasksSnap = await getDocs(
+          collection(db, "archives", date, "tasks")
+        );
+
+        log("   tasks: " + tasksSnap.size);
+
+        let html = "";
+
+        if (tasksSnap.empty) {
+          html = `<div class="empty">Нет задач</div>`;
+        } else {
+          tasksSnap.forEach(task => {
+            const d = task.data();
+
+            html += `
+              <div class="task">
+                ${d.title || "Без названия"}
+                <small>${task.id}</small>
+              </div>
+            `;
+          });
+        }
+
+        root.innerHTML += `
+          <div class="day">
+            <div class="day-header" onclick="toggle(this)">
+              <span>${date}</span>
+              <span>▼</span>
+            </div>
+            <div class="tasks">
+              ${html}
+            </div>
           </div>
         `;
-      });
+      }
 
       log("✅ DONE");
 
     } catch (e) {
       log("🔥 ERROR: " + e.message);
+      console.error(e);
     }
   }
 
-  run();
+  load();
 </script>
 
 </body>
