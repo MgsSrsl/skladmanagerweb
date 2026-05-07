@@ -78,7 +78,7 @@
       log("🚀 START ARCHIVES DEBUG");
       log("PROJECT: " + firebaseConfig.projectId);
 
-      const snap = await getDocs(collection(db, "archives"));
+      const snap = await getDocs(collection(db, "tasks"));
 
       log("📁 archives SIZE: " + snap.size);
 
