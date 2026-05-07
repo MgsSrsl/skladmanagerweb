@@ -3,12 +3,12 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Архив задач</title>
+  <title>Архив задач — СкладСборка</title>
 
   <style>
     body{
       margin:0;
-      font-family:system-ui;
+      font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;
       background:#0b0f14;
       color:#fff;
     }
@@ -21,37 +21,6 @@
 
     h1{ margin:0 0 16px; }
 
-    .card{
-      background:#0d1422;
-      border:1px solid #1f2a44;
-      border-radius:14px;
-      padding:12px;
-      margin-bottom:12px;
-    }
-
-    .title{ font-weight:700; }
-    .muted{ color:#9ca3af; font-size:13px; }
-
-    .row{
-      display:flex;
-      justify-content:space-between;
-      gap:10px;
-    }
-
-    .badge{
-      font-size:12px;
-      padding:4px 8px;
-      border-radius:999px;
-      border:1px solid #334155;
-      background:#0b1220;
-    }
-
-    .items{
-      margin-top:8px;
-      font-size:13px;
-      color:#cbd5e1;
-    }
-
     a.back{
       display:inline-block;
       margin-bottom:12px;
@@ -61,12 +30,52 @@
       padding:10px 12px;
       border-radius:10px;
       border:1px solid #334155;
+      font-weight:600;
     }
 
     .day{
-      margin:18px 0 6px;
+      margin:18px 0 8px;
       color:#60a5fa;
-      font-weight:700;
+      font-weight:800;
+      font-size:16px;
+    }
+
+    .card{
+      background:#0d1422;
+      border:1px solid #1f2a44;
+      border-radius:14px;
+      padding:12px;
+      margin-bottom:10px;
+    }
+
+    .row{
+      display:flex;
+      justify-content:space-between;
+      gap:10px;
+    }
+
+    .title{ font-weight:700; font-size:15px; }
+
+    .muted{
+      color:#9ca3af;
+      font-size:13px;
+      margin-top:4px;
+    }
+
+    .badge{
+      font-size:12px;
+      padding:4px 8px;
+      border-radius:999px;
+      border:1px solid #334155;
+      background:#0b1220;
+      white-space:nowrap;
+      height:fit-content;
+    }
+
+    .items{
+      margin-top:6px;
+      font-size:13px;
+      color:#cbd5e1;
     }
   </style>
 </head>
@@ -110,7 +119,7 @@
 
   const list = document.getElementById("list");
 
-  function renderTask(date, id, data){
+  function renderTask(day, id, data){
     const div = document.createElement("div");
     div.className = "card";
 
@@ -125,7 +134,8 @@
 
       <div class="items">
         👤 ${(data.assigneeNames || []).join(", ") || "—"}<br>
-        📦 ${(data.items || []).length} позиций
+        📦 ${(data.items || []).length} позиций<br>
+        📅 ${day}
       </div>
 
       <div class="muted">${data.comment || ""}</div>
@@ -134,46 +144,60 @@
     list.appendChild(div);
   }
 
-  async function load(){
-    list.innerHTML = "";
+  async function loadArchive(){
+    try{
+      list.innerHTML = "";
 
-    const archivesSnap = await getDocs(collection(db, "archives"));
+      const archivesSnap = await getDocs(collection(db, "archives"));
 
-    if (archivesSnap.empty){
-      list.innerHTML = "<div class='card'>Архив пуст</div>";
-      return;
-    }
+      if (archivesSnap.empty){
+        list.innerHTML = "<div class='card'>Архив пуст</div>";
+        return;
+      }
 
-    let total = 0;
+      // сортируем дни (2026-04-14 → 2026-04-15 ...)
+      const days = archivesSnap.docs
+        .map(d => d.id)
+        .sort()
+        .reverse();
 
-    // сортируем дни по убыванию
-    const days = archivesSnap.docs.map(d => d.id).sort().reverse();
+      let total = 0;
 
-    for (const day of days){
+      for (const day of days){
 
-      const dayHeader = document.createElement("div");
-      dayHeader.className = "day";
-      dayHeader.textContent = day;
-      list.appendChild(dayHeader);
+        const dayHeader = document.createElement("div");
+        dayHeader.className = "day";
+        dayHeader.textContent = "📅 " + day;
+        list.appendChild(dayHeader);
 
-      const tasksSnap = await getDocs(
-        collection(db, "archives", day, "tasks")
-      );
+        const tasksSnap = await getDocs(
+          collection(db, "archives", day, "tasks")
+        );
 
-      if (tasksSnap.empty) continue;
+        if (tasksSnap.empty) continue;
 
-      tasksSnap.forEach(t=>{
-        total++;
-        renderTask(day, t.id, t.data());
-      });
-    }
+        tasksSnap.forEach(doc=>{
+          total++;
+          renderTask(day, doc.id, doc.data());
+        });
+      }
 
-    if (!total){
-      list.innerHTML = "<div class='card'>Архив пуст</div>";
+      if (!total){
+        list.innerHTML = "<div class='card'>Архив пуст</div>";
+      }
+
+    }catch(e){
+      console.error(e);
+      list.innerHTML = `
+        <div class="card">
+          ❌ Ошибка загрузки архива<br><br>
+          ${e.message}
+        </div>
+      `;
     }
   }
 
-  load();
+  loadArchive();
 </script>
 
 </body>
