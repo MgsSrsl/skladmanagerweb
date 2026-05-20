@@ -1,0 +1,148 @@
+if(!filtered.length){
+
+    grid.innerHTML = 
+      <div class="empty">
+        Ничего не найдено
+      </div>
+    ;
+
+    return;
+  }
+
+  grid.innerHTML = filtered.map(task => {
+
+    const files = Array.isArray(task.files)
+      ? task.files
+      : [];
+
+    return 
+      <div class="card">
+
+        <div class="title">
+          ${escapeHtml(task.title || "Без названия")}
+        </div>
+
+        <div class="comment">
+          ${escapeHtml(task.comment || "")}
+        </div>
+
+        <div class="meta">
+
+          <div class="chip">
+            ${task.status || "assigned"}
+          </div>
+
+          <div class="chip">
+            ${formatDate(task.createdAt)}
+          </div>
+
+        </div>
+
+        ${
+          files.length
+          ? 
+            <div class="files">
+
+              ${files.map(f => 
+                <a
+                  class="file"
+                  href="${f.url}"
+                  target="_blank"
+                >
+                  <span>${escapeHtml(f.name || "Файл")}</span>
+                  <span>Открыть</span>
+                </a>
+              ).join("")}
+
+            </div>
+          
+          : ""
+        }
+
+        <div class="toolbar">
+
+          <button
+            class="ok"
+            onclick="setStatus('${task.id}','СОГЛАСОВАНО')"
+          >
+            Согласовано
+          </button>
+
+          <button
+            class="reject"
+            onclick="setStatus('${task.id}','ОТКАЗ')"
+          >
+            Отказ
+          </button>
+
+        </div>
+
+      </div>
+    ;
+
+  }).join("");
+
+}
+
+window.setStatus = async function(taskId, text){
+
+  const task = allTasks.find(t => t.id === taskId);
+
+  if(!task) return;
+
+  const newComment =
+${task.comment || ""}
+
+[${new Date().toLocaleString()}]
+${text};
+
+  try{
+
+    await updateDoc(doc(db,"tasks",taskId),{
+      comment:newComment
+    });
+
+    await loadTasks();
+
+  }catch(e){
+
+    alert("Ошибка");
+
+    console.error(e);
+
+  }
+
+}
+
+function formatDate(ts){
+
+  try{
+
+    if(!ts?.toDate) return "";
+
+    return ts.toDate().toLocaleString("ru-RU");
+
+  }catch{
+
+    return "";
+
+  }
+
+}
+
+function escapeHtml(str){
+
+  return String(str)
+    .replaceAll("&","&amp;")
+    .replaceAll("<","&lt;")
+    .replaceAll(">","&gt;")
+    .replaceAll('"',"&quot;");
+
+}
+
+loadTasks();
+
+</script>
+
+</body>
+</html>
