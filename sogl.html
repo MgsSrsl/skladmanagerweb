@@ -1,52 +1,65 @@
 <!doctype html>
 <html lang="ru">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Создать задание — СкладСборка</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Создать задание — СкладСборка</title>
 
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
 
-<meta http-equiv="Cache-Control" content="no-store" />
+  <meta http-equiv="Cache-Control" content="no-store" />
 
-<style>
-:root{
-  --brand-red:#FF3B30; --text:#0d0d0d; --muted:#666; --line:rgba(0,0,0,.08);
-  --glass:#fff; --bg:#f5f6f8;
-}
-*{ box-sizing:border-box }
-body{ margin:0; font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial; background:var(--bg); color:var(--text) }
-.shell{ max-width:1120px; margin:0 auto; padding:20px 14px 120px }
-h1{ margin:6px 0 18px; font-size:28px; font-weight:800 }
+  <style>
+    :root{
+      --brand-red:#FF3B30; --text:#0d0d0d; --muted:#666; --line:rgba(0,0,0,.08);
+      --glass:#fff; --bg:#f5f6f8;
+    }
+    *{ box-sizing:border-box }
+    body{ margin:0; font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial; background:var(--bg); color:var(--text) }
+    .shell{ max-width:1120px; margin:0 auto; padding:20px 14px 120px }
+    h1{ margin:6px 0 18px; font-size:28px; font-weight:800 }
 
-.grid{ display:grid; grid-template-columns:1fr 440px; gap:16px; align-items:start }
-@media (max-width:980px){ .grid{ grid-template-columns:1fr } }
+    .grid{ display:grid; grid-template-columns:1fr 440px; gap:16px; align-items:start }
+    @media (max-width:980px){ .grid{ grid-template-columns:1fr } }
 
-.card{ background:var(--glass); border:1px solid rgba(0,0,0,.06); border-radius:16px; padding:16px }
-label{ font-weight:600; font-size:14px; display:block; margin:12px 0 6px }
-input[type="text"], textarea, select{
-  width:100%; padding:12px 14px; border-radius:12px; border:1px solid rgba(0,0,0,.12); font:inherit; background:#fff
-}
-textarea{ min-height:96px; resize:vertical }
+    .card{ background:var(--glass); border:1px solid rgba(0,0,0,.06); border-radius:16px; padding:16px }
+    label{ font-weight:600; font-size:14px; display:block; margin:12px 0 6px }
+    input[type="text"], textarea, select{
+      width:100%; padding:12px 14px; border-radius:12px; border:1px solid rgba(0,0,0,.12); font:inherit; background:#fff
+    }
+    textarea{ min-height:96px; resize:vertical }
+    .row{ display:grid; grid-template-columns:1fr 1fr; gap:12px }
+    .muted{ color:var(--muted); font-size:13px }
+    .btn{ border:none; background:var(--brand-red); color:#fff; padding:12px 14px; border-radius:12px; font-weight:800; cursor:pointer }
+    .btn-secondary{ background:#fff; color:var(--text); border:1px solid rgba(0,0,0,.12) }
 
-.row{ display:grid; grid-template-columns:1fr 1fr; gap:12px }
-.muted{ color:var(--muted); font-size:13px }
-.btn{ border:none; background:var(--brand-red); color:#fff; padding:12px 14px; border-radius:12px; font-weight:800; cursor:pointer }
-.btn:disabled{ opacity:.6; cursor:not-allowed }
-.btn-secondary{ background:#fff; color:var(--text); border:1px solid rgba(0,0,0,.12) }
-.btn-ghost{ background:transparent; color:var(--text); border:1px dashed var(--line) }
+    .switch{ display:flex; align-items:center; gap:10px; margin-top:10px }
 
-.switch{ display:flex; align-items:center; gap:10px; margin-top:18px; flex-wrap:wrap }
+    .pill{ font-size:11px; font-weight:700; padding:4px 8px; border-radius:999px; border:1px solid var(--line); background:#fafafa }
+    .pill.warn{ color:#7c2d12; background:#fffbeb; border-color:#fde68a }
+    .pill.blue{ color:#1e40af; background:#eff6ff; border-color:#bfdbfe }
 
-.drop{ padding:12px; border:2px dashed rgba(0,0,0,.2); border-radius:12px; background:#fff }
-.drop.drag{ background:#f8fbff; border-color:#3d7bfd }
+    .tasklist{
+      display:flex; flex-direction:column; gap:10px;
+      max-height:82vh; overflow:auto;
+    }
 
-.files{ display:flex; flex-wrap:wrap; gap:8px; margin-top:8px }
-.chip{ display:inline-flex; gap:8px; align-items:center; background:#fff; border:1px solid rgba(0,0,0,.12); padding:8px 10px; border-radius:12px }
-.chip button{ border:none; background:transparent; font-weight:800; cursor:pointer }
-</style>
+    .task{
+      border:1px solid var(--line);
+      background:#fff;
+      border-radius:14px;
+      padding:10px 12px;
+    }
+
+    .aside{ position:sticky; top:12px }
+
+    .split-title{
+      font-weight:800;
+      margin:8px 0;
+    }
+  </style>
 </head>
 
 <body>
@@ -55,159 +68,149 @@ textarea{ min-height:96px; resize:vertical }
 
   <div class="grid">
 
-    <div class="left">
-      <div class="card">
+    <!-- LEFT -->
+    <div class="card">
 
-        <div class="row">
-          <div>
-            <label>Название задания</label>
-            <input id="title" type="text" />
-          </div>
+      <label>Название</label>
+      <input id="title" type="text">
 
-          <div class="switch">
-            <label style="margin:0">
-              <input id="cbAssembled" type="checkbox" />
-              Собранный заказ
-            </label>
+      <label>Комментарий</label>
+      <textarea id="comment"></textarea>
 
-            <!-- 🔴 НОВОЕ -->
-            <label style="margin:0">
-              <input id="cbApproval" type="checkbox" />
-              Согласование самовывоза
-            </label>
-          </div>
-        </div>
-
-        <label>Комментарий</label>
-        <textarea id="comment"></textarea>
-
-        <label>Файлы</label>
-        <div id="drop" class="drop">
-          <input id="fileInput" type="file" multiple />
-        </div>
-        <div id="files" class="files"></div>
-
-        <label>Кладовщики</label>
-        <div id="users" class="card" style="padding:8px; height:180px; overflow:auto"></div>
-
+      <!-- 🔥 НОВЫЕ ЧЕКБОКСЫ -->
+      <div class="switch">
+        <input id="cbDelivery" type="checkbox">
+        <label style="margin:0">Доставка</label>
       </div>
+
+      <div class="switch">
+        <input id="cbApproval" type="checkbox">
+        <label style="margin:0">Согласование</label>
+      </div>
+
+      <button id="btnSave" class="btn" type="button">Сохранить</button>
+
     </div>
+
+    <!-- RIGHT -->
+    <aside class="aside">
+
+      <div class="split-title">Обычные задачи</div>
+      <div id="tasklist" class="tasklist card"></div>
+
+      <!-- 🔥 НОВЫЙ СТОЛБИК -->
+      <div class="split-title">Согласование / Доставка</div>
+      <div id="specialTasklist" class="tasklist card"></div>
+
+    </aside>
 
   </div>
 </div>
 
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
 <script>
-const FIREBASE_CONFIG = {
+const firebaseConfig = {
   apiKey: "AIzaSyAH58ZpWAp64mhM589KD6jXHcOlPqU0aYU",
   authDomain: "skladsborka-6c2a7.firebaseapp.com",
-  projectId: "skladsborka-6c2a7",
+  projectId: "skladsborka-6c2a7"
 };
 
-firebase.initializeApp(FIREBASE_CONFIG);
+firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
-const auth = firebase.auth();
 
-const els = {
-  title: document.getElementById('title'),
-  comment: document.getElementById('comment'),
-  cbAssembled: document.getElementById('cbAssembled'),
-  cbApproval: document.getElementById('cbApproval'), // 🔴 НОВОЕ
-  fileInput: document.getElementById('fileInput'),
-  files: document.getElementById('files'),
-  users: document.getElementById('users'),
-  btnSave: document.getElementById('btnSave')
+const SPECIAL_USERS = ["login", "Павел"];
+  const els = {
+  title: document.getElementById("title"),
+  comment: document.getElementById("comment"),
+  cbDelivery: document.getElementById("cbDelivery"),
+  cbApproval: document.getElementById("cbApproval"),
+  btnSave: document.getElementById("btnSave"),
+  tasklist: document.getElementById("tasklist"),
+  specialTasklist: document.getElementById("specialTasklist")
 };
 
-const APPROVAL_ALLOWED = ["Павел", "login"]; // 🔴 КЛЮЧЕВОЕ
+let lastTasks = [];
 
-let selectedWorkerIds = new Set();
-let selectedWorkerNames = new Set();
-let allUsersCache = [];
+els.btnSave.onclick = async () => {
 
-auth.signInAnonymously().then(loadUsers);
-
-async function loadUsers(){
-  const snap = await db.collection('users').get();
-  allUsersCache = [];
-
-  const frag = document.createDocumentFragment();
-
-  snap.forEach(doc=>{
-    const data = doc.data();
-    const base = data.name || doc.id;
-
-    allUsersCache.push({id:doc.id, name:base});
-
-    const row = document.createElement('label');
-    row.innerHTML = 
-      <input type="checkbox" data-id="${doc.id}" data-name="${base}">
-      ${base}
-    ;
-
-    row.querySelector('input').onchange = (e)=>{
-      const id = e.target.dataset.id;
-      const name = e.target.dataset.name;
-
-      if(e.target.checked){
-        selectedWorkerIds.add(id);
-        selectedWorkerNames.add(name);
-      } else {
-        selectedWorkerIds.delete(id);
-        selectedWorkerNames.delete(name);
-      }
-    };
-
-    frag.appendChild(row);
-  });
-
-  els.users.appendChild(frag);
-}
-
-// 🔴 ФИЛЬТР УВЕДОМЛЕНИЙ
-function filterApprovalRecipients(ids){
-  return ids.filter(id=>{
-    const u = allUsersCache.find(x=>x.id===id);
-    return u && APPROVAL_ALLOWED.includes(u.name);
-  });
-}
-
-async function saveTask(){
   const title = els.title.value.trim();
   const comment = els.comment.value.trim();
 
-  const isAssembled = els.cbAssembled.checked;
-  const isApproval = els.cbApproval.checked; // 🔴
+  let category = "default";
+  let assignees = [];
 
-  const audienceIds = [...selectedWorkerIds];
-
-  const taskRef = db.collection('tasks').doc();
-
-  await taskRef.set({
-    title,
-    comment,
-    assignees: audienceIds,
-    assembledOrder: isAssembled,
-    approval: isApproval,
-    createdAt: firebase.firestore.FieldValue.serverTimestamp()
-  });
-
-  // 🔴 ГЛАВНАЯ ЛОГИКА ИЗМЕНЕНИЯ
-  let notifyIds = audienceIds;
-
-  if(isApproval){
-    notifyIds = filterApprovalRecipients(audienceIds);
+  // 🔥 ЛОГИКА НОВЫХ ТИПОВ
+  if (els.cbDelivery.checked) {
+    category = "delivery";
+    assignees = SPECIAL_USERS;
   }
 
-  await fetch("https://skladsborka-notify.vercel.app/api/notify-taskCreated", {
-    method:"POST",
-    headers:{'Content-Type':'application/x-www-form-urlencoded'},
-    body: new URLSearchParams({
-      taskId: taskRef.id,
-      assigneeIds: notifyIds.join(",")
-    })
+  if (els.cbApproval.checked) {
+    category = "approval";
+    assignees = SPECIAL_USERS;
+  }
+
+  await db.collection("tasks").add({
+    title,
+    comment,
+    category,
+    assignees,
+    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+    status: "assigned"
   });
 
-  alert("Создано");
+  els.title.value = "";
+  els.comment.value = "";
+  els.cbDelivery.checked = false;
+  els.cbApproval.checked = false;
+};
+
+db.collection("tasks")
+  .orderBy("createdAt","desc")
+  .limit(50)
+  .onSnapshot(snap => {
+
+    const normal = [];
+    const special = [];
+
+    snap.forEach(d => {
+      const x = d.data();
+
+      const task = {
+        id: d.id,
+        title: x.title,
+        comment: x.comment,
+        category: x.category || "default"
+      };
+
+      if (task.category === "delivery" || task.category === "approval") {
+        special.push(task);
+      } else {
+        normal.push(task);
+      }
+    });
+
+    render(normal, els.tasklist);
+    render(special, els.specialTasklist);
+  });
+
+function render(arr, el){
+  el.innerHTML = "";
+  arr.forEach(t => {
+    const div = document.createElement("div");
+    div.className = "task";
+    div.innerHTML = 
+      <div style="font-weight:700">${t.title}</div>
+      <div class="muted">${t.comment || ""}</div>
+      <div style="margin-top:6px">
+        ${t.category === "delivery" ? <span class="pill warn">Доставка</span> : ""}
+        ${t.category === "approval" ? <span class="pill blue">Согласование</span> : ""}
+      </div>
+    ;
+    el.appendChild(div);
+  });
 }
 </script>
 
