@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Складская доска</title>
+<title>Складская доска PRO</title>
 
 <style>
 body{
@@ -23,87 +23,74 @@ body{
   top:0;
 }
 
-input,button{
-  padding:8px;
-}
-
+input,button{padding:8px}
 button{cursor:pointer}
 
 #board{
-  padding:16px;
+  display:flex;
+  gap:12px;
+  padding:12px;
+  overflow:auto;
 }
 
-/* заголовок таблицы */
-.headerRow{
-  display:flex;
-  background:#e5e7eb;
-  padding:10px;
-  border-radius:10px;
-  font-weight:bold;
-  margin-bottom:10px;
-}
-
-.row{
-  display:flex;
+.column{
   background:#fff;
-  margin-bottom:10px;
-  border-radius:10px;
-  box-shadow:0 2px 6px rgba(0,0,0,.1);
+  border-radius:12px;
   padding:10px;
-  align-items:flex-start;
+  width:260px;
+  min-height:300px;
+  box-shadow:0 2px 8px rgba(0,0,0,.1);
 }
 
-.col{
-  flex:1;
-  padding:8px;
-}
-
-.teamName{
+.title{
   font-weight:bold;
-  margin-bottom:6px;
-}
-
-.task{
-  background:#dbeafe;
-  padding:6px;
-  border-radius:6px;
-  margin:4px 0;
+  margin-bottom:10px;
   font-size:14px;
 }
 
-.small{
-  font-size:12px;
-  color:#555;
+.item{
+  background:#dbeafe;
+  padding:8px;
+  border-radius:8px;
+  margin:6px 0;
+  cursor:grab;
+  font-size:13px;
 }
 
+.small{
+  font-size:11px;
+  color:#555;
+}
 </style>
 </head>
 
 <body>
 
 <div class="toolbar">
-  <input id="workerName" placeholder="Название команды">
-  <button onclick="addTeam()">Добавить команду</button>
+  <input id="personName" placeholder="Кладовщик / грузчик">
+  <button onclick="addPerson()">Добавить человека</button>
 
-  <input id="taskName" placeholder="Новая задача">
+  <input id="taskName" placeholder="Задача">
   <button onclick="addTask()">Добавить задачу</button>
 </div>
 
 <div id="board"></div>
 
 <script>
-const STORAGE="warehouse_board_v2";
+const STORAGE="warehouse_pro_v1";
 
 let state = JSON.parse(localStorage.getItem(STORAGE)) || {
-  teams:[
-    {
-      id: id(),
-      name:"Команда 1",
-      members:["Иван","Паша"],
-      activeTask:null,
-      queue:[]
-    }
-  ]
+  people:[
+    {id:id(),name:"Иван",role:"кладовщик"},
+    {id:id(),name:"Паша",role:"грузчик"}
+  ],
+  tasks:[
+    {id:id(),text:"Разгрузка фуры"},
+    {id:id(),text:"Сборка заказа"},
+    {id:id(),text:"Приём возврата"}
+  ],
+  active:[],
+  queue:[]
 };
 
 function id(){
@@ -114,61 +101,73 @@ function save(){
   localStorage.setItem(STORAGE,JSON.stringify(state));
 }
 
-/* ===== TEAMS ===== */
+/* ===== ADD ===== */
 
-function addTeam(){
-  const el=document.getElementById("workerName");
+function addPerson(){
+  const el=document.getElementById("personName");
   const name=el.value.trim();
   if(!name)return;
 
-  state.teams.push({
+  state.people.push({
     id:id(),
     name,
-    members:[],
-    activeTask:null,
-    queue:[]
+    role:"сотрудник"
   });
 
   el.value="";
-  save();
-  render();
+  save();render();
 }
-
-/* ===== TASKS ===== */
 
 function addTask(){
   const el=document.getElementById("taskName");
   const text=el.value.trim();
   if(!text)return;
 
-  const teamName = prompt("Куда назначить задачу? (название команды)");
-
-  const team = state.teams.find(t=>t.name===teamName);
-
-  if(!team){
-    alert("Команда не найдена");
-    return;
-  }
-
-  const task = {id:id(), text};
-
-  // если нет активной → ставим активной
-  if(!team.activeTask){
-    team.activeTask = task;
-  }else{
-    team.queue.push(task);
-  }
-
+  state.tasks.push({id:id(),text});
   el.value="";
-  save();
-  render();
+  save();render();
 }
 
-function completeTask(teamId){
-  const team = state.teams.find(t=>t.id===teamId);
-  if(!team) return;
+/* ===== DRAG ===== */
 
-  team.activeTask = team.queue.shift() || null;
+function dragStart(ev,id,from){
+  ev.dataTransfer.setData("id",id);
+  ev.dataTransfer.setData("from",from);
+}
+
+function allowDrop(ev){
+  ev.preventDefault();
+}
+
+function drop(ev,to){
+  ev.preventDefault();
+
+  const id=ev.dataTransfer.getData("id");
+  const from=ev.dataTransfer.getData("from");
+
+  move(id,from,to);
+}
+
+function move(id,from,to){
+
+  let item;
+
+  const remove=(arr)=>{
+    const i=arr.findIndex(x=>x.id===id);
+    if(i>=0) return arr.splice(i,1)[0];
+  };
+
+  if(from==="people") item=remove(state.people);
+  if(from==="tasks") item=remove(state.tasks);
+  if(from==="active") item=remove(state.active);
+  if(from==="queue") item=remove(state.queue);
+
+  if(!item) return;
+
+  if(to==="people") state.people.push(item);
+  if(to==="tasks") state.tasks.push(item);
+  if(to==="active") state.active.push(item);
+  if(to==="queue") state.queue.push(item);
 
   save();
   render();
@@ -177,61 +176,56 @@ function completeTask(teamId){
 /* ===== UI ===== */
 
 function render(){
+
   const board=document.getElementById("board");
 
-  let html = `
-  <div class="headerRow">
-    <div class="col">Активная задача</div>
-    <div class="col">Команда</div>
-    <div class="col">Следующая очередь</div>
+  board.innerHTML=`
+
+  <div class="column" ondrop="drop(event,'people')" ondragover="allowDrop(event)">
+    <div class="title">👷  Люди</div>
+    ${state.people.map(p=>`
+      <div class="item" draggable="true"
+        ondragstart="dragStart(event,'${p.id}','people')">
+        ${p.name} <div class="small">${p.role}</div>
+      </div>
+    `).join("")}
   </div>
+
+  <div class="column" ondrop="drop(event,'active')" ondragover="allowDrop(event)">
+    <div class="title">🔥  Активные задачи</div>
+    ${state.active.map(t=>`
+      <div class="item" draggable="true"
+        ondragstart="dragStart(event,'${t.id}','active')">
+        ${t.text}
+      </div>
+    `).join("")}
+  </div>
+
+  <div class="column" ondrop="drop(event,'queue')" ondragover="allowDrop(event)">
+    <div class="title">⏭ Команда / выполнение</div>
+    ${state.queue.map(t=>`<div class="item" draggable="true"
+        ondragstart="dragStart(event,'${t.id}','queue')">
+        ${t.text}
+      </div>
+    `).join("")}
+  </div>
+
+  <div class="column" ondrop="drop(event,'tasks')" ondragover="allowDrop(event)">
+    <div class="title">📦 Все задачи</div>
+    ${state.tasks.map(t=>`
+      <div class="item" draggable="true"
+        ondragstart="dragStart(event,'${t.id}','tasks')">
+        ${t.text}
+      </div>
+    `).join("")}
+  </div>
+
   `;
 
-  state.teams.forEach(team=>{
-    html += `
-    <div class="row">
-
-      <!-- ACTIVE -->
-      <div class="col">
-        ${
-          team.activeTask
-          ? `<div class="task">
-              ${team.activeTask.text}
-              <div class="small">
-                <button onclick="completeTask('${team.id}')">Завершить</button>
-              </div>
-             </div>`
-          : `<div class="small">Нет активной задачи</div>`
-        }
-      </div>
-
-      <!-- TEAM -->
-      <div class="col">
-        <div class="teamName">${team.name}</div>
-        <div class="small">
-          ${team.members.length ? team.members.join(", ") : "Нет участников"}
-        </div>
-      </div>
-
-      <!-- QUEUE -->
-      <div class="col">
-        ${
-          team.queue.length
-          ? team.queue.map(t=>`
-              <div class="task">${t.text}</div>
-            `).join("")
-          : `<div class="small">Очередь пуста</div>`
-        }
-      </div>
-
-    </div>
-    `;
-  });
-  board.innerHTML = html;
 }
 
 render();
 </script>
 
 </body>
-</html
+</html>
