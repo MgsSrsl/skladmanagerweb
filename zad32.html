@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Складская доска</title>
+
+<style>
+body{
+  margin:0;
+  font-family:Arial,sans-serif;
+  background:#f3f4f6;
+}
+
+.toolbar{
+  padding:12px;
+  background:#111827;
+  color:#fff;
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+  position:sticky;
+  top:0;
+}
+
+input,button{ padding:8px; }
+button{ cursor:pointer }
+
+#board{
+  display:flex;
+  gap:12px;
+  padding:16px;
+}
+
+.column{
+  flex:1;
+  background:#fff;
+  border-radius:12px;
+  padding:10px;
+  box-shadow:0 2px 8px rgba(0,0,0,.1);
+}
+
+.title{
+  font-weight:bold;
+  margin-bottom:10px;
+  border-bottom:1px solid #ddd;
+  padding-bottom:6px;
+}
+
+.task,.team{
+  background:#e0f2fe;
+  padding:8px;
+  margin:6px 0;
+  border-radius:8px;
+  font-size:14px;
+  position:relative;
+}
+
+.team{ background:#e5e7eb; }
+
+.small{
+  font-size:12px;
+  color:#555;
+}
+
+.btn{
+  position:absolute;
+  right:6px;
+  top:6px;
+  border:none;
+  background:#ef4444;
+  color:#fff;
+  border-radius:6px;
+  padding:2px 6px;
+  font-size:12px;
+  cursor:pointer;
+}
+
+.edit{
+  position:absolute;
+  right:34px;
+  top:6px;
+  border:none;
+  background:#3b82f6;
+  color:#fff;
+  border-radius:6px;
+  padding:2px 6px;
+  font-size:12px;
+  cursor:pointer;
+}
+
+.dropzone.dragover{
+  outline:2px dashed #3b82f6;
+}
+</style>
+</head>
+
+<body>
+
+<div class="toolbar">
+  <input id="teamName" placeholder="Команда">
+  <input id="teamMembers" placeholder="Участники через ,">
+  <button onclick="addTeam()">Добавить команду</button>
+
+  <input id="taskName" placeholder="Задача">
+  <button onclick="addTask()">Добавить задачу</button>
+</div>
+
+<div id="board"></div>
+
+<script>
+const STORAGE="warehouse_board_v6";
+
+let state = JSON.parse(localStorage.getItem(STORAGE)) || {
+  teams:[],
+  unassigned:[]
+};
+
+function id(){
+  return Date.now().toString(36)+Math.random().toString(36).slice(2);
+}
+
+function save(){
+  localStorage.setItem(STORAGE,JSON.stringify(state));
+}
+
+/* ===== TEAMS ===== */
+
+function addTeam(){
+  const name=document.getElementById("teamName").value.trim();
+  const members=document.getElementById("teamMembers").value.trim();
+  if(!name) return;
+
+  state.teams.push({
+    id:id(),
+    name,
+    members: members ? members.split(",").map(x=>x.trim()) : [],
+    activeTask:null,
+    nextTask:null
+  });
+
+  document.getElementById("teamName").value="";
+  document.getElementById("teamMembers").value="";
+  save(); render();
+}
+
+function editTeam(teamId){
+  const team = state.teams.find(t=>t.id===teamId);
+  if(!team) return;
+
+  const name = prompt("Название команды", team.name);
+  if(name===null) return;
+
+  const members = prompt("Участники через запятую", team.members.join(", "));
+  if(members===null) return;
+
+  team.name = name.trim();
+  team.members = members.split(",").map(x=>x.trim()).filter(Boolean);
+
+  save(); render();
+}
+
+function deleteTeam(teamId){
+  state.teams = state.teams.filter(t=>t.id!==teamId);
+  save(); render();
+}
+
+/* ===== TASKS ===== */
+
+function addTask(){
+  const text=document.getElementById("taskName").value.trim();
+  if(!text) return;
+
+  state.unassigned.push({id:id(),text});
+  document.getElementById("taskName").value="";
+  save(); render();
+}
+
+function deleteTask(taskId){
+  state.unassigned = state.unassigned.filter(t=>t.id!==taskId);
+
+  state.teams.forEach(t=>{
+    if(t.activeTask?.id===taskId) t.activeTask=null;
+    if(t.nextTask?.id===taskId) t.nextTask=null;
+  });
+
+  save(); render();
+}
+
+/* ===== DRAG ===== */
+
+let dragged=null;
+
+function dragStart(type,id){
+  dragged={type,id};
+}
+
+function allowDrop(e){ e.preventDefault(); }
+
+/* drop to team */
+function dropToTeam(teamId, slot){
+  if(!dragged || dragged.type!=="task") return;
+
+  const task = state.unassigned.find(t=>t.id===dragged.id);
+  if(!task) return;
+
+  const team = state.teams.find(t=>t.id===teamId);
+  if(!team) return;
+
+  state.unassigned = state.unassigned.filter(t=>t.id!==task.id);
+
+  if(slot==="active"){
+    team.activeTask = task;
+  }else{team.nextTask = task;
+  }
+
+  save(); render();
+}
+
+/* swap inside team */
+function moveBetween(teamId, from, to){
+  const team = state.teams.find(t=>t.id===teamId);
+  if(!team) return;
+
+  const temp = team[from];
+  team[from] = team[to];
+  team[to] = temp;
+
+  save(); render();
+}
+
+/* return to unassigned */
+function returnToPool(teamId, slot){
+  const team = state.teams.find(t=>t.id===teamId);
+  if(!team || !team[slot]) return;
+
+  state.unassigned.push(team[slot]);
+  team[slot]=null;
+
+  save(); render();
+}
+
+/* ===== RENDER ===== */
+
+function render(){
+  const board=document.getElementById("board");
+
+  let html="";
+
+/* ACTIVE */
+html+=`
+<div class="column">
+  <div class="title">Активная задача</div>
+
+  ${state.teams.map(team=>`
+    <div class="team">
+      ${team.name}
+
+      <button class="edit" onclick="editTeam('${team.id}')">✏</button>
+      <button class="btn" onclick="deleteTeam('${team.id}')">×</button>
+
+      <div class="task dropzone"
+        ondragover="allowDrop(event)"
+        ondrop="dropToTeam('${team.id}','active')">
+
+        ${team.activeTask ? `
+          <div draggable="true"
+            ondragstart="dragStart('task','${team.activeTask.id}')">
+            ${team.activeTask.text}
+            <button class="btn" onclick="returnToPool('${team.id}','active')">×</button>
+          </div>
+        ` : "нет задачи"}
+
+      </div>
+    </div>
+  `).join("")}
+</div>
+`;
+
+/* TEAMS */
+html+=`
+<div class="column">
+  <div class="title">Команды</div>
+
+  ${state.teams.map(team=>`
+    <div class="team">
+      <b>${team.name}</b>
+      <div class="small">${team.members.join(", ")||"нет участников"}</div>
+    </div>
+  `).join("")}
+</div>
+`;
+
+/* NEXT */
+html+=`
+<div class="column">
+  <div class="title">Следующая задача</div>
+
+  ${state.teams.map(team=>`
+    <div class="team">
+      ${team.name}
+
+      <div class="task dropzone"
+        ondragover="allowDrop(event)"
+        ondrop="dropToTeam('${team.id}','next')">
+
+        ${team.nextTask ? `
+          <div draggable="true"
+            ondragstart="dragStart('task','${team.nextTask.id}')">
+            ${team.nextTask.text}
+            <button class="btn" onclick="returnToPool('${team.id}','next')">×</button>
+          </div>
+        ` : "нет задачи"}
+      </div>
+    </div>
+  `).join("")}
+</div>
+`;
+
+/* UNASSIGNED */
+html = `
+<div class="column">
+  <div class="title">Безхозные задачи</div>
+
+  ${state.unassigned.map(t=>`
+    <div class="task"
+      draggable="true"
+      ondragstart="dragStart('task','${t.id}')">
+
+      ${t.text}
+      <button class="btn" onclick="deleteTask('${t.id}')">×</button>
+    </div>
+  `).join("")}
+</div>
+` + html;
+
+  board.innerHTML=html;
+}
+
+render();
+</script>
+
+</body>
+</html>
