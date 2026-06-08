@@ -1,0 +1,76 @@
+input.value='';
+
+    save();
+    render();
+}
+
+function deleteTask(taskId){
+
+    data.workers.forEach(worker=>{
+        worker.tasks=
+            worker.tasks.filter(
+                t=>t.id!==taskId
+            );
+    });
+
+    save();
+    render();
+}
+
+function initDragDrop(){
+
+    document.querySelectorAll('.drop-zone')
+        .forEach(zone=>{
+
+        zone.addEventListener('dragover',e=>{
+            e.preventDefault();
+        });
+
+        zone.addEventListener('drop',e=>{
+
+            e.preventDefault();
+
+            const taskId=document.querySelector(
+                '.dragging'
+            ).dataset.task;
+
+            let movedTask=null;
+
+            data.workers.forEach(worker=>{
+
+                const index=
+                    worker.tasks.findIndex(
+                        t=>t.id===taskId
+                    );
+
+                if(index!==-1){
+                    movedTask=
+                        worker.tasks.splice(index,1)[0];
+                }
+            });
+
+            if(movedTask){
+
+                const workerId=
+                    zone.dataset.worker;
+
+                const worker=
+                    data.workers.find(
+                        w=>w.id===workerId
+                    );
+
+                worker.tasks.push(movedTask);
+
+                save();
+                render();
+            }
+        });
+    });
+}
+
+render();
+
+</script>
+
+</body>
+</html>
