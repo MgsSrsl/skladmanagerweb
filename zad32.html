@@ -58,11 +58,6 @@ button{ cursor:pointer }
 
 .team{ background:#e5e7eb; }
 
-.small{
-  font-size:12px;
-  color:#555;
-}
-
 .btn{
   position:absolute;
   right:6px;
@@ -109,7 +104,7 @@ button{ cursor:pointer }
 <div id="board"></div>
 
 <script>
-const STORAGE="warehouse_board_v6";
+const STORAGE="warehouse_board_v7";
 
 let state = JSON.parse(localStorage.getItem(STORAGE)) || {
   teams:[],
@@ -124,7 +119,7 @@ function save(){
   localStorage.setItem(STORAGE,JSON.stringify(state));
 }
 
-/* ===== TEAMS ===== */
+/* ===== ADD ===== */
 
 function addTeam(){
   const name=document.getElementById("teamName").value.trim();
@@ -144,29 +139,6 @@ function addTeam(){
   save(); render();
 }
 
-function editTeam(teamId){
-  const team = state.teams.find(t=>t.id===teamId);
-  if(!team) return;
-
-  const name = prompt("Название команды", team.name);
-  if(name===null) return;
-
-  const members = prompt("Участники через запятую", team.members.join(", "));
-  if(members===null) return;
-
-  team.name = name.trim();
-  team.members = members.split(",").map(x=>x.trim()).filter(Boolean);
-
-  save(); render();
-}
-
-function deleteTeam(teamId){
-  state.teams = state.teams.filter(t=>t.id!==teamId);
-  save(); render();
-}
-
-/* ===== TASKS ===== */
-
 function addTask(){
   const text=document.getElementById("taskName").value.trim();
   if(!text) return;
@@ -176,15 +148,26 @@ function addTask(){
   save(); render();
 }
 
+/* ===== DELETE (FIXED) ===== */
+
 function deleteTask(taskId){
+  // удаляем из безхозных
   state.unassigned = state.unassigned.filter(t=>t.id!==taskId);
 
-  state.teams.forEach(t=>{
-    if(t.activeTask?.id===taskId) t.activeTask=null;
-    if(t.nextTask?.id===taskId) t.nextTask=null;
+  // удаляем из всех команд (ВАЖНО — фикс)
+  state.teams.forEach(team=>{
+    if(team.activeTask?.id === taskId) team.activeTask = null;
+    if(team.nextTask?.id === taskId) team.nextTask = null;
   });
 
-  save(); render();
+  save();
+  render();
+}
+
+function deleteTeam(teamId){
+  state.teams = state.teams.filter(t=>t.id!==teamId);
+  save();
+  render();
 }
 
 /* ===== DRAG ===== */
@@ -197,7 +180,6 @@ function dragStart(type,id){
 
 function allowDrop(e){ e.preventDefault(); }
 
-/* drop to team */
 function dropToTeam(teamId, slot){
   if(!dragged || dragged.type!=="task") return;
 
@@ -209,27 +191,13 @@ function dropToTeam(teamId, slot){
 
   state.unassigned = state.unassigned.filter(t=>t.id!==task.id);
 
-  if(slot==="active"){
-    team.activeTask = task;
-  }else{team.nextTask = task;
-  }
+  if(slot==="active") team.activeTask = task;
+  if(slot==="next") team.nextTask = task;
 
-  save(); render();
+  save();
+  render();
 }
 
-/* swap inside team */
-function moveBetween(teamId, from, to){
-  const team = state.teams.find(t=>t.id===teamId);
-  if(!team) return;
-
-  const temp = team[from];
-  team[from] = team[to];
-  team[to] = temp;
-
-  save(); render();
-}
-
-/* return to unassigned */
 function returnToPool(teamId, slot){
   const team = state.teams.find(t=>t.id===teamId);
   if(!team || !team[slot]) return;
@@ -237,7 +205,27 @@ function returnToPool(teamId, slot){
   state.unassigned.push(team[slot]);
   team[slot]=null;
 
-  save(); render();
+  save();
+  render();
+}
+
+/* ===== EDIT ===== */
+
+function editTeam(teamId){
+  const team = state.teams.find(t=>t.id===teamId);
+  if(!team) return;
+
+  const name = prompt("Название", team.name);
+  if(name===null) return;
+
+  const members = prompt("Участники через ,", team.members.join(","));
+  if(members===null) return;
+
+  team.name = name.trim();
+  team.members = members.split(",").map(x=>x.trim()).filter(Boolean);
+
+  save();
+  render();
 }
 
 /* ===== RENDER ===== */
@@ -267,7 +255,7 @@ html+=`
           <div draggable="true"
             ondragstart="dragStart('task','${team.activeTask.id}')">
             ${team.activeTask.text}
-            <button class="btn" onclick="returnToPool('${team.id}','active')">×</button>
+            <button class="btn" onclick="deleteTask('${team.activeTask.id}')">×</button>
           </div>
         ` : "нет задачи"}
 
@@ -277,7 +265,7 @@ html+=`
 </div>
 `;
 
-/* TEAMS */
+/* TEAM */
 html+=`
 <div class="column">
   <div class="title">Команды</div>
@@ -285,7 +273,9 @@ html+=`
   ${state.teams.map(team=>`
     <div class="team">
       <b>${team.name}</b>
-      <div class="small">${team.members.join(", ")||"нет участников"}</div>
+      <div style="font-size:12px;color:#555">
+        ${team.members.join(", ")||"нет участников"}
+      </div>
     </div>
   `).join("")}
 </div>
@@ -308,7 +298,7 @@ html+=`
           <div draggable="true"
             ondragstart="dragStart('task','${team.nextTask.id}')">
             ${team.nextTask.text}
-            <button class="btn" onclick="returnToPool('${team.id}','next')">×</button>
+            <button class="btn" onclick="deleteTask('${team.nextTask.id}')">×</button>
           </div>
         ` : "нет задачи"}
       </div>
@@ -326,7 +316,6 @@ html = `
     <div class="task"
       draggable="true"
       ondragstart="dragStart('task','${t.id}')">
-
       ${t.text}
       <button class="btn" onclick="deleteTask('${t.id}')">×</button>
     </div>
@@ -334,7 +323,7 @@ html = `
 </div>
 ` + html;
 
-  board.innerHTML=html;
+  board.innerHTML = html;
 }
 
 render();
