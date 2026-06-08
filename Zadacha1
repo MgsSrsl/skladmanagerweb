@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Складская доска</title>
+<style>
+body{margin:0;background:#eef2f7;font-family:Arial,sans-serif}
+.header{background:#1f2937;color:#fff;padding:15px}
+.toolbar{display:flex;gap:8px;flex-wrap:wrap;padding:12px;background:#fff;box-shadow:0 2px 6px rgba(0,0,0,.1)}
+input,button{padding:10px;border-radius:8px;border:1px solid #ccc}
+button{cursor:pointer}
+.wrap{padding:15px}
+.board{display:flex;flex-direction:column;gap:12px}
+.row{display:grid;grid-template-columns:1.2fr 1fr 1.2fr auto;gap:10px;background:#fff;border-radius:14px;padding:12px;box-shadow:0 2px 8px rgba(0,0,0,.08)}
+.block{border-radius:10px;padding:10px}
+.current{background:#fee2e2}
+.team{background:#dbeafe}
+.queue{background:#f3f4f6}
+.doneBtn{background:#22c55e;color:#fff;border:none}
+.task{background:#fff;padding:8px;border-radius:8px;margin:6px 0;border:1px solid #ddd;cursor:move}
+.member{padding:6px;margin:4px 0;background:#fff;border-radius:6px}
+.completed{margin-top:20px}
+.completedCard{background:#dcfce7;padding:10px;border-radius:10px;margin-bottom:8px}
+h3{margin:0 0 8px 0}
+.small{font-size:12px;color:#666}
+</style>
+</head>
+<body>
+
+<div class="header"><h2>📋 Доска распределения работ</h2></div>
+
+<div class="toolbar">
+<input id="brigadeName" placeholder="Кладовщик">
+<button onclick="addBrigade()">Добавить бригаду</button>
+
+<input id="taskText" placeholder="Новая задача">
+<button onclick="addTask()">Добавить в пул задач</button>
+</div>
+
+<div class="wrap">
+<h3>Свободные задачи</h3>
+<div id="pool"></div>
+
+<h3>Бригады</h3>
+<div id="board" class="board"></div>
+
+<div class="completed">
+<h3>Выполненные задачи</h3>
+<div id="completed"></div>
+</div>
+</div>
+
+<script>
+const KEY="warehouse_dispatch_v2";
+
+function uid(){
+ return Date.now().toString(36)+Math.random().toString(36).slice(2);
+}
+
+let data=JSON.parse(localStorage.getItem(KEY)||"null")||{
+ taskPool:[
+   {id:uid(),text:"Заказ №101"}
+ ],
+ brigades:[
+   {
+     id:uid(),
+     leader:"Иван",
+     team:["Иван","Петя"],
+     current:null,
+     queue:[]
+   }
+ ],
+ completed:[]
+};
+
+function save(){
+ localStorage.setItem(KEY,JSON.stringify(data));
+}
+
+function addBrigade(){
+ const n=document.getElementById("brigadeName").value.trim();
+ if(!n)return;
+
+ data.brigades.push({
+  id:uid(),
+  leader:n,
+  team:[n],
+  current:null,
+  queue:[]
+ });
+
+ save();render();
+}
+
+function addTask(){
+ const t=document.getElementById("taskText").value.trim();
+ if(!t)return;
+ data.taskPool.push({id:uid(),text:t});
+ save();render();
+}
+
+function drag(ev,id,src){
+ ev.dataTransfer.setData("id",id);
+ ev.dataTransfer.setData("src",src);
+}
+
+function allow(ev){ev.preventDefault();}
+
+function dropPool(ev){
+ ev.preventDefault();
+ const id=ev.dataTransfer.getData("id");
+ const src=ev.dataTransfer.getData("src");
+ if(src.startsWith("brigade:")){
+   const b=data.brigades.find(x=>x.id===src.split(":")[1]);
+   const idx=b.queue.findIndex(x=>x.id===id);
+   if(idx>=0) data.taskPool.push(b.queue.splice(idx,1)[0]);
+ }
+ save();render();
+}
+
+function dropQueue(ev,brigadeId){
+ ev.preventDefault();
+ const id=ev.dataTransfer.getData("id");
+ const src=ev.dataTransfer.getData("src");
+
+ let task=null;
+
+ if(src==="pool"){
+   const i=data.taskPool.findIndex(t=>t.id===id);
+   task=data.taskPool.splice(i,1)[0];
+ }else{
+   return;
+ }
+
+ data.brigades.find(b=>b.id===brigadeId).queue.push(task);
+ save();render();
+}
+
+function finishTask(brigadeId){
+ const b=data.brigades.find(x=>x.id===brigadeId);
+
+ if(!b.current && b.queue.length===0) return;
+
+ if(b.current){
+   data.completed.unshift({
+      text:b.current.text,
+      team:[...b.team],
+      date:new Date().toLocaleString()
+   });
+ }
+
+ b.current=b.queue.shift()||null;
+
+ save();render();
+}
+
+function startFirst(brigadeId){
+ const b=data.brigades.find(x=>x.id===brigadeId);
+ if(!b.current && b.queue.length){
+   b.current=b.queue.shift();
+   save();render();
+ }
+}
+
+function render(){
+
+ document.getElementById("pool").innerHTML=`
+ <div class="queue block" ondragover="allow(event)" ondrop="dropPool(event)">
+ ${data.taskPool.map(t=>`
+   <div class="task" draggable="true"
+    ondragstart="drag(event,'${t.id}','pool')">${t.text}</div>
+ `).join("")}
+ </div>`;
+
+ document.getElementById("board").innerHTML=data.brigades.map(b=>`
+ <div class="row">
+
+   <div class="block current">
+     <h3>Текущая задача</h3>
+     ${b.current ? `<div class="task">${b.current.text}</div>` :
+     `<div class="small">Нет активной задачи</div>`}
+   </div>
+
+   <div class="block team">
+      <h3>${b.leader}</h3>
+      ${b.team.map(m=>`<div class="member">👷 ${m}</div>`).join("")}
+   </div>
+
+   <div class="block queue"
+        ondragover="allow(event)"
+        ondrop="dropQueue(event,'${b.id}')">
+      <h3>Следующие задачи</h3>
+      ${b.queue.map(t=>`
+      <div class="task"
+           draggable="true"
+           ondragstart="drag(event,'${t.id}','brigade:${b.id}')">
+           ${t.text}
+      </div>`).join("")}
+   </div>
+
+   <div>
+      <button onclick="startFirst('${b.id}')">▶ Старт</button>
+      <br><br>
+      <button class="doneBtn"
+       onclick="finishTask('${b.id}')">✓ Выполнено</button>
+   </div>
+
+ </div>
+ `).join("");
+
+ document.getElementById("completed").innerHTML=data.completed.map(c=>`
+ <div class="completedCard">
+   <b>${c.text}</b><br>
+   Выполнили: ${c.team.join(", ")}<br>
+   <span class="small">${c.date}</span>
+ </div>`).join("");
+}
+
+render();
+</script>
+</body>
+</html>
