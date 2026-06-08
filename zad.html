@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Складская доска PRO</title>
+<title>Складская доска</title>
 
 <style>
 body{
@@ -23,21 +23,25 @@ body{
   top:0;
 }
 
-input,button{padding:8px}
-button{cursor:pointer}
+input,button{
+  padding:8px;
+}
 
-#board{
+button{
+  cursor:pointer;
+}
+
+.board{
   display:flex;
   gap:12px;
-  padding:12px;
-  overflow:auto;
+  padding:16px;
 }
 
 .column{
+  flex:1;
   background:#fff;
   border-radius:12px;
   padding:10px;
-  width:260px;
   min-height:300px;
   box-shadow:0 2px 8px rgba(0,0,0,.1);
 }
@@ -45,20 +49,18 @@ button{cursor:pointer}
 .title{
   font-weight:bold;
   margin-bottom:10px;
-  font-size:14px;
 }
 
-.item{
+.task{
   background:#dbeafe;
   padding:8px;
   border-radius:8px;
   margin:6px 0;
   cursor:grab;
-  font-size:13px;
 }
 
 .small{
-  font-size:11px;
+  font-size:12px;
   color:#555;
 }
 </style>
@@ -67,8 +69,8 @@ button{cursor:pointer}
 <body>
 
 <div class="toolbar">
-  <input id="personName" placeholder="Кладовщик / грузчик">
-  <button onclick="addPerson()">Добавить человека</button>
+  <input id="workerName" placeholder="Кладовщик">
+  <button onclick="addWorker()">Добавить кладовщика</button>
 
   <input id="taskName" placeholder="Задача">
   <button onclick="addTask()">Добавить задачу</button>
@@ -77,20 +79,19 @@ button{cursor:pointer}
 <div id="board"></div>
 
 <script>
-const STORAGE="warehouse_pro_v1";
+
+const STORAGE="warehouse_board_fixed_v1";
 
 let state = JSON.parse(localStorage.getItem(STORAGE)) || {
-  people:[
-    {id:id(),name:"Иван",role:"кладовщик"},
-    {id:id(),name:"Паша",role:"грузчик"}
+  backlog:[
+    {id:id(), text:"Разгрузка фуры"},
+    {id:id(), text:"Сборка заказа"},
+    {id:id(), text:"Приём возврата"}
   ],
-  tasks:[
-    {id:id(),text:"Разгрузка фуры"},
-    {id:id(),text:"Сборка заказа"},
-    {id:id(),text:"Приём возврата"}
-  ],
-  active:[],
-  queue:[]
+  workers:[
+    {id:id(), name:"Иван", tasks:[]},
+    {id:id(), name:"Паша", tasks:[]}
+  ]
 };
 
 function id(){
@@ -98,24 +99,25 @@ function id(){
 }
 
 function save(){
-  localStorage.setItem(STORAGE,JSON.stringify(state));
+  localStorage.setItem(STORAGE, JSON.stringify(state));
 }
 
 /* ===== ADD ===== */
 
-function addPerson(){
-  const el=document.getElementById("personName");
+function addWorker(){
+  const el=document.getElementById("workerName");
   const name=el.value.trim();
   if(!name)return;
 
-  state.people.push({
+  state.workers.push({
     id:id(),
     name,
-    role:"сотрудник"
+    tasks:[]
   });
 
   el.value="";
-  save();render();
+  save();
+  render();
 }
 
 function addTask(){
@@ -123,108 +125,140 @@ function addTask(){
   const text=el.value.trim();
   if(!text)return;
 
-  state.tasks.push({id:id(),text});
+  state.backlog.push({
+    id:id(),
+    text
+  });
+
   el.value="";
-  save();render();
+  save();
+  render();
 }
 
 /* ===== DRAG ===== */
 
-function dragStart(ev,id,from){
-  ev.dataTransfer.setData("id",id);
-  ev.dataTransfer.setData("from",from);
+function dragStart(ev, id, from){
+  ev.dataTransfer.setData("id", id);
+  ev.dataTransfer.setData("from", from);
 }
 
 function allowDrop(ev){
   ev.preventDefault();
 }
 
-function drop(ev,to){
+function drop(ev, to){
   ev.preventDefault();
 
-  const id=ev.dataTransfer.getData("id");
-  const from=ev.dataTransfer.getData("from");
+  const id = ev.dataTransfer.getData("id");
+  const from = ev.dataTransfer.getData("from");
 
-  move(id,from,to);
+  moveTask(id, from, to);
 }
 
-function move(id,from,to){
+function moveTask(id, from, to){
 
-  let item;
+  let task;
 
-  const remove=(arr)=>{
-    const i=arr.findIndex(x=>x.id===id);
+  // удалить откуда
+  const remove = (arr)=>{
+    const i = arr.findIndex(t=>t.id===id);
     if(i>=0) return arr.splice(i,1)[0];
   };
 
-  if(from==="people") item=remove(state.people);
-  if(from==="tasks") item=remove(state.tasks);
-  if(from==="active") item=remove(state.active);
-  if(from==="queue") item=remove(state.queue);
+  if(from==="backlog"){
+    task = remove(state.backlog);
+  }
 
-  if(!item) return;
+  state.workers.forEach(w=>{
+    if(from===w.id){
+      const i = w.tasks.findIndex(t=>t.id===id);
+      if(i>=0) task = w.tasks.splice(i,1)[0];
+    }
+  });
 
-  if(to==="people") state.people.push(item);
-  if(to==="tasks") state.tasks.push(item);
-  if(to==="active") state.active.push(item);
-  if(to==="queue") state.queue.push(item);
+  if(!task) return;
+
+  // положить куда
+  if(to==="backlog"){
+    state.backlog.push(task);
+  } else {
+    const w = state.workers.find(x=>x.id===to);
+    if(w) w.tasks.push(task);
+  }
 
   save();
   render();
 }
 
-/* ===== UI ===== */
+/* ===== RENDER ===== */
+
+function taskHtml(t, from){
+  return `
+    <div class="task"
+      draggable="true"
+      ondragstart="dragStart(event,'${t.id}','${from}')">
+      ${t.text}
+    </div>
+  `;
+}
 
 function render(){
-
   const board=document.getElementById("board");
 
   board.innerHTML=`
+  <div class="board">
 
-  <div class="column" ondrop="drop(event,'people')" ondragover="allowDrop(event)">
-    <div class="title">👷  Люди</div>
-    ${state.people.map(p=>`
-      <div class="item" draggable="true"
-        ondragstart="dragStart(event,'${p.id}','people')">
-        ${p.name} <div class="small">${p.role}</div>
-      </div>
-    `).join("")}
+    <!-- ВСЕ ЗАДАЧИ -->
+    <div class="column"
+      ondrop="drop(event,'backlog')"
+      ondragover="allowDrop(event)">
+      <div class="title">📦 Все задачи</div>
+
+      ${state.backlog.map(t=>taskHtml(t,"backlog")).join("")}
+    </div>
+
+    <!-- АКТИВНЫЕ -->
+    <div class="column">
+      <div class="title">🔥  Активные</div>
+
+      ${state.workers.map(w=>{
+        const active = w.tasks[0];
+        if(!active) return "";
+        return `
+          <div class="task"
+            draggable="true"
+            ondragstart="dragStart(event,'${active.id}','${w.id}')">
+            ${active.text}
+            <div class="small">${w.name}</div>
+          </div>
+        `;
+      }).join("")}
+    </div>
+
+    <!-- ОЧЕРЕДЬ -->
+    <div class="column">
+      <div class="title">➡️  Очередь</div>
+
+      ${state.workers.map(w=>{
+        return w.tasks.slice(1).map(t=>`
+          <div class="task"
+            draggable="true"
+            ondragstart="dragStart(event,'${t.id}','${w.id}')">
+            ${t.text}
+            <div class="small">${w.name}</div>
+          </div>
+        `).join("");
+      }).join("")}
+
+    </div>
+
   </div>
-
-  <div class="column" ondrop="drop(event,'active')" ondragover="allowDrop(event)">
-    <div class="title">🔥  Активные задачи</div>
-    ${state.active.map(t=>`
-      <div class="item" draggable="true"
-        ondragstart="dragStart(event,'${t.id}','active')">
-        ${t.text}
-      </div>
-    `).join("")}
-  </div>
-
-  <div class="column" ondrop="drop(event,'queue')" ondragover="allowDrop(event)">
-    <div class="title">⏭ Команда / выполнение</div>
-    ${state.queue.map(t=>`<div class="item" draggable="true"
-        ondragstart="dragStart(event,'${t.id}','queue')">
-        ${t.text}
-      </div>
-    `).join("")}
-  </div>
-
-  <div class="column" ondrop="drop(event,'tasks')" ondragover="allowDrop(event)">
-    <div class="title">📦 Все задачи</div>
-    ${state.tasks.map(t=>`
-      <div class="item" draggable="true"
-        ondragstart="dragStart(event,'${t.id}','tasks')">
-        ${t.text}
-      </div>
-    `).join("")}
-  </div>
-
   `;
 
 }
 
 render();
+
 </script>
 
 </body>
