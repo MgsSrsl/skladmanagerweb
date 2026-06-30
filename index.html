@@ -516,6 +516,7 @@
   function subscribeTasks(){
     if(unsubTasks){ unsubTasks(); unsubTasks=null; }
     const q = db.collection('tasks').orderBy('createdAt','desc').limit(50);
+    console.log("Подключился listener задач");
     unsubTasks = q.onSnapshot(snap=>{
       const arr=[];
       snap.forEach(d=>{
