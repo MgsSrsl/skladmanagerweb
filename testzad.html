@@ -238,6 +238,164 @@
   firebase.initializeApp(FIREBASE_CONFIG);
   const auth = firebase.auth();
   const db   = firebase.firestore();
+    (function () {
+  const origCollection = db.collection.bind(db);
+  const origDoc = db.doc.bind(db);
+
+  let stats = {
+    reads: 0,
+    writes: 0,
+    deletes: 0,
+    snapshots: 0,
+    listeners: 0
+  };
+
+  function logStats() {
+    console.log("📊 FIRESTORE STATS:", stats);
+  }
+
+  function time(label, fn) {
+    return async function (...args) {
+      const start = performance.now();
+      try {
+        const res = await fn.apply(this, args);
+        const end = performance.now();
+        console.log(`⏱ ${label} ${(end - start).toFixed(1)}ms`);
+        logStats();
+        return res;
+      } catch (e) {
+        console.error(`❌ ${label} ERROR`, e);
+        throw e;
+      }
+    };
+  }
+
+  function wrapRef(ref, path) {
+
+    const origSet = ref.set?.bind(ref);
+    const origUpdate = ref.update?.bind(ref);
+    const origDelete = ref.delete?.bind(ref);
+
+    if (origSet) {
+      ref.set = time(`[SET] ${path}`, async function (...args) {
+        stats.writes++;
+        return origSet(...args);
+      });
+    }
+
+    if (origUpdate) {
+      ref.update = time(`[UPDATE] ${path}`, async function (...args) {
+        stats.writes++;
+        return origUpdate(...args);
+      });
+    }
+
+    if (origDelete) {
+      ref.delete = time(`[DELETE] ${path}`, async function () {
+        stats.deletes++;
+        return origDelete();
+      });
+    }
+
+    // 🔥 snapshot hook (если кто-то использует doc.onSnapshot)
+    if (ref.onSnapshot) {
+      const origSnap = ref.onSnapshot.bind(ref);
+
+      ref.onSnapshot = function (...args) {
+        stats.listeners++;
+        stats.snapshots++;
+
+        console.log(`[SNAPSHOT SUBSCRIBE] ${path}`, args.length);
+
+        const unsub = origSnap(...args);
+
+        console.log(`[SNAPSHOT ACTIVE] ${path}`);
+
+        return function () {
+          stats.listeners--;
+          console.log(`[SNAPSHOT UNSUBSCRIBE] ${path}`);
+          return unsub();
+        };
+      };
+    }
+
+    return ref;
+  }
+
+  // COLLECTION WRAP
+  db.collection = function (path) {
+    console.log("[COLLECTION]", path);
+
+    const col = origCollection(path);
+
+    const origDocInCol = col.doc.bind(col);
+
+    col.doc = function (id) {
+      const fullPath = `${path}/${id}`;
+      console.log("[DOC]", fullPath);
+
+      const ref = origDocInCol(id);
+
+      const origGet = ref.get?.bind(ref);
+
+      if (origGet) {
+        ref.get = time(`[GET] ${fullPath}`, async function () {
+          stats.reads++;
+          return origGet();
+        });
+      }
+
+      return wrapRef(ref, fullPath);
+    };
+
+    // 🔥 collection-level snapshot (onSnapshot(collection))
+    if (col.onSnapshot) {
+      const origSnap = col.onSnapshot.bind(col);
+
+      col.onSnapshot = function (...args) {
+        stats.listeners++;
+        stats.snapshots++;
+
+        console.log(`[COLLECTION SNAPSHOT] ${path}`);
+
+        const unsub = origSnap(...args);
+
+        return function () {
+          stats.listeners--;
+          console.log(`[COLLECTION SNAPSHOT UNSUB] ${path}`);
+          return unsub();
+        };
+      };
+    }
+
+    return col;
+  };
+
+  // DOC WRAP (db.doc)
+  db.doc = function (path) {
+    console.log("[DOC]", path);
+
+    const ref = origDoc(path);
+
+    const origGet = ref.get?.bind(ref);
+
+    if (origGet) {
+      ref.get = time(`[GET] ${path}`, async function () {
+        stats.reads++;
+        return origGet();
+      });
+    }
+
+    return wrapRef(ref, path);
+  };
+
+  // 🔥 глобальный вывод статистики раз в 10 сек
+  setInterval(() => {
+    console.log("📊 LIVE FIRESTORE STATS:", stats);
+  }, 10000);
+
+  console.log("🔥 Firestore Diagnostics v2 ENABLED");
+})();
 (function () {
   const origCollection = db.collection.bind(db);
   const origDoc = db.doc.bind(db);
