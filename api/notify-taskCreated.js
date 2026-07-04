@@ -57,38 +57,31 @@ export default async function handler(req, res) {
 
     const ref = db.collection("tasks").doc(taskId);
 
-    // 🔒 АТОМАРНЫЙ LOCK (главный фикс квоты + дублей)
-    const lockOk = await db.runTransaction(async (tx) => {
-      const snap = await tx.get(ref);
-      const data = snap.data();
+    const snap = await ref.get();
+    if (!snap.exists) {
+      return res.status(200).json({ ok: true, ignored: "task_not_found" });
+    }
 
-      if (!snap.exists) return false;
+    const task = snap.data() || {};
 
-      if (data?.notifyCreatedProcessed) return false;
-
-      const created = data?.createdAt?.toDate?.();
-      if (created) {
-        const ageMs = Date.now() - created.getTime();
-        if (ageMs > 24 * 60 * 60 * 1000) return false;
-      }
-
-      tx.update(ref, {
-        notifyCreatedProcessed: true,
-        notifyCreatedProcessingAt: admin.firestore.FieldValue.serverTimestamp(),
-      });
-
-      return true;
-    });
-
-    if (!lockOk) {
+    // 🔒 антидубль (НО НЕ ЛОК ДО ОТПРАВКИ)
+    if (task.notifyCreatedProcessed) {
       return res.status(200).json({
         ok: true,
-        skipped: "locked_or_too_old"
+        skipped: "already_processed"
       });
     }
 
-    const snap = await ref.get();
-    const task = snap.data() || {};
+    const created = task.createdAt?.toDate?.();
+    if (created) {
+      const ageMs = Date.now() - created.getTime();
+      if (ageMs > 24 * 60 * 60 * 1000) {
+        return res.status(200).json({
+          ok: true,
+          ignored: "task_too_old"
+        });
+      }
+    }
 
     const assigneeIds =
       Array.isArray(body.assigneeIds)
@@ -104,7 +97,7 @@ export default async function handler(req, res) {
       return res.status(200).json({ ok: true, sent: 0 });
     }
 
-    const result = await admin.messaging().sendEachForMulticast({
+    const message = {
       tokens,
       notification: {
         title: "Новая задача",
@@ -114,12 +107,15 @@ export default async function handler(req, res) {
         taskId,
         type: "taskCreated",
       },
-    });
+    };
 
+    const result = await admin.messaging().sendEachForMulticast(message);
+
+    // 🔥 теперь помечаем ТОЛЬКО после успешной отправки
     await ref.update({
+      notifyCreatedProcessed: true,
       notifyCreatedSentAt: admin.firestore.FieldValue.serverTimestamp(),
       notifyCreatedSuccess: result.successCount,
-      notifyCreatedFailed: result.failureCount,
     });
 
     return res.status(200).json({
