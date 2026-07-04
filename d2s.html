@@ -1,0 +1,1027 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Складская доска</title>
+
+<style>
+:root{
+  --bg:#f3f4f6;
+  --panel:#ffffff;
+  --text:#111827;
+  --muted:#6b7280;
+  --line:#e5e7eb;
+  --dark:#111827;
+  --blue:#2563eb;
+  --blueSoft:#dbeafe;
+  --green:#16a34a;
+  --greenSoft:#dcfce7;
+  --orange:#f59e0b;
+  --orangeSoft:#fef3c7;
+  --red:#ef4444;
+  --redSoft:#fee2e2;
+  --shadow:0 10px 25px rgba(15,23,42,.08);
+  --radius:16px;
+}
+
+*{
+  box-sizing:border-box;
+}
+
+body{
+  margin:0;
+  font-family:Arial, sans-serif;
+  background:var(--bg);
+  color:var(--text);
+}
+
+.topbar{
+  background:linear-gradient(135deg,#111827,#1f2937);
+  color:white;
+  padding:16px;
+  position:sticky;
+  top:0;
+  z-index:10;
+  box-shadow:0 8px 20px rgba(0,0,0,.18);
+}
+
+.topbarMain{
+  display:flex;
+  justify-content:space-between;
+  gap:16px;
+  align-items:flex-start;
+  flex-wrap:wrap;
+  margin-bottom:14px;
+}
+
+.brand{
+  display:flex;
+  flex-direction:column;
+  gap:4px;
+}
+
+.brandTitle{
+  font-size:22px;
+  font-weight:800;
+}
+
+.brandSub{
+  font-size:13px;
+  color:#d1d5db;
+}
+
+.stats{
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+}
+
+.stat{
+  background:rgba(255,255,255,.1);
+  border:1px solid rgba(255,255,255,.15);
+  border-radius:999px;
+  padding:7px 10px;
+  font-size:13px;
+}
+
+.forms{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:10px;
+}
+
+.formBox{
+  background:rgba(255,255,255,.08);
+  border:1px solid rgba(255,255,255,.12);
+  border-radius:14px;
+  padding:10px;
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+}
+
+input{
+  border:none;
+  border-radius:10px;
+  padding:10px 12px;
+  outline:none;
+  min-width:180px;
+  font-size:14px;
+}
+
+button{
+  border:none;
+  border-radius:10px;
+  padding:9px 12px;
+  cursor:pointer;
+  font-weight:700;
+}
+
+.primaryBtn{
+  background:var(--blue);
+  color:white;
+}
+
+.greenBtn{
+  background:var(--green);
+  color:white;
+}
+
+.main{
+  padding:16px;
+}
+
+.poolPanel{
+  background:var(--panel);
+  border-radius:var(--radius);
+  box-shadow:var(--shadow);
+  padding:14px;
+  margin-bottom:16px;
+}
+
+.panelHead{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:12px;
+  margin-bottom:10px;
+}
+
+.panelTitle{
+  font-weight:800;
+  font-size:17px;
+}
+
+.panelHint{
+  color:var(--muted);
+  font-size:13px;
+}
+
+.poolList{
+  min-height:74px;
+  border:2px dashed var(--line);
+  border-radius:14px;
+  padding:10px;
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+  align-items:flex-start;
+  transition:.15s;
+}
+
+.boardShell{
+  background:var(--panel);
+  border-radius:var(--radius);
+  box-shadow:var(--shadow);
+  overflow:auto;
+}
+
+.board{
+  min-width:850px;
+}
+
+.boardHeader,
+.teamRow{
+  display:grid;
+  grid-template-columns:1.2fr 1fr 1.2fr;
+  gap:0;
+}
+
+.boardHeader{
+  background:#f9fafb;
+  border-bottom:1px solid var(--line);
+  font-weight:800;
+  color:#374151;
+}
+
+.headCell{
+  padding:14px;
+  border-right:1px solid var(--line);
+}
+
+.headCell:last-child{
+  border-right:none;
+}
+
+.teamRow{
+  border-bottom:1px solid var(--line);
+}
+
+.teamRow:last-child{
+  border-bottom:none;
+}
+
+.cell{
+  padding:12px;
+  border-right:1px solid var(--line);
+  min-height:110px;
+}
+
+.cell:last-child{
+  border-right:none;
+}
+
+.slot{
+  min-height:78px;
+  border:2px dashed transparent;
+  border-radius:14px;
+  padding:8px;
+  transition:.15s;
+}
+
+.slotEmpty{
+  height:56px;
+  border-radius:12px;
+  background:#f9fafb;
+  color:var(--muted);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:14px;
+}
+
+.dragover{
+  border-color:var(--blue) !important;
+  background:#eff6ff !important;
+}
+
+.taskCard{
+  background:var(--blueSoft);
+  border:1px solid #bfdbfe;
+  border-radius:14px;
+  padding:10px 42px 10px 12px;
+  min-width:180px;
+  max-width:100%;
+  position:relative;
+  cursor:grab;
+  box-shadow:0 4px 12px rgba(37,99,235,.08);
+}
+
+.taskCard:active{
+  cursor:grabbing;
+}
+
+.taskText{
+  font-weight:700;
+  line-height:1.3;
+  word-break:break-word;
+}
+
+.taskMeta{
+  color:#475569;
+  font-size:12px;
+  margin-top:5px;
+}
+
+.teamCard{
+  background:#f9fafb;
+  border:1px solid var(--line);
+  border-radius:14px;
+  padding:12px;
+  position:relative;
+}
+
+.teamName{
+  font-weight:900;
+  font-size:16px;
+  padding-right:70px;
+}
+
+.members{
+  display:flex;
+  gap:6px;
+  flex-wrap:wrap;
+  margin-top:10px;
+}
+
+.memberChip{
+  background:#e5e7eb;
+  color:#374151;
+  border-radius:999px;
+  padding:5px 8px;
+  font-size:12px;
+  font-weight:700;
+}
+
+.noMembers{
+  color:var(--muted);
+  font-size:13px;
+  margin-top:8px;
+}
+
+.iconBtn{
+  position:absolute;
+  top:8px;
+  width:28px;
+  height:28px;
+  padding:0;
+  border-radius:9px;
+  color:white;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:14px;
+  line-height:1;
+}
+
+.editBtn{
+  right:42px;
+  background:var(--blue);
+}
+
+.deleteBtn{
+  right:8px;
+  background:var(--red);
+}
+
+.emptyBoard{
+  padding:30px;
+  color:var(--muted);
+  text-align:center;
+}
+
+.toast{
+  position:fixed;
+  left:50%;
+  bottom:18px;
+  transform:translateX(-50%);
+  background:#111827;
+  color:white;
+  border-radius:999px;
+  padding:10px 14px;
+  box-shadow:0 10px 30px rgba(0,0,0,.25);
+  display:none;
+  gap:10px;
+  align-items:center;
+  z-index:99;
+  font-size:14px;
+}
+
+.toast button{
+  background:white;
+  color:#111827;
+  padding:5px 9px;
+  border-radius:999px;
+}
+
+@media(max-width:800px){
+  .forms{
+    grid-template-columns:1fr;
+  }
+
+  .formBox input{
+    flex:1;
+    min-width:130px;
+  }
+
+  .main{
+    padding:10px;
+  }
+
+  .brandTitle{
+    font-size:19px;
+  }
+}
+</style>
+</head>
+
+<body>
+
+<header class="topbar">
+  <div class="topbarMain">
+    <div class="brand">
+      <div class="brandTitle">Складская доска</div>
+      <div class="brandSub">Активная задача → команда → следующая задача</div>
+    </div>
+
+    <div class="stats" id="stats"></div>
+  </div>
+
+  <div class="forms">
+    <div class="formBox">
+      <input id="teamName" placeholder="Название команды">
+      <input id="teamMembers" placeholder="Состав через запятую">
+      <button class="primaryBtn" id="addTeamBtn">Добавить команду</button>
+    </div>
+
+    <div class="formBox">
+      <input id="taskName" placeholder="Новая задача">
+      <button class="greenBtn" id="addTaskBtn">Добавить задачу</button>
+    </div>
+  </div>
+</header>
+
+<main class="main">
+  <section class="poolPanel">
+    <div class="panelHead">
+      <div>
+        <div class="panelTitle">Безхозные задачи</div>
+        <div class="panelHint">Сюда можно вернуть задачу перетаскиванием</div>
+      </div>
+    </div>
+
+    <div id="poolList" class="poolList"></div>
+  </section>
+
+  <section class="boardShell">
+    <div class="board" id="board"></div>
+  </section>
+</main>
+
+<div class="toast" id="toast">
+  <span id="toastText"></span>
+  <button id="toastUndoBtn">Отменить</button>
+</div>
+
+<script>
+const STORAGE = "warehouse_board_visual_v1";
+
+const LEGACY_KEYS = [
+  "warehouse_board_v10",
+  "warehouse_board_v9",
+  "warehouse_board_v8",
+  "warehouse_board_v7",
+  "warehouse_board_v6"
+];
+
+let state = loadState();
+let draggedTaskId = null;
+let undoAction = null;
+let toastTimer = null;
+
+const teamNameInput = document.getElementById("teamName");
+const teamMembersInput = document.getElementById("teamMembers");
+const taskNameInput = document.getElementById("taskName");
+const addTeamBtn = document.getElementById("addTeamBtn");
+const addTaskBtn = document.getElementById("addTaskBtn");
+const boardEl = document.getElementById("board");
+const poolListEl = document.getElementById("poolList");
+const statsEl = document.getElementById("stats");
+const toastEl = document.getElementById("toast");
+const toastTextEl = document.getElementById("toastText");
+const toastUndoBtn = document.getElementById("toastUndoBtn");
+
+function id(){
+  return Date.now().toString(36) + Math.random().toString(36).slice(2);
+}
+
+function loadState(){
+  const raw = localStorage.getItem(STORAGE);
+
+  if(raw){
+    try{
+      return normalizeState(JSON.parse(raw));
+    }catch(e){}
+  }
+
+  for(const key of LEGACY_KEYS){
+    const old = localStorage.getItem(key);
+    if(old){
+      try{
+        const parsed = normalizeState(JSON.parse(old));
+        localStorage.setItem(STORAGE, JSON.stringify(parsed));
+        return parsed;
+      }catch(e){}
+    }
+  }
+
+  return {
+    teams:[],
+    unassigned:[]
+  };
+}
+
+function normalizeState(s){
+  const clean = {
+    teams:Array.isArray(s.teams) ? s.teams : [],
+    unassigned:Array.isArray(s.unassigned) ? s.unassigned : []
+  };
+
+  clean.unassigned = clean.unassigned
+    .filter(t => t && t.id && t.text)
+    .map(t => ({ id:t.id, text:t.text, createdAt:t.createdAt || Date.now() }));
+
+  clean.teams = clean.teams
+    .filter(t => t && t.id && t.name)
+    .map(t => ({
+      id:t.id,
+      name:t.name,
+      members:Array.isArray(t.members) ? t.members : [],
+      activeTask:t.activeTask && t.activeTask.id ? t.activeTask : null,
+      nextTask:t.nextTask && t.nextTask.id ? t.nextTask : null
+    }));
+
+  return clean;
+}
+
+function save(){
+  localStorage.setItem(STORAGE, JSON.stringify(state));
+}
+
+function el(tag, className, text){
+  const node = document.createElement(tag);
+  if(className) node.className = className;
+  if(text !== undefined) node.textContent = text;
+  return node;
+}
+
+function stopBtnEvents(btn){
+  btn.draggable = false;
+
+  btn.addEventListener("mousedown", e => {
+    e.stopPropagation();
+  });
+
+  btn.addEventListener("click", e => {
+    e.stopPropagation();
+  });
+}
+
+/* ===== ADD ===== */
+
+function addTeam(){
+  const name = teamNameInput.value.trim();
+  const membersRaw = teamMembersInput.value.trim();
+
+  if(!name) return;
+
+  state.teams.push({
+    id:id(),
+    name,
+    members: membersRaw
+      ? membersRaw.split(",").map(x => x.trim()).filter(Boolean)
+      : [],
+    activeTask:null,
+    nextTask:null
+  });
+
+  teamNameInput.value = "";
+  teamMembersInput.value = "";
+
+  save();
+  render();
+}
+
+function addTask(){
+  const text = taskNameInput.value.trim();
+  if(!text) return;
+
+  state.unassigned.push({
+    id:id(),
+    text,
+    createdAt:Date.now()
+  });
+
+  taskNameInput.value = "";
+
+  save();
+  render();
+}
+
+/* ===== FIND / MOVE TASKS ===== */
+
+function findTaskLocation(taskId){
+  const poolIndex = state.unassigned.findIndex(t => t.id === taskId);
+
+  if(poolIndex !== -1){
+    return {
+      area:"pool",
+      index:poolIndex,
+      task:state.unassigned[poolIndex]
+    };
+  }
+
+  for(const team of state.teams){
+    if(team.activeTask?.id === taskId){
+      return {
+        area:"team",
+        teamId:team.id,
+        slot:"activeTask",
+        task:team.activeTask
+      };
+    }
+
+    if(team.nextTask?.id === taskId){
+      return {
+        area:"team",
+        teamId:team.id,
+        slot:"nextTask",
+        task:team.nextTask
+      };
+    }
+  }
+
+  return null;
+}
+
+function takeTask(taskId){
+  const source = findTaskLocation(taskId);
+  if(!source) return null;
+
+  let task = source.task;
+
+  if(source.area === "pool"){
+    state.unassigned.splice(source.index, 1);
+  }
+
+  if(source.area === "team"){
+    const team = state.teams.find(t => t.id === source.teamId);
+    if(team){
+      team[source.slot] = null;
+    }
+  }
+
+  return { task, source };
+}
+
+function restoreTaskToSource(task, source){
+  if(!task || !source){
+    state.unassigned.push(task);
+    return;
+  }
+
+  if(source.area === "pool"){
+    const index = Math.min(source.index, state.unassigned.length);
+    state.unassigned.splice(index, 0, task);
+    return;
+  }
+
+  if(source.area === "team"){
+    const team = state.teams.find(t => t.id === source.teamId);
+
+    if(team && !team[source.slot]){
+      team[source.slot] = task;
+    }else{
+      state.unassigned.push(task);
+    }
+  }
+}
+
+function moveTaskToPool(taskId){
+  const taken = takeTask(taskId);
+  if(!taken) return;
+
+  state.unassigned.push(taken.task);
+
+  save();
+  render();
+}
+
+function moveTaskToSlot(taskId, targetTeamId, targetSlot){
+  const current = findTaskLocation(taskId);
+
+  if(
+    current &&
+    current.area === "team" &&
+    current.teamId === targetTeamId &&
+    current.slot === targetSlot
+  ){
+    return;
+  }
+
+  const taken = takeTask(taskId);
+  if(!taken) return;
+
+  const targetTeam = state.teams.find(t => t.id === targetTeamId);
+  if(!targetTeam){
+    restoreTaskToSource(taken.task, taken.source);
+    return;
+  }
+
+  const displaced = targetTeam[targetSlot];
+
+  if(displaced && displaced.id !== taken.task.id){
+    targetTeam[targetSlot] = null;
+    restoreTaskToSource(displaced, taken.source);
+  }
+
+  targetTeam[targetSlot] = taken.task;
+
+  save();
+  render();
+}
+
+function deleteTask(taskId){
+  const taken = takeTask(taskId);
+  if(!taken) return;
+
+  undoAction = {
+    type:"task",
+    task:taken.task,
+    source:taken.source
+  };
+
+  save();
+  render();
+  showToast("Задача удалена", true);
+}
+
+function undoDeleteTask(){
+  if(!undoAction || undoAction.type !== "task") return;
+
+  removeTaskEverywhere(undoAction.task.id);
+  restoreTaskToSource(undoAction.task, undoAction.source);
+
+  undoAction = null;
+
+  save();
+  render();
+  hideToast();
+}
+
+function removeTaskEverywhere(taskId){
+  state.unassigned = state.unassigned.filter(t => t.id !== taskId);
+
+  state.teams.forEach(team => {
+    if(team.activeTask?.id === taskId) team.activeTask = null;
+    if(team.nextTask?.id === taskId) team.nextTask = null;
+  });
+}
+
+/* ===== TEAM OPS ===== */
+
+function editTeam(teamId){
+  const team = state.teams.find(t => t.id === teamId);
+  if(!team) return;
+
+  const name = prompt("Название команды", team.name);
+  if(name === null) return;
+
+  const members = prompt("Состав через запятую", team.members.join(", "));
+  if(members === null) return;
+
+  const cleanName = name.trim();
+  if(!cleanName) return;
+
+  team.name = cleanName;
+  team.members = members.split(",").map(x => x.trim()).filter(Boolean);
+
+  save();
+  render();
+}
+
+function deleteTeam(teamId){
+  const index = state.teams.findIndex(t => t.id === teamId);
+  if(index === -1) return;
+
+  const team = state.teams[index];
+
+  if(team.activeTask){
+    state.unassigned.push(team.activeTask);
+  }
+
+  if(team.nextTask){
+    state.unassigned.push(team.nextTask);
+  }
+
+  state.teams.splice(index, 1);
+
+  save();
+  render();
+  showToast("Команда удалена, задачи возвращены в безхозные", false);
+}
+
+/* ===== DRAG ===== */
+
+function bindDropZone(zone, onDrop){
+  zone.addEventListener("dragover", e => {
+    if(!draggedTaskId) return;
+
+    e.preventDefault();
+    zone.classList.add("dragover");
+  });
+
+  zone.addEventListener("dragleave", e => {
+    if(!zone.contains(e.relatedTarget)){
+      zone.classList.remove("dragover");
+    }
+  });
+
+  zone.addEventListener("drop", e => {
+    e.preventDefault();
+    zone.classList.remove("dragover");
+
+    if(!draggedTaskId) return;
+
+    onDrop(draggedTaskId);
+    draggedTaskId = null;
+  });
+}
+
+function clearDragHighlights(){
+  document.querySelectorAll(".dragover").forEach(x => {
+    x.classList.remove("dragover");
+  });
+}
+
+/* ===== TOAST ===== */
+
+function showToast(text, canUndo){
+  toastTextEl.textContent = text;
+  toastUndoBtn.style.display = canUndo ? "inline-flex" : "none";
+  toastEl.style.display = "flex";
+
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => {
+    hideToast();
+  }, 5000);
+}
+
+function hideToast(){
+  toastEl.style.display = "none";
+}
+
+/* ===== RENDER ===== */
+
+function renderStats(){
+  const activeCount = state.teams.filter(t => t.activeTask).length;
+  const nextCount = state.teams.filter(t => t.nextTask).length;
+
+  statsEl.innerHTML = "";
+
+  [
+    `Команд: ${state.teams.length}`,
+    `Безхозных: ${state.unassigned.length}`,
+    `Активных: ${activeCount}`,
+    `Следующих: ${nextCount}`
+  ].forEach(text => {
+    statsEl.appendChild(el("div", "stat", text));
+  });
+}
+
+function makeIconButton(className, text, handler){
+  const btn = el("button", "iconBtn " + className, text);
+  stopBtnEvents(btn);
+  btn.addEventListener("click", e => {
+    e.stopPropagation();
+    handler();
+  });
+  return btn;
+}
+
+function makeTaskCard(task){
+  const card = el("div", "taskCard");
+  card.draggable = true;
+
+  card.addEventListener("dragstart", e => {
+    draggedTaskId = task.id;
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/plain", task.id);
+  });
+
+  card.addEventListener("dragend", () => {
+    draggedTaskId = null;
+    clearDragHighlights();
+  });
+
+  const text = el("div", "taskText", task.text);
+  card.appendChild(text);
+
+  const meta = el("div", "taskMeta", "перетащи куда нужно");
+  card.appendChild(meta);
+
+  const del = makeIconButton("deleteBtn", "×", () => {
+    deleteTask(task.id);
+  });
+
+  card.appendChild(del);
+
+  return card;
+}
+
+function makeSlot(team, slotName){
+  const slot = el("div", "slot");
+
+  bindDropZone(slot, taskId => {
+    moveTaskToSlot(taskId, team.id, slotName);
+  });
+
+  const task = team[slotName];
+
+  if(task){
+    slot.appendChild(makeTaskCard(task));
+  }else{
+    const emptyText = slotName === "activeTask"
+      ? "перетащи активную"
+      : "перетащи следующую";
+
+    slot.appendChild(el("div", "slotEmpty", emptyText));
+  }
+
+  return slot;
+}
+
+function makeTeamCard(team){
+  const card = el("div", "teamCard");
+
+  const name = el("div", "teamName", team.name);
+  card.appendChild(name);
+
+  const edit = makeIconButton("editBtn", "✎", () => {
+    editTeam(team.id);
+  });
+
+  const del = makeIconButton("deleteBtn", "×", () => {
+    deleteTeam(team.id);
+  });
+
+  card.appendChild(edit);
+  card.appendChild(del);
+
+  if(team.members.length){
+    const members = el("div", "members");
+
+    team.members.forEach(m => {
+      members.appendChild(el("span", "memberChip", m));
+    });
+
+    card.appendChild(members);
+  }else{
+    card.appendChild(el("div", "noMembers", "Участники не указаны"));
+  }
+
+  return card;
+}
+
+function renderPool(){
+  poolListEl.innerHTML = "";
+
+  bindDropZone(poolListEl, taskId => {
+    moveTaskToPool(taskId);
+  });
+
+  if(!state.unassigned.length){
+    poolListEl.appendChild(el("div", "slotEmpty", "безхозных задач нет"));
+    return;
+  }
+
+  state.unassigned.forEach(task => {
+    poolListEl.appendChild(makeTaskCard(task));
+  });
+}
+
+function renderBoard(){
+  boardEl.innerHTML = "";
+
+  const header = el("div", "boardHeader");
+  header.appendChild(el("div", "headCell", "Активная задача"));
+  header.appendChild(el("div", "headCell", "Команда"));
+  header.appendChild(el("div", "headCell", "Следующая задача"));
+  boardEl.appendChild(header);
+
+  if(!state.teams.length){
+    boardEl.appendChild(el("div", "emptyBoard", "Команд пока нет. Добавь команду сверху."));
+    return;
+  }
+
+  state.teams.forEach(team => {
+    const row = el("div", "teamRow");
+
+    const activeCell = el("div", "cell");
+    activeCell.appendChild(makeSlot(team, "activeTask"));
+
+    const teamCell = el("div", "cell");
+    teamCell.appendChild(makeTeamCard(team));
+
+    const nextCell = el("div", "cell");
+    nextCell.appendChild(makeSlot(team, "nextTask"));
+
+    row.appendChild(activeCell);
+    row.appendChild(teamCell);
+    row.appendChild(nextCell);
+
+    boardEl.appendChild(row);
+  });
+}
+
+function render(){
+  renderStats();
+  renderPool();
+  renderBoard();
+}
+
+/* ===== EVENTS ===== */
+
+addTeamBtn.addEventListener("click", addTeam);
+addTaskBtn.addEventListener("click", addTask);
+
+teamNameInput.addEventListener("keydown", e => {
+  if(e.key === "Enter") addTeam();
+});
+
+teamMembersInput.addEventListener("keydown", e => {
+  if(e.key === "Enter") addTeam();
+});
+
+taskNameInput.addEventListener("keydown", e => {
+  if(e.key === "Enter") addTask();
+});
+
+toastUndoBtn.addEventListener("click", undoDeleteTask);
+
+render();
+</script>
+
+</body>
+</html>
