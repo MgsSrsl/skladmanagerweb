@@ -1,8 +1,24 @@
 <!doctype html>
 
-<html lang="ru"> <head>
+<html lang="ru">
+<head>
 
-<meta charset="utf-8" /> <meta name="viewport" content="width=device-width,initial-scale=1" /> <title>Создать задание — СкладСборка</title> <link rel="preconnect" href="https://fonts.googleapis.com"> <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin> <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet"> <meta http-equiv="Cache-Control" content="no-store" /> <style> :root{ --brand-red:#FF3B30; --text:#0d0d0d; --muted:#666; --line:rgba(0,0,0,.08); --glass:#fff; --bg:#f5f6f8; } *{ box-sizing:border-box } body{ margin:0; font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial; background:var(--bg); color:var(--text) } .shell{ max-width:1120px; margin:0 auto; padding:20px 14px 120px } h1{ margin:6px 0 18px; font-size:28px; font-weight:800 }
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Создать задание — СкладСборка</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+  <meta http-equiv="Cache-Control" content="no-store" />
+  <style>
+    :root{
+      --brand-red:#FF3B30; --text:#0d0d0d; --muted:#666; --line:rgba(0,0,0,.08);
+      --glass:#fff; --bg:#f5f6f8;
+    }
+    *{ box-sizing:border-box }
+    body{ margin:0; font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial; background:var(--bg); color:var(--text) }
+    .shell{ max-width:1120px; margin:0 auto; padding:20px 14px 120px }
+    h1{ margin:6px 0 18px; font-size:28px; font-weight:800 }
 
 .grid{ display:grid; grid-template-columns:1fr 440px; gap:16px; align-items:start }
 @media (max-width:980px){ .grid{ grid-template-columns:1fr } }
@@ -82,7 +98,12 @@ textarea{ min-height:96px; resize:vertical }
 .toast.ok{ background:#065f46; }
 .toast.err{ background:#991b1b; }
 .toast.info{ background:#111827; }
-</style> </head> <body> <div class="shell"> <h1>Создать задание</h1>
+
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <h1>Создать задание</h1>
 
 <div class="grid">
   <!-- Левая колонка — форма -->
@@ -146,13 +167,24 @@ textarea{ min-height:96px; resize:vertical }
 </div>
 
 <div class="updated" id="tvHomeLastUpdated">Список актуален: —</div>
-</div>
 
-<div class="footer"> <div class="inner"> <button id="btnClear" class="btn btn-secondary" type="button">Очистить файлы</button> <button id="btnSave" class="btn" type="button">Сохранить задание</button> </div> </div>
+  </div>
 
-<!-- Модалка редактирования -->
+  <div class="footer">
+    <div class="inner">
+      <button id="btnClear" class="btn btn-secondary" type="button">Очистить файлы</button>
+      <button id="btnSave" class="btn" type="button">Сохранить задание</button>
+    </div>
+  </div>
 
-<dialog id="editDialog"> <form method="dialog" class="modal"> <div class="hdr"> <div style="font-weight:800">Редактировать задачу</div> <button type="button" id="btnCloseEdit" class="btn-ghost">Закрыть</button> </div>
+  <!-- Модалка редактирования -->
+
+  <dialog id="editDialog">
+    <form method="dialog" class="modal">
+      <div class="hdr">
+        <div style="font-weight:800">Редактировать задачу</div>
+        <button type="button" id="btnCloseEdit" class="btn-ghost">Закрыть</button>
+      </div>
 
   <div class="row">
     <div>
@@ -199,21 +231,645 @@ textarea{ min-height:96px; resize:vertical }
     <button type="button" id="btnSaveEdit" class="btn">Сохранить</button>
   </div>
 </form>
-</dialog>
 
-<!-- Диалог «Вложения» -->
+  </dialog>
 
-<dialog id="filesDialog"> <form method="dialog" class="modal"> <div class="hdr"> <div style="font-weight:800">Вложения</div> <button type="submit" class="btn-ghost">Закрыть</button> </div> <div id="filesDialogList" class="files"></div> <div class="muted" style="margin-top:6px">Кликни «Открыть» напротив нужного файла.</div> </form> </dialog>
+  <!-- Диалог «Вложения» -->
 
-<!-- Firebase (compat) -->
+  <dialog id="filesDialog">
+    <form method="dialog" class="modal">
+      <div class="hdr">
+        <div style="font-weight:800">Вложения</div>
+        <button type="submit" class="btn-ghost">Закрыть</button>
+      </div>
+      <div id="filesDialogList" class="files"></div>
+      <div class="muted" style="margin-top:6px">Кликни «Открыть» напротив нужного файла.</div>
+    </form>
+  </dialog>
 
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <!-- Firebase (compat) -->
 
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 
-<script> // ====== КОНФИГ ====== const FIREBASE_CONFIG = { apiKey: "AIzaSyAH58ZpWAp64mhM589KD6jXHcOlPqU0aYU", authDomain: "skladsborka-6c2a7.firebaseapp.com", projectId: "skladsborka-6c2a7", storageBucket: "skladsborka-6c2a7.firebasestorage.app", appId: "1:516526717198:android:e470c17aed370572757f5f" }; const CLOUDINARY_CLOUD_NAME = "dnx1taqp7"; const CLOUDINARY_UPLOAD_PRESET = "unsigned_tasks"; const FOLDER_PREFIX = "tasks"; const NOTIFY_URL_CREATED = "https://skladsborka-notify.vercel.app/api/notify-taskCreated"; const NOTIFY_URL_ASSIGNEES = "https://skladsborka-notify.vercel.app/api/notify-assigneesChanged"; // ===================== firebase.initializeApp(FIREBASE_CONFIG); const auth = firebase.auth(); const db = firebase.firestore(); const els = { title: document.getElementById('title'), comment: document.getElementById('comment'), cbAssembled: document.getElementById('cbAssembled'), fileInput: document.getElementById('fileInput'), files: document.getElementById('files'), filesInfo: document.getElementById('filesInfo'), users: document.getElementById('users'), assigneesInfo: document.getElementById('assigneesInfo'), btnSave: document.getElementById('btnSave'), btnClear: document.getElementById('btnClear'), drop: document.getElementById('drop'), tvHomeLastUpdated: document.getElementById('tvHomeLastUpdated'), tasklist: document.getElementById('tasklist'), btnReload: document.getElementById('btnReload'), q: document.getElementById('q'), statusFilter: document.getElementById('statusFilter'), dlg: document.getElementById('editDialog'), btnCloseEdit: document.getElementById('btnCloseEdit'), btnSaveEdit: document.getElementById('btnSaveEdit'), btnDelete: document.getElementById('btnDelete'), edTitle: document.getElementById('edTitle'), edComment: document.getElementById('edComment'), edAssembled: document.getElementById('edAssembled'), edPickup: document.getElementById('edPickup'), edUsers: document.getElementById('edUsers'), edAssigneesInfo: document.getElementById('edAssigneesInfo'), edExistingFiles: document.getElementById('edExistingFiles'), edDrop: document.getElementById('edDrop'), edFileInput: document.getElementById('edFileInput'), edNewFiles: document.getElementById('edNewFiles'), edFilesInfo: document.getElementById('edFilesInfo'), filesDialog: document.getElementById('filesDialog'), filesDialogList: document.getElementById('filesDialogList') }; const selectedFiles = []; const selectedWorkerIds = new Set(); const selectedWorkerNames = new Set(); let allUsersCache = []; let editingTask = null; let edSelectedIds = new Set(); let edSelectedNames = new Set(); let edExisting = []; let edRemovedPids = new Set(); const edNewSelected = []; // ====== NOTIFY SAFE SEND ====== // Старую очередь пушей удаляем, чтобы браузер не переотправлял старый мусор бесконечно. const QUEUE_KEY = 'notify_queue_v1'; try { localStorage.removeItem(QUEUE_KEY); } catch (e) { console.warn('cannot clear notify queue:', e); } /** * Пуши отправляем ОДИН раз. * Без очереди. Без повторов. Без зависимости от ответа сервера. * * mode:'no-cors' нужен, чтобы браузер не валил создание задания из-за CORS. * Для notify нам не важно читать ответ — задача уже создана в Firestore. */ async function sendNotifyOnce(url, params){ if (!url) return; const body = new URLSearchParams(params).toString(); try { await fetch(url, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body }); } catch (e) { // Ничего не повторяем. // Notify не должен ломать страницу и не должен плодить очередь. console.warn('notify skipped:', e?.message || e); } } // ======= AUTH + старт ======= auth.signInAnonymously() .then(() => { touchLastUpdated(); loadUsers(); initTasksFeed(); }) .catch(e => alert("Auth error: " + (e?.message||e))); // ======= USERS ======= async function loadUsers(){ const snap = await db.collection('users').get(); const frag = document.createDocumentFragment(); allUsersCache = []; if (snap.empty){ els.users.innerHTML = '<div class="muted">Пользователи не найдены</div>'; } else { snap.forEach(doc=>{ const data = doc.data()||{}; const base = data.name || data.displayName || doc.id; const role = data.role ? ` (${data.role})` : ''; const label = `${base}${role}`; const id = doc.id; allUsersCache.push({id, base, label}); const row = document.createElement('label'); row.style.display='flex'; row.style.alignItems='center'; row.style.gap='8px'; row.style.padding='6px 4px'; row.innerHTML = `<input type="checkbox" data-id="${id}" data-name="${escapeHtml(label)}" /> <span>${escapeHtml(label)}</span>`; row.querySelector('input').addEventListener('change', ev=>{ const chk = ev.target; const uid = chk.getAttribute('data-id'); const nm = chk.getAttribute('data-name'); if (chk.checked){ selectedWorkerIds.add(uid); selectedWorkerNames.add(nm); } else { selectedWorkerIds.delete(uid); selectedWorkerNames.delete(nm); } updateAssigneesInfo(); }); frag.appendChild(row); }); els.users.innerHTML = ''; els.users.appendChild(frag); updateAssigneesInfo(); } } function updateAssigneesInfo(){ els.assigneesInfo.textContent = selectedWorkerNames.size ? "Исполнители: " + [...selectedWorkerNames].join(", ") : "Исполнители не выбраны (необязательно)"; } // ======= FILES UI / DND / PASTE (создание) ======= els.fileInput.addEventListener('change', e=>{ [...(e.target.files||[])].forEach(f=>{ if(!selectedFiles.includes(f)) selectedFiles.push(f); }); renderFiles(); }); ['dragenter','dragover'].forEach(ev=> els.drop.addEventListener(ev, e=>{ e.preventDefault(); e.stopPropagation(); els.drop.classList.add('drag'); })); ['dragleave','drop'].forEach(ev=> els.drop.addEventListener(ev, e=>{ e.preventDefault(); e.stopPropagation(); els.drop.classList.remove('drag'); })); els.drop.addEventListener('drop', e=>{ const files = [...(e.dataTransfer?.files||[])]; files.forEach(f=>{ if(!selectedFiles.includes(f)) selectedFiles.push(f); }); renderFiles(); }); els.btnClear.addEventListener('click', ()=>{ selectedFiles.length=0; renderFiles(); els.fileInput.value=''; }); function renderFiles(){ els.files.innerHTML=''; selectedFiles.forEach((f,i)=>{ const chip=document.createElement('span'); chip.className='chip'; chip.innerHTML=`<span title="${escapeHtml(f.name)}">${escapeHtml(short(f.name))}</span> <button>&times;</button>`; chip.querySelector('button').onclick=()=>{selectedFiles.splice(i,1);renderFiles();}; els.files.appendChild(chip); }); els.filesInfo.textContent = selectedFiles.length ? `Файлов выбрано: ${selectedFiles.length}` : 'Файлы не выбраны'; } const short=s=>s.length>36?(s.slice(0,16)+'…'+s.slice(-16)):s; const escapeHtml=s=>String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c])); function showToast(text, type='info'){ let el = document.getElementById('toast'); if(!el){ el = document.createElement('div'); el.id = 'toast'; el.className = 'toast'; document.body.appendChild(el); } el.className = 'toast ' + type; el.textContent = text; requestAnimationFrame(() => el.classList.add('show')); clearTimeout(window.__toastTimer); window.__toastTimer = setTimeout(() => { el.classList.remove('show'); }, 2600); } document.addEventListener('paste', e=>{ if (els.dlg.open) return; const dt=e.clipboardData; if(!dt)return; let added=0; for(const item of dt.items||[]){ if(item.kind==='file'){ const file=item.getAsFile(); if(!file) continue; if(file.type.startsWith('image/')){ const name=`screenshot_${Date.now()}.png`; const f=new File([file],name,{type:file.type}); selectedFiles.push(f); added++; } else if(file.type==='application/pdf'){ const name=`pasted_${Date.now()}.pdf`; const f=new File([file],name,{type:file.type}); selectedFiles.push(f); added++; } } } if(added){ renderFiles(); infoFlash(els.filesInfo, `Вставлено из буфера: ${added}`); e.preventDefault(); } }); function infoFlash(el, text){ el.textContent=text; el.style.fontWeight='800'; setTimeout(()=>{ el.textContent = (el===els.filesInfo) ? (selectedFiles.length ? `Файлов выбрано: ${selectedFiles.length}` : 'Файлы не выбраны') : (edNewSelected.length ? `Новых файлов: ${edNewSelected.length}` : 'Новые файлы не выбраны'); el.style.fontWeight='normal'; }, 1600); } // ======= SAVE (создание) ======= els.btnSave.addEventListener('click', onSave); async function onSave(){ const title=els.title.value.trim(); const comment=els.comment.value.trim(); const isAssembled=!!els.cbAssembled.checked; if(!title){ alert("Введите название задания"); return; } freeze(true,"Сохраняю…"); try{ const audienceIds=[...selectedWorkerIds]; const audienceNames=[...selectedWorkerNames]; const category=isAssembled?"assembled_order":(audienceIds.length===0?"pickup":"default"); const status=isAssembled?"assembled":"assigned"; const isPickup=isAssembled?false:(audienceIds.length===0); const taskRef=db.collection('tasks').doc(); await taskRef.set({ title, comment, assignees:audienceIds, assigneeNames:audienceNames, isPickup, assembledOrder:isAssembled, category, status, createdAt:firebase.firestore.FieldValue.serverTimestamp(), creatorId:"unknown", creatorName:"unknown", files:[] }); if(selectedFiles.length){ const uploaded=await uploadAllFiles(taskRef.id,selectedFiles); if(uploaded.length){ await taskRef.update({files:uploaded}); } } // Пуши отправляем отдельно: если они сломаются, задача всё равно создана. notifyTaskCreated(taskRef.id, audienceIds) .catch(e => console.warn('notifyTaskCreated failed:', e)); // reset selectedFiles.length=0; renderFiles(); els.fileInput.value=''; els.title.value=''; els.comment.value=''; els.cbAssembled.checked=false; [...document.querySelectorAll('#users input[type=checkbox]')].forEach(ch=>ch.checked=false); selectedWorkerIds.clear(); selectedWorkerNames.clear(); updateAssigneesInfo(); showToast("Задание создано", "ok"); }catch(e){ alert("Ошибка сохранения: "+(e?.message||e)); } finally{ freeze(false); touchLastUpdated(); } } async function uploadAllFiles(taskId, files){ const out=[]; for(const f of files){ const endpoint = `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/auto/upload`; const fd = new FormData(); fd.append('file', f); fd.append('upload_preset', CLOUDINARY_UPLOAD_PRESET); fd.append('folder', `${FOLDER_PREFIX}/${taskId}`); const resp = await fetch(endpoint,{method:'POST',body:fd}); if(!resp.ok){ const t=await resp.text().catch(()=> ""); throw new Error(`upload failed (${resp.status}) ${t}`); } const j = await resp.json(); out.push({ url: j.secure_url || j.url || "", publicId: j.public_id || "", type: (f.type==='application/pdf' || /\.pdf$/i.test(f.name)) ? "pdf" : "image", name: f.name || "file" }); } return out; } // безопасные уведомления БЕЗ очереди function notifyTaskCreated(taskId, audienceIds){ const assigneeIdsCsv = (audienceIds && audienceIds.length) ? audienceIds.join(",") : ""; return sendNotifyOnce(NOTIFY_URL_CREATED, { taskId, assigneeIds: assigneeIdsCsv }); } function notifyAssigneesChanged(taskId, newIds){ // Временно отключено. // Старые/лишние пуши при изменении исполнителей сейчас не нужны. return Promise.resolve(); } function freeze(flag,text){ els.btnSave.disabled=!!flag; els.btnSave.textContent=flag?(text||"…"):"Сохранить задание"; } function touchLastUpdated(){ const d=new Date(); const pad=n=>String(n).padStart(2,'0'); const s=`${pad(d.getDate())}.${pad(d.getMonth()+1)} ${pad(d.getHours())}:${pad(d.getMinutes())}`; els.tvHomeLastUpdated.textContent="Список актуален: "+s; } // ======= TASKS FEED (правый сайдбар) ======= let unsubTasks=null, lastTasks=[], filteredTasks=[]; function initTasksFeed(){ subscribeTasks(); els.btnReload.addEventListener('click', ()=>{ subscribeTasks(true); }); els.q.addEventListener('input', applyFilter); els.statusFilter.addEventListener('change', applyFilter); } function subscribeTasks(){ if(unsubTasks){ unsubTasks(); unsubTasks=null; } const q = db.collection('tasks').orderBy('createdAt','desc').limit(50); console.log("Подключился listener задач"); unsubTasks = q.onSnapshot(snap=>{ const arr=[]; snap.forEach(d=>{ const x=d.data()||{}; arr.push({ id:d.id, title: x.title || '(без названия)', comment: x.comment || '', status: String(x.status||'assigned').toLowerCase(), isPickup: !!x.isPickup, assembledOrder: !!x.assembledOrder || String(x.status).toLowerCase()==='assembled', files: Array.isArray(x.files)? x.files : [], assigneeNames: Array.isArray(x.assigneeNames)? x.assigneeNames : [], assignees: Array.isArray(x.assignees)? x.assignees : [], createdAt: x.createdAt?.toDate ? x.createdAt.toDate() : null }); }); lastTasks = arr; applyFilter(); touchLastUpdated(); }, err=> console.error('tasks snapshot error', err)); } function applyFilter(){ const text = (els.q.value||'').trim().toLowerCase(); const status = els.statusFilter.value; filteredTasks = lastTasks.filter(t=>{ const matchText = !text || (t.title||'').toLowerCase().includes(text) || (t.comment||'').toLowerCase().includes(text); const matchStatus = !status || t.status===status; return matchText && matchStatus; }); renderTasks(); } function renderTasks(){ const list = els.tasklist; list.innerHTML=''; if(!filteredTasks.length){ list.innerHTML='<div class="muted">Пока нет данных</div>'; return; } const frag=document.createDocumentFragment(); for(const t of filteredTasks){ const div=document.createElement('div'); div.className='task'; const badges = []; const st = (t.status||'assigned').toLowerCase(); if(st==='done') badges.push(`<span class="pill ok">Готово</span>`); else if(st==='in_progress') badges.push(`<span class="pill info">В работе</span>`); else badges.push(`<span class="pill">Назначено</span>`); if(t.isPickup) badges.push(`<span class="pill warn">Самовывоз</span>`); if(t.assembledOrder) badges.push(`<span class="pill assem">Собранный</span>`); const created = t.createdAt ? formatTime(t.createdAt) : '—'; const filesCount = (t.files||[]).length; const ass = t.assigneeNames?.length ? `👥 ${escapeHtml(t.assigneeNames.join(', '))}` : ''; div.innerHTML = ` <div class="t1"> <div class="title">${escapeHtml(t.title)}</div> <div class="badges">${badges.join(' ')}</div> </div> <div class="meta"> <span>⏱ ${created}</span> <span>📎 ${filesCount}</span> ${ass?`<span>${ass}</span>`:''} </div> ${t.comment ? `<div class="line"></div><div class="assignees">${escapeHtml(t.comment)}</div>` : ''} <div class="row-compact" style="margin-top:4px"> <button class="btn btn-secondary" data-act="edit">Редактировать</button> ${filesCount ? `<button class="btn btn-secondary" data-act="open">Открыть</button>` : ``} <div></div> <button class="btn btn-secondary" data-act="delete" style="border-color:#f00;color:#f00">Удалить</button> </div> `; const btnOpen = div.querySelector('[data-act="open"]'); if(btnOpen){ btnOpen.addEventListener('click', ()=>{ const files = t.files || []; if(!files.length){ alert('Нет вложений'); return; } openFilesChooser(t); }); } div.querySelector('[data-act="edit"]').addEventListener('click', ()=> openEditModal(t.id)); div.querySelector('[data-act="delete"]').addEventListener('click', ()=> deleteTask(t.id)); frag.appendChild(div); } list.appendChild(frag); } function formatTime(d){ const pad=n=>String(n).padStart(2,'0'); return `${pad(d.getDate())}.${pad(d.getMonth()+1)} ${pad(d.getHours())}:${pad(d.getMinutes())}`; } // ======= EDIT MODAL ======= async function openEditModal(taskId){ const doc = await db.collection('tasks').doc(taskId).get(); if(!doc.exists){ alert('Задача не найдена'); return; } const x = doc.data()||{}; editingTask = { id: doc.id, title: x.title||'', comment: x.comment||'', status: String(x.status||'assigned'), isPickup: !!x.isPickup, assembledOrder: !!x.assembledOrder || String(x.status).toLowerCase()==='assembled', assignees: Array.isArray(x.assignees)? x.assignees : [], assigneeNames: Array.isArray(x.assigneeNames)? x.assigneeNames : [], files: Array.isArray(x.files)? x.files : [] }; els.edTitle.value = editingTask.title; els.edComment.value = editingTask.comment; els.edAssembled.checked = !!editingTask.assembledOrder; els.edPickup.checked = !!editingTask.isPickup; edSelectedIds = new Set(editingTask.assignees); edSelectedNames = new Set(editingTask.assigneeNames); renderEdUsers(); edExisting = [...editingTask.files]; edRemovedPids = new Set(); edNewSelected.length = 0; renderEdExistingFiles(); renderEdNewFiles(); els.dlg.showModal(); } function renderEdUsers(){ const frag = document.createDocumentFragment(); allUsersCache.forEach(u=>{ const row = document.createElement('label'); row.style.display='flex'; row.style.alignItems='center'; row.style.gap='8px'; row.style.padding='6px 4px'; const checked = edSelectedIds.has(u.id) ? 'checked' : ''; row.innerHTML = `<input type="checkbox" data-id="${u.id}" data-name="${escapeHtml(u.label)}" ${checked}/> <span>${escapeHtml(u.label)}</span>`; row.querySelector('input').addEventListener('change', ev=>{ const chk = ev.target; const uid = chk.getAttribute('data-id'); const nm = chk.getAttribute('data-name'); if (chk.checked){ edSelectedIds.add(uid); edSelectedNames.add(nm); } else { edSelectedIds.delete(uid); edSelectedNames.delete(nm); } updateEdAssigneesInfo(); }); frag.appendChild(row); }); els.edUsers.innerHTML=''; els.edUsers.appendChild(frag); updateEdAssigneesInfo(); } function updateEdAssigneesInfo(){ els.edAssigneesInfo.textContent = edSelectedNames.size ? "Исполнители: " + [...edSelectedNames].join(", ") : "Исполнители не выбраны"; } function renderEdExistingFiles(){ els.edExistingFiles.innerHTML = ''; if(!edExisting.length){ els.edExistingFiles.innerHTML = '<span class="muted">Нет вложений</span>'; return; } edExisting.forEach((f,i)=>{ const removed = edRemovedPids.has(f.publicId); const chip=document.createElement('span'); chip.className='chip'; chip.style.opacity = removed ? '.4' : '1'; const name = f.name || f.publicId || `file_${i+1}`; chip.innerHTML = ` <span title="${escapeHtml(name)}"> ${f.type==='pdf'?'📄':'🖼'} ${escapeHtml(short(name))} </span> <button title="Открыть" data-act="open">👁</button> <button title="${removed?'Вернуть':'Удалить'}" data-act="toggle">${removed?'↩':'×'}</button>`; chip.querySelector('[data-act="open"]').onclick = ()=> openFile(f.url || f.secure_url); chip.querySelector('[data-act="toggle"]').onclick = ()=>{ if(removed){ edRemovedPids.delete(f.publicId); } else { edRemovedPids.add(f.publicId); } renderEdExistingFiles(); }; els.edExistingFiles.appendChild(chip); }); } els.edFileInput.addEventListener('change', e=>{ [...(e.target.files||[])].forEach(f=>{ if(!edNewSelected.includes(f)) edNewSelected.push(f); }); renderEdNewFiles(); }); ['dragenter','dragover'].forEach(ev=> els.edDrop.addEventListener(ev, e=>{ e.preventDefault(); e.stopPropagation(); els.edDrop.classList.add('drag'); })); ['dragleave','drop'].forEach(ev=> els.edDrop.addEventListener(ev, e=>{ e.preventDefault(); e.stopPropagation(); els.edDrop.classList.remove('drag'); })); els.edDrop.addEventListener('drop', e=>{ const files = [...(e.dataTransfer?.files||[])]; files.forEach(f=>{ if(!edNewSelected.includes(f)) edNewSelected.push(f); }); renderEdNewFiles(); }); els.dlg.addEventListener('paste', e=>{ const dt=e.clipboardData; if(!dt)return; let added=0; for(const item of dt.items||[]){ if(item.kind==='file'){ const file=item.getAsFile(); if(!file) continue; let name = file.name || (file.type==='application/pdf' ? `pasted_${Date.now()}.pdf` : `screenshot_${Date.now()}.png`); const f=new File([file], name, {type:file.type}); edNewSelected.push(f); added++; } } if(added){ renderEdNewFiles(); infoFlash(els.edFilesInfo, `Добавлено новых: ${added}`); e.preventDefault(); } }); function renderEdNewFiles(){ els.edNewFiles.innerHTML=''; edNewSelected.forEach((f,i)=>{ const chip=document.createElement('span'); chip.className='chip'; chip.innerHTML=`<span title="${escapeHtml(f.name)}">${f.type==='application/pdf'?'📄':'🖼'} ${escapeHtml(short(f.name))}</span> <button>&times;</button>`; chip.querySelector('button').onclick=()=>{edNewSelected.splice(i,1);renderEdNewFiles();}; els.edNewFiles.appendChild(chip); }); els.edFilesInfo.textContent = edNewSelected.length ? `Новых файлов: ${edNewSelected.length}` : 'Новые файлы не выбраны'; } els.btnCloseEdit.addEventListener('click', ()=> els.dlg.close()); els.btnSaveEdit.addEventListener('click', async ()=>{ if(!editingTask) return; const newTitle = els.edTitle.value.trim(); if(!newTitle){ alert('Название обязательно'); return; } const newComment = els.edComment.value.trim(); const newAssembled = !!els.edAssembled.checked; const newPickup = !!els.edPickup.checked; const oldAssignees = new Set(editingTask.assignees||[]); const newAssignees = [...edSelectedIds]; const newAssigneeNames = [...edSelectedNames]; const onlyNewAssignees = newAssignees.filter(id=> !oldAssignees.has(id)); try{ const kept = edExisting.filter(f=> !edRemovedPids.has(f.publicId)); let uploaded = []; if(edNewSelected.length){ uploaded = await uploadAllFiles(editingTask.id, edNewSelected); } const filesMerged = kept.concat(uploaded); await db.collection('tasks').doc(editingTask.id).update({ title:newTitle, comment:newComment, assembledOrder:newAssembled, isPickup:newPickup, assignees:newAssignees, assigneeNames:newAssigneeNames, files: filesMerged }); await notifyAssigneesChanged(editingTask.id, onlyNewAssignees); els.dlg.close(); }catch(e){ alert('Ошибка сохранения: '+(e?.message||e)); } }); async function deleteTask(taskId){ if(!confirm('Удалить задачу безвозвратно?')) return; try{ await db.collection('tasks').doc(taskId).delete(); }catch(e){ alert('Ошибка удаления: '+(e?.message||e)); } } document.getElementById('btnDelete')?.addEventListener('click', async ()=>{ if(!editingTask) return; await deleteTask(editingTask.id); els.dlg.close(); }); function openFilesChooser(task){ els.filesDialogList.innerHTML = ''; const files = task.files || []; files.forEach((f, i)=>{ const chip = document.createElement('span'); chip.className = 'chip'; const name = (f.name || f.publicId || `file_${i+1}`); chip.innerHTML = ` <span title="${escapeHtml(name)}"> ${f.type==='pdf' ? '📄' : '🖼'} ${escapeHtml(short(name))} </span> <button data-act="open">Открыть</button> `; chip.querySelector('[data-act="open"]').onclick = ()=>{ const url = f.url || f.secure_url; if(!url){ alert('URL не найден'); return; } openFile(url); }; els.filesDialogList.appendChild(chip); }); els.filesDialog.showModal(); } function openFile(url){ if(!url) return; window.open(url, '_blank', 'noopener,noreferrer'); } </script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
+  <script>
+  // ====== КОНФИГ ======
+  const FIREBASE_CONFIG = {
+    apiKey: "AIzaSyAH58ZpWAp64mhM589KD6jXHcOlPqU0aYU",
+    authDomain: "skladsborka-6c2a7.firebaseapp.com",
+    projectId: "skladsborka-6c2a7",
+    storageBucket: "skladsborka-6c2a7.firebasestorage.app",
+    appId: "1:516526717198:android:e470c17aed370572757f5f"
+  };
+  const CLOUDINARY_CLOUD_NAME    = "dnx1taqp7";
+  const CLOUDINARY_UPLOAD_PRESET = "unsigned_tasks";
+  const FOLDER_PREFIX            = "tasks";
+  const NOTIFY_URL_CREATED       = "https://skladsborka-notify.vercel.app/api/notify-taskCreated";
+  const NOTIFY_URL_ASSIGNEES     = "https://skladsborka-notify.vercel.app/api/notify-assigneesChanged";
+  // =====================
+
+  firebase.initializeApp(FIREBASE_CONFIG);
+  const auth = firebase.auth();
+  const db   = firebase.firestore();
+
+  const els = {
+    title: document.getElementById('title'),
+    comment: document.getElementById('comment'),
+    cbAssembled: document.getElementById('cbAssembled'),
+    fileInput: document.getElementById('fileInput'),
+    files: document.getElementById('files'),
+    filesInfo: document.getElementById('filesInfo'),
+    users: document.getElementById('users'),
+    assigneesInfo: document.getElementById('assigneesInfo'),
+    btnSave: document.getElementById('btnSave'),
+    btnClear: document.getElementById('btnClear'),
+    drop: document.getElementById('drop'),
+    tvHomeLastUpdated: document.getElementById('tvHomeLastUpdated'),
+    tasklist: document.getElementById('tasklist'),
+    btnReload: document.getElementById('btnReload'),
+    q: document.getElementById('q'),
+    statusFilter: document.getElementById('statusFilter'),
+    dlg: document.getElementById('editDialog'),
+    btnCloseEdit: document.getElementById('btnCloseEdit'),
+    btnSaveEdit: document.getElementById('btnSaveEdit'),
+    btnDelete: document.getElementById('btnDelete'),
+    edTitle: document.getElementById('edTitle'),
+    edComment: document.getElementById('edComment'),
+    edAssembled: document.getElementById('edAssembled'),
+    edPickup: document.getElementById('edPickup'),
+    edUsers: document.getElementById('edUsers'),
+    edAssigneesInfo: document.getElementById('edAssigneesInfo'),
+    edExistingFiles: document.getElementById('edExistingFiles'),
+    edDrop: document.getElementById('edDrop'),
+    edFileInput: document.getElementById('edFileInput'),
+    edNewFiles: document.getElementById('edNewFiles'),
+    edFilesInfo: document.getElementById('edFilesInfo'),
+    filesDialog: document.getElementById('filesDialog'),
+    filesDialogList: document.getElementById('filesDialogList')
+  };
+
+  const selectedFiles = [];
+  const selectedWorkerIds = new Set();
+  const selectedWorkerNames = new Set();
+
+  let allUsersCache = [];
+  let editingTask = null;
+  let edSelectedIds = new Set();
+  let edSelectedNames = new Set();
+  let edExisting = [];
+  let edRemovedPids = new Set();
+  const edNewSelected = [];
+
+  // ====== NOTIFY SAFE SEND ======
+  // Старую очередь пушей удаляем, чтобы браузер не переотправлял старый мусор бесконечно.
+  const QUEUE_KEY = 'notify_queue_v1';
+  try {
+    localStorage.removeItem(QUEUE_KEY);
+  } catch (e) {
+    console.warn('cannot clear notify queue:', e);
+  }
+
+  /**
+   * Пуши отправляем ОДИН раз.
+   * Без очереди. Без повторов. Без зависимости от ответа сервера.
+   *
+   * mode:'no-cors' нужен, чтобы браузер не валил создание задания из-за CORS.
+   * Для notify нам не важно читать ответ — задача уже создана в Firestore.
+   */
+  async function sendNotifyOnce(url, params){
+    if (!url) return;
+
+    const body = new URLSearchParams(params).toString();
+
+    try {
+      await fetch(url, {
+        method: 'POST',
+        mode: 'no-cors',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded'
+        },
+        body
+      });
+    } catch (e) {
+      // Ничего не повторяем.
+      // Notify не должен ломать страницу и не должен плодить очередь.
+      console.warn('notify skipped:', e?.message || e);
+    }
+  }
 
 
-Закрыть
+  // ======= AUTH + старт =======
+ auth.signInAnonymously()
+  .then(() => { 
+ 
+    touchLastUpdated();
+    loadUsers();
+    initTasksFeed();
+  })
+  .catch(e => alert("Auth error: " + (e?.message||e)));
+
+  // ======= USERS =======
+  async function loadUsers(){
+    const snap = await db.collection('users').get();
+    const frag = document.createDocumentFragment();
+    allUsersCache = [];
+    if (snap.empty){
+      els.users.innerHTML = '<div class="muted">Пользователи не найдены</div>';
+    } else {
+      snap.forEach(doc=>{
+        const data = doc.data()||{};
+        const base = data.name || data.displayName || doc.id;
+        const role = data.role ? ` (${data.role})` : '';
+        const label = `${base}${role}`;
+        const id = doc.id;
+        allUsersCache.push({id, base, label});
+        const row = document.createElement('label');
+        row.style.display='flex'; row.style.alignItems='center'; row.style.gap='8px'; row.style.padding='6px 4px';
+        row.innerHTML = `<input type="checkbox" data-id="${id}" data-name="${escapeHtml(label)}" /> <span>${escapeHtml(label)}</span>`;
+        row.querySelector('input').addEventListener('change', ev=>{
+          const chk = ev.target; const uid = chk.getAttribute('data-id'); const nm = chk.getAttribute('data-name');
+          if (chk.checked){ selectedWorkerIds.add(uid); selectedWorkerNames.add(nm); }
+          else { selectedWorkerIds.delete(uid); selectedWorkerNames.delete(nm); }
+          updateAssigneesInfo();
+        });
+        frag.appendChild(row);
+      });
+      els.users.innerHTML = ''; els.users.appendChild(frag);
+      updateAssigneesInfo();
+    }
+  }
+  function updateAssigneesInfo(){
+    els.assigneesInfo.textContent = selectedWorkerNames.size
+      ? "Исполнители: " + [...selectedWorkerNames].join(", ")
+      : "Исполнители не выбраны (необязательно)";
+  }
+
+  // ======= FILES UI / DND / PASTE (создание) =======
+  els.fileInput.addEventListener('change', e=>{
+    [...(e.target.files||[])].forEach(f=>{ if(!selectedFiles.includes(f)) selectedFiles.push(f); });
+    renderFiles();
+  });
+  ['dragenter','dragover'].forEach(ev=> els.drop.addEventListener(ev, e=>{ e.preventDefault(); e.stopPropagation(); els.drop.classList.add('drag'); }));
+  ['dragleave','drop'].forEach(ev=> els.drop.addEventListener(ev, e=>{ e.preventDefault(); e.stopPropagation(); els.drop.classList.remove('drag'); }));
+  els.drop.addEventListener('drop', e=>{
+    const files = [...(e.dataTransfer?.files||[])];
+    files.forEach(f=>{ if(!selectedFiles.includes(f)) selectedFiles.push(f); });
+    renderFiles();
+  });
+  els.btnClear.addEventListener('click', ()=>{ selectedFiles.length=0; renderFiles(); els.fileInput.value=''; });
+
+  function renderFiles(){
+    els.files.innerHTML='';
+    selectedFiles.forEach((f,i)=>{
+      const chip=document.createElement('span'); chip.className='chip';
+      chip.innerHTML=`<span title="${escapeHtml(f.name)}">${escapeHtml(short(f.name))}</span> <button>&times;</button>`;
+      chip.querySelector('button').onclick=()=>{selectedFiles.splice(i,1);renderFiles();};
+      els.files.appendChild(chip);
+    });
+    els.filesInfo.textContent = selectedFiles.length ? `Файлов выбрано: ${selectedFiles.length}` : 'Файлы не выбраны';
+  }
+  const short=s=>s.length>36?(s.slice(0,16)+'…'+s.slice(-16)):s;
+  const escapeHtml=s=>String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
+
+
+  function showToast(text, type='info'){
+    let el = document.getElementById('toast');
+    if(!el){
+      el = document.createElement('div');
+      el.id = 'toast';
+      el.className = 'toast';
+      document.body.appendChild(el);
+    }
+
+    el.className = 'toast ' + type;
+    el.textContent = text;
+
+    requestAnimationFrame(() => el.classList.add('show'));
+
+    clearTimeout(window.__toastTimer);
+    window.__toastTimer = setTimeout(() => {
+      el.classList.remove('show');
+    }, 2600);
+  }
+
+  document.addEventListener('paste', e=>{
+    if (els.dlg.open) return;
+    const dt=e.clipboardData; if(!dt)return;
+    let added=0;
+    for(const item of dt.items||[]){
+      if(item.kind==='file'){
+        const file=item.getAsFile();
+        if(!file) continue;
+        if(file.type.startsWith('image/')){
+          const name=`screenshot_${Date.now()}.png`;
+          const f=new File([file],name,{type:file.type});
+          selectedFiles.push(f); added++;
+        } else if(file.type==='application/pdf'){
+          const name=`pasted_${Date.now()}.pdf`;
+          const f=new File([file],name,{type:file.type});
+          selectedFiles.push(f); added++;
+        }
+      }
+    }
+    if(added){ renderFiles(); infoFlash(els.filesInfo, `Вставлено из буфера: ${added}`); e.preventDefault(); }
+  });
+  function infoFlash(el, text){
+    el.textContent=text; el.style.fontWeight='800';
+    setTimeout(()=>{
+      el.textContent = (el===els.filesInfo)
+        ? (selectedFiles.length ? `Файлов выбрано: ${selectedFiles.length}` : 'Файлы не выбраны')
+        : (edNewSelected.length ? `Новых файлов: ${edNewSelected.length}` : 'Новые файлы не выбраны');
+      el.style.fontWeight='normal';
+    }, 1600);
+  }
+
+  // ======= SAVE (создание) =======
+  els.btnSave.addEventListener('click', onSave);
+  async function onSave(){
+    const title=els.title.value.trim(); const comment=els.comment.value.trim(); const isAssembled=!!els.cbAssembled.checked;
+    if(!title){ alert("Введите название задания"); return; }
+    freeze(true,"Сохраняю…");
+    try{
+      const audienceIds=[...selectedWorkerIds]; const audienceNames=[...selectedWorkerNames];
+      const category=isAssembled?"assembled_order":(audienceIds.length===0?"pickup":"default");
+      const status=isAssembled?"assembled":"assigned"; const isPickup=isAssembled?false:(audienceIds.length===0);
+
+      const taskRef=db.collection('tasks').doc();
+      await taskRef.set({
+        title, comment,
+        assignees:audienceIds, assigneeNames:audienceNames,
+        isPickup, assembledOrder:isAssembled,
+        category, status,
+        createdAt:firebase.firestore.FieldValue.serverTimestamp(),
+        creatorId:"unknown", creatorName:"unknown",
+        files:[]
+      });
+
+      if(selectedFiles.length){
+        const uploaded=await uploadAllFiles(taskRef.id,selectedFiles);
+        if(uploaded.length){ await taskRef.update({files:uploaded}); }
+      }
+
+      // Пуши отправляем отдельно: если они сломаются, задача всё равно создана.
+      notifyTaskCreated(taskRef.id, audienceIds)
+        .catch(e => console.warn('notifyTaskCreated failed:', e));
+
+      // reset
+      selectedFiles.length=0; renderFiles(); els.fileInput.value='';
+      els.title.value=''; els.comment.value=''; els.cbAssembled.checked=false;
+      [...document.querySelectorAll('#users input[type=checkbox]')].forEach(ch=>ch.checked=false);
+      selectedWorkerIds.clear(); selectedWorkerNames.clear(); updateAssigneesInfo();
+      showToast("Задание создано", "ok");
+    }catch(e){ alert("Ошибка сохранения: "+(e?.message||e)); }
+    finally{ freeze(false); touchLastUpdated(); }
+  }
+
+  async function uploadAllFiles(taskId, files){
+    const out=[];
+    for(const f of files){
+      const endpoint = `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/auto/upload`;
+      const fd = new FormData();
+      fd.append('file', f);
+      fd.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
+      fd.append('folder', `${FOLDER_PREFIX}/${taskId}`);
+      const resp = await fetch(endpoint,{method:'POST',body:fd});
+      if(!resp.ok){ const t=await resp.text().catch(()=> ""); throw new Error(`upload failed (${resp.status}) ${t}`); }
+      const j = await resp.json();
+      out.push({
+        url: j.secure_url || j.url || "",
+        publicId: j.public_id || "",
+        type: (f.type==='application/pdf' || /\.pdf$/i.test(f.name)) ? "pdf" : "image",
+        name: f.name || "file"
+      });
+    }
+    return out;
+  }
+
+  // безопасные уведомления БЕЗ очереди
+  function notifyTaskCreated(taskId, audienceIds){
+    const assigneeIdsCsv = (audienceIds && audienceIds.length)
+      ? audienceIds.join(",")
+      : "";
+
+    return sendNotifyOnce(NOTIFY_URL_CREATED, {
+      taskId,
+      assigneeIds: assigneeIdsCsv
+    });
+  }
+
+  function notifyAssigneesChanged(taskId, newIds){
+    // Временно отключено.
+    // Старые/лишние пуши при изменении исполнителей сейчас не нужны.
+    return Promise.resolve();
+  }
+
+  function freeze(flag,text){ els.btnSave.disabled=!!flag; els.btnSave.textContent=flag?(text||"…"):"Сохранить задание"; }
+  function touchLastUpdated(){
+    const d=new Date(); const pad=n=>String(n).padStart(2,'0');
+    const s=`${pad(d.getDate())}.${pad(d.getMonth()+1)} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    els.tvHomeLastUpdated.textContent="Список актуален: "+s;
+  }
+
+  // ======= TASKS FEED (правый сайдбар) =======
+  let unsubTasks=null, lastTasks=[], filteredTasks=[];
+  function initTasksFeed(){
+    subscribeTasks();
+    els.btnReload.addEventListener('click', ()=>{ subscribeTasks(true); });
+    els.q.addEventListener('input', applyFilter);
+    els.statusFilter.addEventListener('change', applyFilter);
+  }
+  function subscribeTasks(){
+    if(unsubTasks){ unsubTasks(); unsubTasks=null; }
+    const q = db.collection('tasks').orderBy('createdAt','desc').limit(50);
+    console.log("Подключился listener задач");
+    unsubTasks = q.onSnapshot(snap=>{
+      const arr=[];
+      snap.forEach(d=>{
+        const x=d.data()||{};
+        arr.push({
+          id:d.id,
+          title: x.title || '(без названия)',
+          comment: x.comment || '',
+          status: String(x.status||'assigned').toLowerCase(),
+          isPickup: !!x.isPickup,
+          assembledOrder: !!x.assembledOrder || String(x.status).toLowerCase()==='assembled',
+          files: Array.isArray(x.files)? x.files : [],
+          assigneeNames: Array.isArray(x.assigneeNames)? x.assigneeNames : [],
+          assignees: Array.isArray(x.assignees)? x.assignees : [],
+          createdAt: x.createdAt?.toDate ? x.createdAt.toDate() : null
+        });
+      });
+      lastTasks = arr;
+      applyFilter();
+      touchLastUpdated();
+    }, err=> console.error('tasks snapshot error', err));
+  }
+  function applyFilter(){
+    const text = (els.q.value||'').trim().toLowerCase();
+    const status = els.statusFilter.value;
+    filteredTasks = lastTasks.filter(t=>{
+      const matchText = !text || (t.title||'').toLowerCase().includes(text) || (t.comment||'').toLowerCase().includes(text);
+      const matchStatus = !status || t.status===status;
+      return matchText && matchStatus;
+    });
+    renderTasks();
+  }
+  function renderTasks(){
+    const list = els.tasklist;
+    list.innerHTML='';
+    if(!filteredTasks.length){ list.innerHTML='<div class="muted">Пока нет данных</div>'; return; }
+    const frag=document.createDocumentFragment();
+    for(const t of filteredTasks){
+      const div=document.createElement('div');
+      div.className='task';
+      const badges = [];
+      const st = (t.status||'assigned').toLowerCase();
+      if(st==='done') badges.push(`<span class="pill ok">Готово</span>`);
+      else if(st==='in_progress') badges.push(`<span class="pill info">В работе</span>`);
+      else badges.push(`<span class="pill">Назначено</span>`);
+      if(t.isPickup) badges.push(`<span class="pill warn">Самовывоз</span>`);
+      if(t.assembledOrder) badges.push(`<span class="pill assem">Собранный</span>`);
+      const created = t.createdAt ? formatTime(t.createdAt) : '—';
+      const filesCount = (t.files||[]).length;
+      const ass = t.assigneeNames?.length ? `👥 ${escapeHtml(t.assigneeNames.join(', '))}` : '';
+      div.innerHTML = `
+        <div class="t1">
+          <div class="title">${escapeHtml(t.title)}</div>
+          <div class="badges">${badges.join(' ')}</div>
+        </div>
+        <div class="meta">
+          <span>⏱ ${created}</span>
+          <span>📎 ${filesCount}</span>
+          ${ass?`<span>${ass}</span>`:''}
+        </div>
+        ${t.comment ? `<div class="line"></div><div class="assignees">${escapeHtml(t.comment)}</div>` : ''}
+        <div class="row-compact" style="margin-top:4px">
+          <button class="btn btn-secondary" data-act="edit">Редактировать</button>
+          ${filesCount ? `<button class="btn btn-secondary" data-act="open">Открыть</button>` : ``}
+          <div></div>
+          <button class="btn btn-secondary" data-act="delete" style="border-color:#f00;color:#f00">Удалить</button>
+        </div>
+      `;
+      const btnOpen = div.querySelector('[data-act="open"]');
+      if(btnOpen){
+        btnOpen.addEventListener('click', ()=>{
+          const files = t.files || [];
+          if(!files.length){ alert('Нет вложений'); return; }
+          openFilesChooser(t);
+        });
+      }
+      div.querySelector('[data-act="edit"]').addEventListener('click', ()=> openEditModal(t.id));
+      div.querySelector('[data-act="delete"]').addEventListener('click', ()=> deleteTask(t.id));
+      frag.appendChild(div);
+    }
+    list.appendChild(frag);
+  }
+  function formatTime(d){
+    const pad=n=>String(n).padStart(2,'0');
+    return `${pad(d.getDate())}.${pad(d.getMonth()+1)} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  }
+
+  // ======= EDIT MODAL =======
+  async function openEditModal(taskId){
+    const doc = await db.collection('tasks').doc(taskId).get();
+    if(!doc.exists){ alert('Задача не найдена'); return; }
+    const x = doc.data()||{};
+    editingTask = {
+      id: doc.id,
+      title: x.title||'',
+      comment: x.comment||'',
+      status: String(x.status||'assigned'),
+      isPickup: !!x.isPickup,
+      assembledOrder: !!x.assembledOrder || String(x.status).toLowerCase()==='assembled',
+      assignees: Array.isArray(x.assignees)? x.assignees : [],
+      assigneeNames: Array.isArray(x.assigneeNames)? x.assigneeNames : [],
+      files: Array.isArray(x.files)? x.files : []
+    };
+
+    els.edTitle.value = editingTask.title;
+    els.edComment.value = editingTask.comment;
+    els.edAssembled.checked = !!editingTask.assembledOrder;
+    els.edPickup.checked = !!editingTask.isPickup;
+
+    edSelectedIds = new Set(editingTask.assignees);
+    edSelectedNames = new Set(editingTask.assigneeNames);
+    renderEdUsers();
+
+    edExisting = [...editingTask.files];
+    edRemovedPids = new Set();
+    edNewSelected.length = 0;
+    renderEdExistingFiles();
+    renderEdNewFiles();
+
+    els.dlg.showModal();
+  }
+  function renderEdUsers(){
+    const frag = document.createDocumentFragment();
+    allUsersCache.forEach(u=>{
+      const row = document.createElement('label');
+      row.style.display='flex'; row.style.alignItems='center'; row.style.gap='8px'; row.style.padding='6px 4px';
+      const checked = edSelectedIds.has(u.id) ? 'checked' : '';
+      row.innerHTML = `<input type="checkbox" data-id="${u.id}" data-name="${escapeHtml(u.label)}" ${checked}/> <span>${escapeHtml(u.label)}</span>`;
+      row.querySelector('input').addEventListener('change', ev=>{
+        const chk = ev.target; const uid = chk.getAttribute('data-id'); const nm = chk.getAttribute('data-name');
+        if (chk.checked){ edSelectedIds.add(uid); edSelectedNames.add(nm); }
+        else { edSelectedIds.delete(uid); edSelectedNames.delete(nm); }
+        updateEdAssigneesInfo();
+      });
+      frag.appendChild(row);
+    });
+    els.edUsers.innerHTML=''; els.edUsers.appendChild(frag);
+    updateEdAssigneesInfo();
+  }
+  function updateEdAssigneesInfo(){
+    els.edAssigneesInfo.textContent = edSelectedNames.size
+      ? "Исполнители: " + [...edSelectedNames].join(", ")
+      : "Исполнители не выбраны";
+  }
+
+  function renderEdExistingFiles(){
+    els.edExistingFiles.innerHTML = '';
+    if(!edExisting.length){
+      els.edExistingFiles.innerHTML = '<span class="muted">Нет вложений</span>';
+      return;
+    }
+    edExisting.forEach((f,i)=>{
+      const removed = edRemovedPids.has(f.publicId);
+      const chip=document.createElement('span'); chip.className='chip';
+      chip.style.opacity = removed ? '.4' : '1';
+      const name = f.name || f.publicId || `file_${i+1}`;
+      chip.innerHTML = `
+        <span title="${escapeHtml(name)}">
+          ${f.type==='pdf'?'📄':'🖼'} ${escapeHtml(short(name))}
+        </span>
+        <button title="Открыть" data-act="open">👁</button>
+        <button title="${removed?'Вернуть':'Удалить'}" data-act="toggle">${removed?'↩':'×'}</button>`;
+      chip.querySelector('[data-act="open"]').onclick = ()=> openFile(f.url || f.secure_url);
+      chip.querySelector('[data-act="toggle"]').onclick = ()=>{
+        if(removed){ edRemovedPids.delete(f.publicId); }
+        else { edRemovedPids.add(f.publicId); }
+        renderEdExistingFiles();
+      };
+      els.edExistingFiles.appendChild(chip);
+    });
+  }
+
+  els.edFileInput.addEventListener('change', e=>{
+    [...(e.target.files||[])].forEach(f=>{ if(!edNewSelected.includes(f)) edNewSelected.push(f); });
+    renderEdNewFiles();
+  });
+  ['dragenter','dragover'].forEach(ev=> els.edDrop.addEventListener(ev, e=>{ e.preventDefault(); e.stopPropagation(); els.edDrop.classList.add('drag'); }));
+  ['dragleave','drop'].forEach(ev=> els.edDrop.addEventListener(ev, e=>{ e.preventDefault(); e.stopPropagation(); els.edDrop.classList.remove('drag'); }));
+  els.edDrop.addEventListener('drop', e=>{
+    const files = [...(e.dataTransfer?.files||[])];
+    files.forEach(f=>{ if(!edNewSelected.includes(f)) edNewSelected.push(f); });
+    renderEdNewFiles();
+  });
+  els.dlg.addEventListener('paste', e=>{
+    const dt=e.clipboardData; if(!dt)return;
+    let added=0;
+    for(const item of dt.items||[]){
+      if(item.kind==='file'){
+        const file=item.getAsFile(); if(!file) continue;
+        let name = file.name || (file.type==='application/pdf' ? `pasted_${Date.now()}.pdf` : `screenshot_${Date.now()}.png`);
+        const f=new File([file], name, {type:file.type});
+        edNewSelected.push(f); added++;
+      }
+    }
+    if(added){ renderEdNewFiles(); infoFlash(els.edFilesInfo, `Добавлено новых: ${added}`); e.preventDefault(); }
+  });
+  function renderEdNewFiles(){
+    els.edNewFiles.innerHTML='';
+    edNewSelected.forEach((f,i)=>{
+      const chip=document.createElement('span'); chip.className='chip';
+      chip.innerHTML=`<span title="${escapeHtml(f.name)}">${f.type==='application/pdf'?'📄':'🖼'} ${escapeHtml(short(f.name))}</span> <button>&times;</button>`;
+      chip.querySelector('button').onclick=()=>{edNewSelected.splice(i,1);renderEdNewFiles();};
+      els.edNewFiles.appendChild(chip);
+    });
+    els.edFilesInfo.textContent = edNewSelected.length ? `Новых файлов: ${edNewSelected.length}` : 'Новые файлы не выбраны';
+  }
+
+  els.btnCloseEdit.addEventListener('click', ()=> els.dlg.close());
+
+  els.btnSaveEdit.addEventListener('click', async ()=>{
+    if(!editingTask) return;
+    const newTitle = els.edTitle.value.trim();
+    if(!newTitle){ alert('Название обязательно'); return; }
+    const newComment = els.edComment.value.trim();
+    const newAssembled = !!els.edAssembled.checked;
+    const newPickup = !!els.edPickup.checked;
+
+    const oldAssignees = new Set(editingTask.assignees||[]);
+    const newAssignees = [...edSelectedIds];
+    const newAssigneeNames = [...edSelectedNames];
+    const onlyNewAssignees = newAssignees.filter(id=> !oldAssignees.has(id));
+
+    try{
+      const kept = edExisting.filter(f=> !edRemovedPids.has(f.publicId));
+      let uploaded = [];
+      if(edNewSelected.length){
+        uploaded = await uploadAllFiles(editingTask.id, edNewSelected);
+      }
+      const filesMerged = kept.concat(uploaded);
+
+      await db.collection('tasks').doc(editingTask.id).update({
+        title:newTitle,
+        comment:newComment,
+        assembledOrder:newAssembled,
+        isPickup:newPickup,
+        assignees:newAssignees,
+        assigneeNames:newAssigneeNames,
+        files: filesMerged
+      });
+
+      await notifyAssigneesChanged(editingTask.id, onlyNewAssignees);
+      els.dlg.close();
+    }catch(e){
+      alert('Ошибка сохранения: '+(e?.message||e));
+    }
+  });
+
+  async function deleteTask(taskId){
+    if(!confirm('Удалить задачу безвозвратно?')) return;
+    try{
+      await db.collection('tasks').doc(taskId).delete();
+    }catch(e){
+      alert('Ошибка удаления: '+(e?.message||e));
+    }
+  }
+  document.getElementById('btnDelete')?.addEventListener('click', async ()=>{
+    if(!editingTask) return;
+    await deleteTask(editingTask.id);
+    els.dlg.close();
+  });
+
+  function openFilesChooser(task){
+    els.filesDialogList.innerHTML = '';
+    const files = task.files || [];
+    files.forEach((f, i)=>{
+      const chip = document.createElement('span');
+      chip.className = 'chip';
+      const name = (f.name || f.publicId || `file_${i+1}`);
+      chip.innerHTML = `
+        <span title="${escapeHtml(name)}">
+          ${f.type==='pdf' ? '📄' : '🖼'} ${escapeHtml(short(name))}
+        </span>
+        <button data-act="open">Открыть</button>
+      `;
+      chip.querySelector('[data-act="open"]').onclick = ()=>{
+        const url = f.url || f.secure_url;
+        if(!url){ alert('URL не найден'); return; }
+        openFile(url);
+      };
+      els.filesDialogList.appendChild(chip);
+    });
+    els.filesDialog.showModal();
+  }
+  function openFile(url){
+    if(!url) return;
+    window.open(url, '_blank', 'noopener,noreferrer');
+  }
+  </script>
