@@ -70,6 +70,8 @@
     .task .assignees{ font-size:12px; color:#444; }
     .task:hover{ box-shadow:0 1px 0 rgba(0,0,0,.02), 0 6px 16px rgba(0,0,0,.06) }
     .row-compact{ display:grid; grid-template-columns:auto auto 1fr auto; gap:8px; align-items:center }
+    .creator-buttons{ display:flex; flex-wrap:wrap; gap:8px; margin:6px 0 12px }
+    .creator-buttons .btn{ padding:10px 12px }
 
 
     /* Уведомление сверху вместо alert после создания */
@@ -107,19 +109,24 @@
       <!-- Левая колонка — форма -->
       <div class="left">
         <div class="card">
+          <label>Выбери себя</label>
+          <div id="commentCreatorButtons" class="creator-buttons"></div>
+          <div class="muted" style="margin-bottom:8px">Кнопка только добавляет имя в комментарий</div>
+
           <div class="row">
             <div>
-              <label for="title">Название задания</label>
-              <input id="title" type="text" placeholder="Например: Заказ 12345" />
+              <label for="title">Номер Машины</label>
+              <input id="title" type="text" placeholder="Только цифры авто" />
+              <div class="muted">если он в офисе, пишем вместо номера что он в офисе)</div>
             </div>
             <div class="switch">
               <input id="cbAssembled" type="checkbox" />
-              <label for="cbAssembled" style="margin:0">Собранный заказ</label>
+              <label for="cbAssembled" style="margin:0">Не трогаем</label>
             </div>
           </div>
 
           <label for="comment">Комментарий</label>
-          <textarea id="comment" placeholder="Опционально: примечания"></textarea>
+          <textarea id="comment" placeholder="Одной партией, подойти к клиенту,и т.д"></textarea>
 
           <div class="row">
             <div>
@@ -132,7 +139,7 @@
               <div class="muted" id="filesInfo">Файлы не выбраны</div>
             </div>
             <div>
-              <label>Кладовщики (мультивыбор)</label>
+              <label>Не трогаем (мультивыбор)</label>
               <div id="users" class="card" style="padding:8px; height:180px; overflow:auto"></div>
               <div class="muted" id="assigneesInfo">Исполнители не выбраны (необязательно)</div>
             </div>
@@ -144,7 +151,7 @@
       <!-- Правая колонка — список задач -->
       <aside class="aside">
         <div class="hdr">
-          <div style="font-weight:800">Задачи</div>
+          <div style="font-weight:800">Очередь</div>
           <div class="row-compact" style="grid-template-columns:auto 1fr auto">
             <select id="statusFilter">
               <option value="">Все</option>
@@ -184,7 +191,7 @@
 
       <div class="row">
         <div>
-          <label for="edTitle">Название</label>
+          <label for="edTitle">Номер Машины</label>
           <input id="edTitle" type="text" />
         </div>
       </div>
@@ -269,6 +276,7 @@
   const els = {
     title: document.getElementById('title'),
     comment: document.getElementById('comment'),
+    commentCreatorButtons: document.getElementById('commentCreatorButtons'),
     cbAssembled: document.getElementById('cbAssembled'),
     fileInput: document.getElementById('fileInput'),
     files: document.getElementById('files'),
@@ -313,6 +321,47 @@
   let edExisting = [];
   let edRemovedPids = new Set();
   const edNewSelected = [];
+
+  // ====== КНОПКИ "КТО СОЗДАЛ" ======
+  // Эти имена НИКУДА не записываются отдельно.
+  // Кнопка просто вставляет строку "Создал: Имя" в обычный комментарий.
+  const COMMENT_CREATOR_NAMES = [
+    "Настя",
+    "Маша",
+    "Галя",
+    "Юля"
+  ];
+  const COMMENT_CREATOR_PREFIX = "Задача от :";
+
+  renderCommentCreatorButtons();
+
+  function renderCommentCreatorButtons(){
+    if(!els.commentCreatorButtons) return;
+    const frag = document.createDocumentFragment();
+    COMMENT_CREATOR_NAMES.forEach(name=>{
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'btn btn-secondary';
+      btn.textContent = name;
+      btn.addEventListener('click', ()=> putCreatorIntoComment(name));
+      frag.appendChild(btn);
+    });
+    els.commentCreatorButtons.innerHTML = '';
+    els.commentCreatorButtons.appendChild(frag);
+  }
+
+  function putCreatorIntoComment(name){
+    const cleanName = String(name || '').trim();
+    if(!cleanName) return;
+
+    const oldText = els.comment.value || '';
+    const lines = oldText.split(/\r?\n/)
+      .filter(line => !line.trim().toLowerCase().startsWith(COMMENT_CREATOR_PREFIX.toLowerCase()));
+
+    const rest = lines.join('\n').trim();
+    els.comment.value = COMMENT_CREATOR_PREFIX + ' ' + cleanName + (rest ? '\n' + rest : '');
+    els.comment.focus();
+  }
 
   // ====== NOTIFY SAFE SEND ======
   // Старую очередь пушей удаляем, чтобы браузер не переотправлял старый мусор бесконечно.
@@ -477,11 +526,45 @@
     }, 1600);
   }
 
+  // ======= АВТОНОМЕР НАЗВАНИЯ БЕЗ ЛИШНИХ ЗАПРОСОВ FIREBASE =======
+  // Номер считается по уже загруженному правому списку задач lastTasks.
+  // Никаких transaction, counters, дополнительных get() тут нет.
+  function buildAutoTitle(rawTitle){
+    const n = getNextLocalDailyNumber();
+    const manual = String(rawTitle || '').trim();
+    return manual ? `№${n} — ${manual}` : `Задача №${n}`;
+  }
+
+  function getNextLocalDailyNumber(){
+    const todayKey = localDateKey(new Date());
+    const todayTasks = (Array.isArray(lastTasks) ? lastTasks : [])
+      .filter(t => t.createdAt && localDateKey(t.createdAt) === todayKey);
+
+    let maxFromTitle = 0;
+    todayTasks.forEach(t=>{
+      const text = String(t.title || '');
+      const m = text.match(/(?:Задача\s*№|№)\s*(\d+)/i);
+      if(m){
+        const n = parseInt(m[1], 10);
+        if(Number.isFinite(n) && n > maxFromTitle) maxFromTitle = n;
+      }
+    });
+
+    return Math.max(maxFromTitle, todayTasks.length) + 1;
+  }
+
+  function localDateKey(d){
+    const pad = n => String(n).padStart(2,'0');
+    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+  }
+
   // ======= SAVE (создание) =======
   els.btnSave.addEventListener('click', onSave);
   async function onSave(){
-    const title=els.title.value.trim(); const comment=els.comment.value.trim(); const isAssembled=!!els.cbAssembled.checked;
-    if(!title){ alert("Введите название задания"); return; }
+    const rawTitle=els.title.value.trim();
+    const title=buildAutoTitle(rawTitle);
+    const comment=els.comment.value.trim();
+    const isAssembled=!!els.cbAssembled.checked;
     freeze(true,"Сохраняю…");
     try{
       const audienceIds=[...selectedWorkerIds]; const audienceNames=[...selectedWorkerNames];
