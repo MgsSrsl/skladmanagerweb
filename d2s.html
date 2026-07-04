@@ -8,7 +8,7 @@
 <style>
 :root{
   --bg:#f3f4f6;
-  --panel:#ffffff;
+  --panel:#fff;
   --text:#111827;
   --muted:#6b7280;
   --line:#e5e7eb;
@@ -20,60 +20,53 @@
   --orange:#f59e0b;
   --orangeSoft:#fef3c7;
   --red:#ef4444;
-  --redSoft:#fee2e2;
-  --shadow:0 10px 25px rgba(15,23,42,.08);
-  --radius:16px;
+  --shadow:0 6px 18px rgba(15,23,42,.08);
+  --radius:12px;
 }
 
-*{
-  box-sizing:border-box;
-}
+*{box-sizing:border-box}
 
 body{
   margin:0;
-  font-family:Arial, sans-serif;
+  font-family:Arial,sans-serif;
   background:var(--bg);
   color:var(--text);
 }
 
+/* ===== TOP ===== */
+
 .topbar{
   background:linear-gradient(135deg,#111827,#1f2937);
-  color:white;
-  padding:16px;
+  color:#fff;
+  padding:10px 12px;
   position:sticky;
   top:0;
   z-index:10;
-  box-shadow:0 8px 20px rgba(0,0,0,.18);
+  box-shadow:0 6px 16px rgba(0,0,0,.2);
 }
 
-.topbarMain{
+.topline{
   display:flex;
   justify-content:space-between;
-  gap:16px;
-  align-items:flex-start;
+  gap:10px;
+  align-items:center;
   flex-wrap:wrap;
-  margin-bottom:14px;
-}
-
-.brand{
-  display:flex;
-  flex-direction:column;
-  gap:4px;
+  margin-bottom:8px;
 }
 
 .brandTitle{
-  font-size:22px;
-  font-weight:800;
+  font-size:18px;
+  font-weight:900;
 }
 
 .brandSub{
-  font-size:13px;
+  font-size:12px;
   color:#d1d5db;
 }
 
 .stats{
   display:flex;
-  gap:8px;
+  gap:6px;
   flex-wrap:wrap;
 }
 
@@ -81,94 +74,104 @@ body{
   background:rgba(255,255,255,.1);
   border:1px solid rgba(255,255,255,.15);
   border-radius:999px;
-  padding:7px 10px;
-  font-size:13px;
+  padding:5px 8px;
+  font-size:12px;
 }
 
 .forms{
   display:grid;
   grid-template-columns:1fr 1fr;
-  gap:10px;
+  gap:8px;
 }
 
 .formBox{
   background:rgba(255,255,255,.08);
   border:1px solid rgba(255,255,255,.12);
-  border-radius:14px;
-  padding:10px;
+  border-radius:12px;
+  padding:8px;
   display:flex;
-  gap:8px;
+  gap:6px;
   flex-wrap:wrap;
 }
 
-input{
+input,select{
   border:none;
-  border-radius:10px;
-  padding:10px 12px;
+  border-radius:9px;
+  padding:8px 9px;
   outline:none;
-  min-width:180px;
-  font-size:14px;
+  min-width:140px;
+  font-size:13px;
 }
 
 button{
   border:none;
-  border-radius:10px;
-  padding:9px 12px;
+  border-radius:9px;
+  padding:8px 10px;
   cursor:pointer;
-  font-weight:700;
+  font-weight:800;
+  font-size:13px;
 }
 
 .primaryBtn{
   background:var(--blue);
-  color:white;
+  color:#fff;
 }
 
 .greenBtn{
   background:var(--green);
-  color:white;
+  color:#fff;
 }
 
+/* ===== MAIN ===== */
+
 .main{
-  padding:16px;
+  padding:10px;
+}
+
+.pools{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:10px;
+  margin-bottom:10px;
 }
 
 .poolPanel{
   background:var(--panel);
   border-radius:var(--radius);
   box-shadow:var(--shadow);
-  padding:14px;
-  margin-bottom:16px;
+  padding:10px;
 }
 
 .panelHead{
   display:flex;
   justify-content:space-between;
   align-items:center;
-  gap:12px;
-  margin-bottom:10px;
+  gap:8px;
+  margin-bottom:7px;
 }
 
 .panelTitle{
-  font-weight:800;
-  font-size:17px;
+  font-weight:900;
+  font-size:14px;
 }
 
 .panelHint{
   color:var(--muted);
-  font-size:13px;
+  font-size:11px;
 }
 
 .poolList{
-  min-height:74px;
+  min-height:54px;
   border:2px dashed var(--line);
-  border-radius:14px;
-  padding:10px;
+  border-radius:12px;
+  padding:7px;
   display:flex;
-  gap:10px;
+  gap:7px;
   flex-wrap:wrap;
   align-items:flex-start;
-  transition:.15s;
 }
+
+/* ===== BOARD ===== */
 
 .boardShell{
   background:var(--panel);
@@ -178,84 +181,80 @@ button{
 }
 
 .board{
-  min-width:850px;
+  min-width:820px;
 }
 
 .boardHeader,
 .teamRow{
   display:grid;
-  grid-template-columns:1.2fr 1fr 1.2fr;
-  gap:0;
+  grid-template-columns:1.15fr .9fr 1.15fr;
 }
 
 .boardHeader{
   background:#f9fafb;
   border-bottom:1px solid var(--line);
-  font-weight:800;
+  font-weight:900;
   color:#374151;
+  font-size:13px;
 }
 
 .headCell{
-  padding:14px;
+  padding:10px;
   border-right:1px solid var(--line);
 }
 
-.headCell:last-child{
-  border-right:none;
-}
+.headCell:last-child{border-right:none}
 
 .teamRow{
   border-bottom:1px solid var(--line);
 }
 
-.teamRow:last-child{
-  border-bottom:none;
-}
+.teamRow:last-child{border-bottom:none}
 
 .cell{
-  padding:12px;
+  padding:8px;
   border-right:1px solid var(--line);
-  min-height:110px;
+  min-height:76px;
 }
 
-.cell:last-child{
-  border-right:none;
-}
+.cell:last-child{border-right:none}
 
 .slot{
-  min-height:78px;
+  min-height:58px;
   border:2px dashed transparent;
-  border-radius:14px;
-  padding:8px;
-  transition:.15s;
+  border-radius:12px;
+  padding:6px;
+  transition:.12s;
 }
 
 .slotEmpty{
-  height:56px;
-  border-radius:12px;
+  min-height:42px;
+  border-radius:10px;
   background:#f9fafb;
   color:var(--muted);
   display:flex;
   align-items:center;
   justify-content:center;
-  font-size:14px;
+  font-size:12px;
 }
 
-.dragover{
-  border-color:var(--blue) !important;
-  background:#eff6ff !important;
-}
+/* ===== CARDS ===== */
 
 .taskCard{
   background:var(--blueSoft);
   border:1px solid #bfdbfe;
-  border-radius:14px;
-  padding:10px 42px 10px 12px;
-  min-width:180px;
+  border-radius:11px;
+  padding:8px 34px 8px 9px;
+  min-width:145px;
   max-width:100%;
   position:relative;
   cursor:grab;
-  box-shadow:0 4px 12px rgba(37,99,235,.08);
+  box-shadow:0 3px 9px rgba(37,99,235,.08);
+}
+
+.taskCard.tomorrow{
+  background:var(--orangeSoft);
+  border-color:#fde68a;
 }
 
 .taskCard:active{
@@ -263,124 +262,131 @@ button{
 }
 
 .taskText{
-  font-weight:700;
-  line-height:1.3;
+  font-weight:800;
+  font-size:13px;
+  line-height:1.25;
   word-break:break-word;
 }
 
 .taskMeta{
-  color:#475569;
-  font-size:12px;
-  margin-top:5px;
+  color:#64748b;
+  font-size:10px;
+  margin-top:3px;
 }
 
 .teamCard{
   background:#f9fafb;
   border:1px solid var(--line);
-  border-radius:14px;
-  padding:12px;
+  border-radius:12px;
+  padding:9px;
   position:relative;
 }
 
 .teamName{
   font-weight:900;
-  font-size:16px;
-  padding-right:70px;
+  font-size:14px;
+  padding-right:64px;
 }
 
 .members{
   display:flex;
-  gap:6px;
+  gap:4px;
   flex-wrap:wrap;
-  margin-top:10px;
+  margin-top:7px;
 }
 
 .memberChip{
   background:#e5e7eb;
   color:#374151;
   border-radius:999px;
-  padding:5px 8px;
-  font-size:12px;
-  font-weight:700;
+  padding:3px 6px;
+  font-size:11px;
+  font-weight:800;
 }
 
 .noMembers{
   color:var(--muted);
-  font-size:13px;
-  margin-top:8px;
+  font-size:12px;
+  margin-top:6px;
 }
+
+/* ===== BUTTONS ===== */
 
 .iconBtn{
   position:absolute;
-  top:8px;
-  width:28px;
-  height:28px;
+  top:6px;
+  width:24px;
+  height:24px;
   padding:0;
-  border-radius:9px;
+  border-radius:8px;
   color:white;
   display:flex;
   align-items:center;
   justify-content:center;
-  font-size:14px;
+  font-size:13px;
   line-height:1;
 }
 
 .editBtn{
-  right:42px;
+  right:34px;
   background:var(--blue);
 }
 
 .deleteBtn{
-  right:8px;
+  right:6px;
   background:var(--red);
 }
 
+.dragover{
+  border-color:var(--blue)!important;
+  background:#eff6ff!important;
+}
+
 .emptyBoard{
-  padding:30px;
+  padding:22px;
   color:var(--muted);
   text-align:center;
+  font-size:13px;
 }
 
 .toast{
   position:fixed;
   left:50%;
-  bottom:18px;
+  bottom:14px;
   transform:translateX(-50%);
   background:#111827;
   color:white;
   border-radius:999px;
-  padding:10px 14px;
+  padding:8px 12px;
   box-shadow:0 10px 30px rgba(0,0,0,.25);
   display:none;
   gap:10px;
   align-items:center;
   z-index:99;
-  font-size:14px;
+  font-size:13px;
 }
 
 .toast button{
   background:white;
   color:#111827;
-  padding:5px 9px;
+  padding:4px 8px;
   border-radius:999px;
 }
 
 @media(max-width:800px){
-  .forms{
+  .forms,
+  .pools{
     grid-template-columns:1fr;
   }
 
-  .formBox input{
+  .formBox input,
+  .formBox select{
     flex:1;
-    min-width:130px;
+    min-width:120px;
   }
 
   .main{
-    padding:10px;
-  }
-
-  .brandTitle{
-    font-size:19px;
+    padding:8px;
   }
 }
 </style>
@@ -389,10 +395,10 @@ button{
 <body>
 
 <header class="topbar">
-  <div class="topbarMain">
-    <div class="brand">
+  <div class="topline">
+    <div>
       <div class="brandTitle">Складская доска</div>
-      <div class="brandSub">Активная задача → команда → следующая задача</div>
+      <div class="brandSub">Сегодня / завтра / активная / следующая</div>
     </div>
 
     <div class="stats" id="stats"></div>
@@ -400,33 +406,50 @@ button{
 
   <div class="forms">
     <div class="formBox">
-      <input id="teamName" placeholder="Название команды">
+      <input id="teamName" placeholder="Команда">
       <input id="teamMembers" placeholder="Состав через запятую">
-      <button class="primaryBtn" id="addTeamBtn">Добавить команду</button>
+      <button class="primaryBtn" id="addTeamBtn">+ Команда</button>
     </div>
 
     <div class="formBox">
       <input id="taskName" placeholder="Новая задача">
-      <button class="greenBtn" id="addTaskBtn">Добавить задачу</button>
+      <select id="taskBucket">
+        <option value="today">Сегодня</option>
+        <option value="tomorrow">Завтра</option>
+      </select>
+      <button class="greenBtn" id="addTaskBtn">+ Задача</button>
     </div>
   </div>
 </header>
 
 <main class="main">
-  <section class="poolPanel">
-    <div class="panelHead">
-      <div>
-        <div class="panelTitle">Безхозные задачи</div>
-        <div class="panelHint">Сюда можно вернуть задачу перетаскиванием</div>
+
+  <section class="pools">
+    <div class="poolPanel">
+      <div class="panelHead">
+        <div>
+          <div class="panelTitle">Безхозные сегодня</div>
+          <div class="panelHint">Перетащи в активную или следующую</div>
+        </div>
       </div>
+      <div id="todayPool" class="poolList"></div>
     </div>
 
-    <div id="poolList" class="poolList"></div>
+    <div class="poolPanel">
+      <div class="panelHead">
+        <div>
+          <div class="panelTitle">План на завтра</div>
+          <div class="panelHint">Можно заранее набить задачи</div>
+        </div>
+      </div>
+      <div id="tomorrowPool" class="poolList"></div>
+    </div>
   </section>
 
   <section class="boardShell">
     <div class="board" id="board"></div>
   </section>
+
 </main>
 
 <div class="toast" id="toast">
@@ -435,9 +458,10 @@ button{
 </div>
 
 <script>
-const STORAGE = "warehouse_board_visual_v1";
+const STORAGE = "warehouse_board_compact_tomorrow_v1";
 
 const LEGACY_KEYS = [
+  "warehouse_board_visual_v1",
   "warehouse_board_v10",
   "warehouse_board_v9",
   "warehouse_board_v8",
@@ -453,11 +477,16 @@ let toastTimer = null;
 const teamNameInput = document.getElementById("teamName");
 const teamMembersInput = document.getElementById("teamMembers");
 const taskNameInput = document.getElementById("taskName");
+const taskBucketSelect = document.getElementById("taskBucket");
+
 const addTeamBtn = document.getElementById("addTeamBtn");
 const addTaskBtn = document.getElementById("addTaskBtn");
+
 const boardEl = document.getElementById("board");
-const poolListEl = document.getElementById("poolList");
+const todayPoolEl = document.getElementById("todayPool");
+const tomorrowPoolEl = document.getElementById("tomorrowPool");
 const statsEl = document.getElementById("stats");
+
 const toastEl = document.getElementById("toast");
 const toastTextEl = document.getElementById("toastText");
 const toastUndoBtn = document.getElementById("toastUndoBtn");
@@ -488,19 +517,35 @@ function loadState(){
 
   return {
     teams:[],
-    unassigned:[]
+    unassigned:[],
+    tomorrow:[]
   };
 }
 
 function normalizeState(s){
   const clean = {
     teams:Array.isArray(s.teams) ? s.teams : [],
-    unassigned:Array.isArray(s.unassigned) ? s.unassigned : []
+    unassigned:Array.isArray(s.unassigned) ? s.unassigned : [],
+    tomorrow:Array.isArray(s.tomorrow) ? s.tomorrow : []
   };
 
   clean.unassigned = clean.unassigned
     .filter(t => t && t.id && t.text)
-    .map(t => ({ id:t.id, text:t.text, createdAt:t.createdAt || Date.now() }));
+    .map(t => ({
+      id:t.id,
+      text:t.text,
+      createdAt:t.createdAt || Date.now(),
+      day:"today"
+    }));
+
+  clean.tomorrow = clean.tomorrow
+    .filter(t => t && t.id && t.text)
+    .map(t => ({
+      id:t.id,
+      text:t.text,
+      createdAt:t.createdAt || Date.now(),
+      day:"tomorrow"
+    }));
 
   clean.teams = clean.teams
     .filter(t => t && t.id && t.name)
@@ -567,11 +612,18 @@ function addTask(){
   const text = taskNameInput.value.trim();
   if(!text) return;
 
-  state.unassigned.push({
+  const task = {
     id:id(),
     text,
-    createdAt:Date.now()
-  });
+    createdAt:Date.now(),
+    day:taskBucketSelect.value
+  };
+
+  if(taskBucketSelect.value === "tomorrow"){
+    state.tomorrow.push(task);
+  }else{
+    state.unassigned.push(task);
+  }
 
   taskNameInput.value = "";
 
@@ -582,13 +634,25 @@ function addTask(){
 /* ===== FIND / MOVE TASKS ===== */
 
 function findTaskLocation(taskId){
-  const poolIndex = state.unassigned.findIndex(t => t.id === taskId);
+  const todayIndex = state.unassigned.findIndex(t => t.id === taskId);
 
-  if(poolIndex !== -1){
+  if(todayIndex !== -1){
     return {
       area:"pool",
-      index:poolIndex,
-      task:state.unassigned[poolIndex]
+      pool:"unassigned",
+      index:todayIndex,
+      task:state.unassigned[todayIndex]
+    };
+  }
+
+  const tomorrowIndex = state.tomorrow.findIndex(t => t.id === taskId);
+
+  if(tomorrowIndex !== -1){
+    return {
+      area:"pool",
+      pool:"tomorrow",
+      index:tomorrowIndex,
+      task:state.tomorrow[tomorrowIndex]
     };
   }
 
@@ -619,10 +683,10 @@ function takeTask(taskId){
   const source = findTaskLocation(taskId);
   if(!source) return null;
 
-  let task = source.task;
+  const task = source.task;
 
   if(source.area === "pool"){
-    state.unassigned.splice(source.index, 1);
+    state[source.pool].splice(source.index, 1);
   }
 
   if(source.area === "team"){
@@ -642,8 +706,9 @@ function restoreTaskToSource(task, source){
   }
 
   if(source.area === "pool"){
-    const index = Math.min(source.index, state.unassigned.length);
-    state.unassigned.splice(index, 0, task);
+    const list = state[source.pool] || state.unassigned;
+    const index = Math.min(source.index, list.length);
+    list.splice(index, 0, task);
     return;
   }
 
@@ -658,11 +723,19 @@ function restoreTaskToSource(task, source){
   }
 }
 
-function moveTaskToPool(taskId){
+function moveTaskToPool(taskId, poolName){
+  const current = findTaskLocation(taskId);
+
+  if(current && current.area === "pool" && current.pool === poolName){
+    return;
+  }
+
   const taken = takeTask(taskId);
   if(!taken) return;
 
-  state.unassigned.push(taken.task);
+  taken.task.day = poolName === "tomorrow" ? "tomorrow" : "today";
+
+  state[poolName].push(taken.task);
 
   save();
   render();
@@ -684,6 +757,7 @@ function moveTaskToSlot(taskId, targetTeamId, targetSlot){
   if(!taken) return;
 
   const targetTeam = state.teams.find(t => t.id === targetTeamId);
+
   if(!targetTeam){
     restoreTaskToSource(taken.task, taken.source);
     return;
@@ -732,6 +806,7 @@ function undoDeleteTask(){
 
 function removeTaskEverywhere(taskId){
   state.unassigned = state.unassigned.filter(t => t.id !== taskId);
+  state.tomorrow = state.tomorrow.filter(t => t.id !== taskId);
 
   state.teams.forEach(team => {
     if(team.activeTask?.id === taskId) team.activeTask = null;
@@ -768,10 +843,12 @@ function deleteTeam(teamId){
   const team = state.teams[index];
 
   if(team.activeTask){
+    team.activeTask.day = "today";
     state.unassigned.push(team.activeTask);
   }
 
   if(team.nextTask){
+    team.nextTask.day = "today";
     state.unassigned.push(team.nextTask);
   }
 
@@ -779,26 +856,25 @@ function deleteTeam(teamId){
 
   save();
   render();
-  showToast("Команда удалена, задачи возвращены в безхозные", false);
+  showToast("Команда удалена, задачи вернулись в сегодня", false);
 }
 
-/* ===== DRAG ===== */
+/* ===== DROP ===== */
 
-function bindDropZone(zone, onDrop){
-  zone.addEventListener("dragover", e => {
+function setDropZone(zone, onDrop){
+  zone.ondragover = e => {
     if(!draggedTaskId) return;
-
     e.preventDefault();
     zone.classList.add("dragover");
-  });
+  };
 
-  zone.addEventListener("dragleave", e => {
+  zone.ondragleave = e => {
     if(!zone.contains(e.relatedTarget)){
       zone.classList.remove("dragover");
     }
-  });
+  };
 
-  zone.addEventListener("drop", e => {
+  zone.ondrop = e => {
     e.preventDefault();
     zone.classList.remove("dragover");
 
@@ -806,7 +882,7 @@ function bindDropZone(zone, onDrop){
 
     onDrop(draggedTaskId);
     draggedTaskId = null;
-  });
+  };
 }
 
 function clearDragHighlights(){
@@ -832,7 +908,7 @@ function hideToast(){
   toastEl.style.display = "none";
 }
 
-/* ===== RENDER ===== */
+/* ===== RENDER HELPERS ===== */
 
 function renderStats(){
   const activeCount = state.teams.filter(t => t.activeTask).length;
@@ -842,9 +918,10 @@ function renderStats(){
 
   [
     `Команд: ${state.teams.length}`,
-    `Безхозных: ${state.unassigned.length}`,
-    `Активных: ${activeCount}`,
-    `Следующих: ${nextCount}`
+    `Сегодня: ${state.unassigned.length}`,
+    `Завтра: ${state.tomorrow.length}`,
+    `Актив: ${activeCount}`,
+    `След: ${nextCount}`
   ].forEach(text => {
     statsEl.appendChild(el("div", "stat", text));
   });
@@ -860,8 +937,12 @@ function makeIconButton(className, text, handler){
   return btn;
 }
 
-function makeTaskCard(task){
+function makeTaskCard(task, origin){
   const card = el("div", "taskCard");
+  if(origin === "tomorrow" || task.day === "tomorrow"){
+    card.classList.add("tomorrow");
+  }
+
   card.draggable = true;
 
   card.addEventListener("dragstart", e => {
@@ -878,8 +959,8 @@ function makeTaskCard(task){
   const text = el("div", "taskText", task.text);
   card.appendChild(text);
 
-  const meta = el("div", "taskMeta", "перетащи куда нужно");
-  card.appendChild(meta);
+  const metaText = task.day === "tomorrow" ? "завтра" : "сегодня";
+  card.appendChild(el("div", "taskMeta", metaText));
 
   const del = makeIconButton("deleteBtn", "×", () => {
     deleteTask(task.id);
@@ -893,7 +974,7 @@ function makeTaskCard(task){
 function makeSlot(team, slotName){
   const slot = el("div", "slot");
 
-  bindDropZone(slot, taskId => {
+  setDropZone(slot, taskId => {
     moveTaskToSlot(taskId, team.id, slotName);
   });
 
@@ -903,8 +984,8 @@ function makeSlot(team, slotName){
     slot.appendChild(makeTaskCard(task));
   }else{
     const emptyText = slotName === "activeTask"
-      ? "перетащи активную"
-      : "перетащи следующую";
+      ? "активная"
+      : "следующая";
 
     slot.appendChild(el("div", "slotEmpty", emptyText));
   }
@@ -915,8 +996,7 @@ function makeSlot(team, slotName){
 function makeTeamCard(team){
   const card = el("div", "teamCard");
 
-  const name = el("div", "teamName", team.name);
-  card.appendChild(name);
+  card.appendChild(el("div", "teamName", team.name));
 
   const edit = makeIconButton("editBtn", "✎", () => {
     editTeam(team.id);
@@ -938,26 +1018,28 @@ function makeTeamCard(team){
 
     card.appendChild(members);
   }else{
-    card.appendChild(el("div", "noMembers", "Участники не указаны"));
+    card.appendChild(el("div", "noMembers", "состав не указан"));
   }
 
   return card;
 }
 
-function renderPool(){
-  poolListEl.innerHTML = "";
+function renderPool(poolEl, poolName, titleWhenEmpty){
+  poolEl.innerHTML = "";
 
-  bindDropZone(poolListEl, taskId => {
-    moveTaskToPool(taskId);
+  setDropZone(poolEl, taskId => {
+    moveTaskToPool(taskId, poolName);
   });
 
-  if(!state.unassigned.length){
-    poolListEl.appendChild(el("div", "slotEmpty", "безхозных задач нет"));
+  const list = state[poolName];
+
+  if(!list.length){
+    poolEl.appendChild(el("div", "slotEmpty", titleWhenEmpty));
     return;
   }
 
-  state.unassigned.forEach(task => {
-    poolListEl.appendChild(makeTaskCard(task));
+  list.forEach(task => {
+    poolEl.appendChild(makeTaskCard(task, poolName));
   });
 }
 
@@ -997,7 +1079,8 @@ function renderBoard(){
 
 function render(){
   renderStats();
-  renderPool();
+  renderPool(todayPoolEl, "unassigned", "сегодня задач нет");
+  renderPool(tomorrowPoolEl, "tomorrow", "на завтра задач нет");
   renderBoard();
 }
 
