@@ -8,7 +8,7 @@
 <style>
 :root{
   --bg:#f3f4f6;
-  --panel:#fff;
+  --panel:#ffffff;
   --text:#111827;
   --muted:#6b7280;
   --line:#e5e7eb;
@@ -16,12 +16,11 @@
   --blue:#2563eb;
   --blueSoft:#dbeafe;
   --green:#16a34a;
-  --greenSoft:#dcfce7;
   --orange:#f59e0b;
   --orangeSoft:#fef3c7;
   --red:#ef4444;
-  --shadow:0 6px 18px rgba(15,23,42,.08);
-  --radius:12px;
+  --shadow:0 5px 15px rgba(15,23,42,.08);
+  --radius:10px;
 }
 
 *{box-sizing:border-box}
@@ -38,78 +37,78 @@ body{
 .topbar{
   background:linear-gradient(135deg,#111827,#1f2937);
   color:#fff;
-  padding:10px 12px;
+  padding:8px 10px;
   position:sticky;
   top:0;
   z-index:10;
-  box-shadow:0 6px 16px rgba(0,0,0,.2);
+  box-shadow:0 4px 12px rgba(0,0,0,.22);
 }
 
 .topline{
   display:flex;
   justify-content:space-between;
-  gap:10px;
   align-items:center;
+  gap:10px;
   flex-wrap:wrap;
-  margin-bottom:8px;
+  margin-bottom:6px;
 }
 
 .brandTitle{
-  font-size:18px;
+  font-size:17px;
   font-weight:900;
 }
 
 .brandSub{
-  font-size:12px;
+  font-size:11px;
   color:#d1d5db;
 }
 
 .stats{
   display:flex;
-  gap:6px;
+  gap:5px;
   flex-wrap:wrap;
 }
 
 .stat{
   background:rgba(255,255,255,.1);
-  border:1px solid rgba(255,255,255,.15);
+  border:1px solid rgba(255,255,255,.14);
   border-radius:999px;
-  padding:5px 8px;
-  font-size:12px;
+  padding:4px 7px;
+  font-size:11px;
 }
 
 .forms{
   display:grid;
   grid-template-columns:1fr 1fr;
-  gap:8px;
+  gap:6px;
 }
 
 .formBox{
   background:rgba(255,255,255,.08);
   border:1px solid rgba(255,255,255,.12);
-  border-radius:12px;
-  padding:8px;
+  border-radius:10px;
+  padding:6px;
   display:flex;
-  gap:6px;
+  gap:5px;
   flex-wrap:wrap;
 }
 
 input,select{
   border:none;
-  border-radius:9px;
-  padding:8px 9px;
+  border-radius:8px;
+  padding:7px 8px;
   outline:none;
-  min-width:140px;
-  font-size:13px;
+  min-width:120px;
+  font-size:12px;
 }
 
 button{
   border:none;
-  border-radius:9px;
-  padding:8px 10px;
+  border-radius:8px;
+  padding:7px 9px;
   cursor:pointer;
   font-weight:800;
-  font-size:13px;
+  font-size:12px;
 }
 
 .primaryBtn{
@@ -125,69 +124,84 @@ button{
 /* ===== MAIN ===== */
 
 .main{
-  padding:10px;
+  padding:8px;
 }
 
 .pools{
   display:grid;
   grid-template-columns:1fr 1fr;
-  gap:10px;
-  margin-bottom:10px;
+  gap:8px;
+  margin-bottom:8px;
 }
 
 .poolPanel{
   background:var(--panel);
   border-radius:var(--radius);
   box-shadow:var(--shadow);
-  padding:10px;
+  padding:8px;
 }
 
 .panelHead{
   display:flex;
   justify-content:space-between;
   align-items:center;
-  gap:8px;
-  margin-bottom:7px;
+  margin-bottom:5px;
 }
 
 .panelTitle{
   font-weight:900;
-  font-size:14px;
+  font-size:13px;
 }
 
 .panelHint{
   color:var(--muted);
-  font-size:11px;
+  font-size:10px;
 }
 
 .poolList{
-  min-height:54px;
+  min-height:46px;
   border:2px dashed var(--line);
-  border-radius:12px;
-  padding:7px;
+  border-radius:10px;
+  padding:5px;
   display:flex;
-  gap:7px;
+  gap:5px;
   flex-wrap:wrap;
   align-items:flex-start;
 }
 
-/* ===== BOARD ===== */
+/* ===== DOUBLE BOARD ===== */
 
-.boardShell{
+.doubleBoardWrap{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:8px;
+  align-items:start;
+}
+
+.miniBoardShell{
   background:var(--panel);
   border-radius:var(--radius);
   box-shadow:var(--shadow);
-  overflow:auto;
+  overflow:hidden;
+  min-width:0;
 }
 
-.board{
-  min-width:820px;
+.miniBoardTitle{
+  background:#111827;
+  color:white;
+  padding:6px 8px;
+  font-size:12px;
+  font-weight:900;
+}
+
+.miniBoard{
+  width:100%;
 }
 
 .boardHeader,
 .teamRow{
   display:grid;
-  grid-template-columns:1.15fr .9fr 1.15fr;
+  grid-template-columns:1fr .82fr 1fr;
 }
 
 .boardHeader{
@@ -195,11 +209,11 @@ button{
   border-bottom:1px solid var(--line);
   font-weight:900;
   color:#374151;
-  font-size:13px;
+  font-size:11px;
 }
 
 .headCell{
-  padding:10px;
+  padding:7px;
   border-right:1px solid var(--line);
 }
 
@@ -212,30 +226,30 @@ button{
 .teamRow:last-child{border-bottom:none}
 
 .cell{
-  padding:8px;
+  padding:5px;
   border-right:1px solid var(--line);
-  min-height:76px;
+  min-height:56px;
 }
 
 .cell:last-child{border-right:none}
 
 .slot{
-  min-height:58px;
+  min-height:44px;
   border:2px dashed transparent;
-  border-radius:12px;
-  padding:6px;
+  border-radius:9px;
+  padding:4px;
   transition:.12s;
 }
 
 .slotEmpty{
-  min-height:42px;
-  border-radius:10px;
+  min-height:34px;
+  border-radius:8px;
   background:#f9fafb;
   color:var(--muted);
   display:flex;
   align-items:center;
   justify-content:center;
-  font-size:12px;
+  font-size:11px;
 }
 
 /* ===== CARDS ===== */
@@ -243,13 +257,13 @@ button{
 .taskCard{
   background:var(--blueSoft);
   border:1px solid #bfdbfe;
-  border-radius:11px;
-  padding:8px 34px 8px 9px;
-  min-width:145px;
+  border-radius:9px;
+  padding:6px 28px 6px 7px;
+  min-width:105px;
   max-width:100%;
   position:relative;
   cursor:grab;
-  box-shadow:0 3px 9px rgba(37,99,235,.08);
+  box-shadow:0 2px 7px rgba(37,99,235,.08);
 }
 
 .taskCard.tomorrow{
@@ -263,77 +277,79 @@ button{
 
 .taskText{
   font-weight:800;
-  font-size:13px;
-  line-height:1.25;
+  font-size:11px;
+  line-height:1.2;
   word-break:break-word;
 }
 
 .taskMeta{
   color:#64748b;
-  font-size:10px;
-  margin-top:3px;
+  font-size:9px;
+  margin-top:2px;
 }
 
 .teamCard{
   background:#f9fafb;
   border:1px solid var(--line);
-  border-radius:12px;
-  padding:9px;
+  border-radius:9px;
+  padding:7px;
   position:relative;
+  min-height:46px;
 }
 
 .teamName{
   font-weight:900;
-  font-size:14px;
-  padding-right:64px;
+  font-size:12px;
+  padding-right:52px;
+  line-height:1.2;
 }
 
 .members{
   display:flex;
-  gap:4px;
+  gap:3px;
   flex-wrap:wrap;
-  margin-top:7px;
+  margin-top:5px;
 }
 
 .memberChip{
   background:#e5e7eb;
   color:#374151;
   border-radius:999px;
-  padding:3px 6px;
-  font-size:11px;
+  padding:2px 5px;
+  font-size:9px;
   font-weight:800;
 }
 
 .noMembers{
   color:var(--muted);
-  font-size:12px;
-  margin-top:6px;
+  font-size:10px;
+  margin-top:4px;
 }
 
 /* ===== BUTTONS ===== */
 
 .iconBtn{
   position:absolute;
-  top:6px;
-  width:24px;
-  height:24px;
+  top:5px;
+  width:20px;
+  height:20px;
   padding:0;
-  border-radius:8px;
+  border-radius:7px;
   color:white;
   display:flex;
   align-items:center;
   justify-content:center;
-  font-size:13px;
+  font-size:12px;
   line-height:1;
 }
 
 .editBtn{
-  right:34px;
+  right:29px;
   background:var(--blue);
 }
 
 .deleteBtn{
-  right:6px;
+  right:5px;
   background:var(--red);
 }
 
@@ -343,34 +359,41 @@ button{
 }
 
 .emptyBoard{
-  padding:22px;
+  padding:18px;
   color:var(--muted);
   text-align:center;
-  font-size:13px;
+  font-size:12px;
 }
 
 .toast{
   position:fixed;
   left:50%;
-  bottom:14px;
+  bottom:12px;
   transform:translateX(-50%);
   background:#111827;
   color:white;
   border-radius:999px;
-  padding:8px 12px;
+  padding:7px 10px;
   box-shadow:0 10px 30px rgba(0,0,0,.25);
   display:none;
-  gap:10px;
+  gap:8px;
   align-items:center;
   z-index:99;
-  font-size:13px;
+  font-size:12px;
 }
 
 .toast button{
   background:white;
   color:#111827;
-  padding:4px 8px;
+  padding:4px 7px;
   border-radius:999px;
+}
+
+/* на маленьком экране доски идут одна под другой */
+@media(max-width:1100px){
+  .doubleBoardWrap{
+    grid-template-columns:1fr;
+  }
 }
 
 @media(max-width:800px){
@@ -382,11 +405,11 @@ button{
   .formBox input,
   .formBox select{
     flex:1;
-    min-width:120px;
+    min-width:110px;
   }
 
   .main{
-    padding:8px;
+    padding:6px;
   }
 }
 </style>
@@ -398,7 +421,7 @@ button{
   <div class="topline">
     <div>
       <div class="brandTitle">Складская доска</div>
-      <div class="brandSub">Сегодня / завтра / активная / следующая</div>
+      <div class="brandSub">Две компактные линии: активная / команда / следующая</div>
     </div>
 
     <div class="stats" id="stats"></div>
@@ -446,9 +469,7 @@ button{
     </div>
   </section>
 
-  <section class="boardShell">
-    <div class="board" id="board"></div>
-  </section>
+  <section class="doubleBoardWrap" id="boardsWrap"></section>
 
 </main>
 
@@ -458,9 +479,10 @@ button{
 </div>
 
 <script>
-const STORAGE = "warehouse_board_compact_tomorrow_v1";
+const STORAGE = "warehouse_board_double_compact_v1";
 
 const LEGACY_KEYS = [
+  "warehouse_board_compact_tomorrow_v1",
   "warehouse_board_visual_v1",
   "warehouse_board_v10",
   "warehouse_board_v9",
@@ -482,7 +504,7 @@ const taskBucketSelect = document.getElementById("taskBucket");
 const addTeamBtn = document.getElementById("addTeamBtn");
 const addTaskBtn = document.getElementById("addTaskBtn");
 
-const boardEl = document.getElementById("board");
+const boardsWrapEl = document.getElementById("boardsWrap");
 const todayPoolEl = document.getElementById("todayPool");
 const tomorrowPoolEl = document.getElementById("tomorrowPool");
 const statsEl = document.getElementById("stats");
@@ -718,6 +740,7 @@ function restoreTaskToSource(task, source){
     if(team && !team[source.slot]){
       team[source.slot] = task;
     }else{
+      task.day = "today";
       state.unassigned.push(task);
     }
   }
@@ -734,7 +757,6 @@ function moveTaskToPool(taskId, poolName){
   if(!taken) return;
 
   taken.task.day = poolName === "tomorrow" ? "tomorrow" : "today";
-
   state[poolName].push(taken.task);
 
   save();
@@ -939,6 +961,7 @@ function makeIconButton(className, text, handler){
 
 function makeTaskCard(task, origin){
   const card = el("div", "taskCard");
+
   if(origin === "tomorrow" || task.day === "tomorrow"){
     card.classList.add("tomorrow");
   }
@@ -956,8 +979,7 @@ function makeTaskCard(task, origin){
     clearDragHighlights();
   });
 
-  const text = el("div", "taskText", task.text);
-  card.appendChild(text);
+  card.appendChild(el("div", "taskText", task.text));
 
   const metaText = task.day === "tomorrow" ? "завтра" : "сегодня";
   card.appendChild(el("div", "taskMeta", metaText));
@@ -984,8 +1006,8 @@ function makeSlot(team, slotName){
     slot.appendChild(makeTaskCard(task));
   }else{
     const emptyText = slotName === "activeTask"
-      ? "активная"
-      : "следующая";
+      ? "актив"
+      : "след";
 
     slot.appendChild(el("div", "slotEmpty", emptyText));
   }
@@ -1024,7 +1046,7 @@ function makeTeamCard(team){
   return card;
 }
 
-function renderPool(poolEl, poolName, titleWhenEmpty){
+function renderPool(poolEl, poolName, emptyText){
   poolEl.innerHTML = "";
 
   setDropZone(poolEl, taskId => {
@@ -1034,7 +1056,7 @@ function renderPool(poolEl, poolName, titleWhenEmpty){
   const list = state[poolName];
 
   if(!list.length){
-    poolEl.appendChild(el("div", "slotEmpty", titleWhenEmpty));
+    poolEl.appendChild(el("div", "slotEmpty", emptyText));
     return;
   }
 
@@ -1043,21 +1065,26 @@ function renderPool(poolEl, poolName, titleWhenEmpty){
   });
 }
 
-function renderBoard(){
-  boardEl.innerHTML = "";
+function createMiniBoard(title, teams){
+  const shell = el("section", "miniBoardShell");
+
+  shell.appendChild(el("div", "miniBoardTitle", title));
+
+  const board = el("div", "miniBoard");
 
   const header = el("div", "boardHeader");
-  header.appendChild(el("div", "headCell", "Активная задача"));
+  header.appendChild(el("div", "headCell", "Активная"));
   header.appendChild(el("div", "headCell", "Команда"));
-  header.appendChild(el("div", "headCell", "Следующая задача"));
-  boardEl.appendChild(header);
+  header.appendChild(el("div", "headCell", "Следующая"));
+  board.appendChild(header);
 
-  if(!state.teams.length){
-    boardEl.appendChild(el("div", "emptyBoard", "Команд пока нет. Добавь команду сверху."));
-    return;
+  if(!teams.length){
+    board.appendChild(el("div", "emptyBoard", "Пока пусто"));
+    shell.appendChild(board);
+    return shell;
   }
 
-  state.teams.forEach(team => {
+  teams.forEach(team => {
     const row = el("div", "teamRow");
 
     const activeCell = el("div", "cell");
@@ -1073,15 +1100,29 @@ function renderBoard(){
     row.appendChild(teamCell);
     row.appendChild(nextCell);
 
-    boardEl.appendChild(row);
+    board.appendChild(row);
   });
+
+  shell.appendChild(board);
+  return shell;
+}
+
+function renderBoards(){
+  boardsWrapEl.innerHTML = "";
+
+  const middle = Math.ceil(state.teams.length / 2);
+  const leftTeams = state.teams.slice(0, middle);
+  const rightTeams = state.teams.slice(middle);
+
+  boardsWrapEl.appendChild(createMiniBoard("Линия 1", leftTeams));
+  boardsWrapEl.appendChild(createMiniBoard("Линия 2", rightTeams));
 }
 
 function render(){
   renderStats();
   renderPool(todayPoolEl, "unassigned", "сегодня задач нет");
   renderPool(tomorrowPoolEl, "tomorrow", "на завтра задач нет");
-  renderBoard();
+  renderBoards();
 }
 
 /* ===== EVENTS ===== */
