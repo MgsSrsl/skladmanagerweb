@@ -9,6 +9,17 @@
 :root{
   --bg:#f3f4f6;
   --panel:#ffffff;
+  --text:#111827;<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Складская доска</title>
+
+<style>
+:root{
+  --bg:#f3f4f6;
+  --panel:#ffffff;
   --text:#111827;
   --muted:#6b7280;
   --line:#e5e7eb;
@@ -1116,6 +1127,1145 @@ function renderBoards(){
 
   boardsWrapEl.appendChild(createMiniBoard("Линия 1", leftTeams));
   boardsWrapEl.appendChild(createMiniBoard("Линия 2", rightTeams));
+}
+
+function render(){
+  renderStats();
+  renderPool(todayPoolEl, "unassigned", "сегодня задач нет");
+  renderPool(tomorrowPoolEl, "tomorrow", "на завтра задач нет");
+  renderBoards();
+}
+
+/* ===== EVENTS ===== */
+
+addTeamBtn.addEventListener("click", addTeam);
+addTaskBtn.addEventListener("click", addTask);
+
+teamNameInput.addEventListener("keydown", e => {
+  if(e.key === "Enter") addTeam();
+});
+
+teamMembersInput.addEventListener("keydown", e => {
+  if(e.key === "Enter") addTeam();
+});
+
+taskNameInput.addEventListener("keydown", e => {
+  if(e.key === "Enter") addTask();
+});
+
+toastUndoBtn.addEventListener("click", undoDeleteTask);
+
+render();
+</script>
+
+</body>
+</html>
+  --muted:#6b7280;
+  --line:#e5e7eb;
+  --dark:#111827;
+  --blue:#2563eb;
+  --blueSoft:#dbeafe;
+  --green:#16a34a;
+  --orange:#f59e0b;
+  --orangeSoft:#fef3c7;
+  --red:#ef4444;
+  --shadow:0 5px 15px rgba(15,23,42,.08);
+  --radius:10px;
+}
+
+*{box-sizing:border-box}
+
+body{
+  margin:0;
+  font-family:Arial,sans-serif;
+  background:var(--bg);
+  color:var(--text);
+}
+
+/* ===== TOP ===== */
+
+.topbar{
+  background:linear-gradient(135deg,#111827,#1f2937);
+  color:#fff;
+  padding:8px 10px;
+  position:sticky;
+  top:0;
+  z-index:10;
+  box-shadow:0 4px 12px rgba(0,0,0,.22);
+}
+
+.topline{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:10px;
+  flex-wrap:wrap;
+  margin-bottom:6px;
+}
+
+.brandTitle{
+  font-size:17px;
+  font-weight:900;
+}
+
+.brandSub{
+  font-size:11px;
+  color:#d1d5db;
+}
+
+.stats{
+  display:flex;
+  gap:5px;
+  flex-wrap:wrap;
+}
+
+.stat{
+  background:rgba(255,255,255,.1);
+  border:1px solid rgba(255,255,255,.14);
+  border-radius:999px;
+  padding:4px 7px;
+  font-size:11px;
+}
+
+.forms{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:6px;
+}
+
+.formBox{
+  background:rgba(255,255,255,.08);
+  border:1px solid rgba(255,255,255,.12);
+  border-radius:10px;
+  padding:6px;
+  display:flex;
+  gap:5px;
+  flex-wrap:wrap;
+}
+
+input,select{
+  border:none;
+  border-radius:8px;
+  padding:7px 8px;
+  outline:none;
+  min-width:120px;
+  font-size:12px;
+}
+
+button{
+  border:none;
+  border-radius:8px;
+  padding:7px 9px;
+  cursor:pointer;
+  font-weight:800;
+  font-size:12px;
+}
+
+.primaryBtn{
+  background:var(--blue);
+  color:#fff;
+}
+
+.greenBtn{
+  background:var(--green);
+  color:#fff;
+}
+
+/* ===== MAIN ===== */
+
+.main{
+  padding:8px;
+}
+
+.pools{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:8px;
+  margin-bottom:8px;
+}
+
+.poolPanel{
+  background:var(--panel);
+  border-radius:var(--radius);
+  box-shadow:var(--shadow);
+  padding:8px;
+}
+
+.panelHead{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  margin-bottom:5px;
+}
+
+.panelTitle{
+  font-weight:900;
+  font-size:13px;
+}
+
+.panelHint{
+  color:var(--muted);
+  font-size:10px;
+}
+
+.poolList{
+  min-height:46px;
+  border:2px dashed var(--line);
+  border-radius:10px;
+  padding:5px;
+  display:flex;
+  gap:5px;
+  flex-wrap:wrap;
+  align-items:flex-start;
+}
+
+/* ===== DOUBLE BOARD ===== */
+
+.doubleBoardWrap{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:8px;
+  align-items:start;
+}
+
+.miniBoardShell{
+  background:var(--panel);
+  border-radius:var(--radius);
+  box-shadow:var(--shadow);
+  overflow:hidden;
+  min-width:0;
+}
+
+.miniBoardTitle{
+  background:#111827;
+  color:white;
+  padding:6px 8px;
+  font-size:12px;
+  font-weight:900;
+}
+
+.miniBoard{
+  width:100%;
+}
+
+.boardHeader,
+.teamRow{
+  display:grid;
+  grid-template-columns:1fr .82fr 1fr;
+}
+
+.boardHeader{
+  background:#f9fafb;
+  border-bottom:1px solid var(--line);
+  font-weight:900;
+  color:#374151;
+  font-size:11px;
+}
+
+.headCell{
+  padding:7px;
+  border-right:1px solid var(--line);
+}
+
+.headCell:last-child{border-right:none}
+
+.teamRow{
+  border-bottom:1px solid var(--line);
+}
+
+.teamRow:last-child{border-bottom:none}
+
+.cell{
+  padding:5px;
+  border-right:1px solid var(--line);
+  min-height:56px;
+}
+
+.cell:last-child{border-right:none}
+
+.slot{
+  min-height:44px;
+  border:2px dashed transparent;
+  border-radius:9px;
+  padding:4px;
+  transition:.12s;
+}
+
+.slotEmpty{
+  min-height:34px;
+  border-radius:8px;
+  background:#f9fafb;
+  color:var(--muted);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:11px;
+}
+
+/* ===== CARDS ===== */
+
+.taskCard{
+  background:var(--blueSoft);
+  border:1px solid #bfdbfe;
+  border-radius:9px;
+  padding:6px 28px 6px 7px;
+  min-width:105px;
+  max-width:100%;
+  position:relative;
+  cursor:grab;
+  box-shadow:0 2px 7px rgba(37,99,235,.08);
+}
+
+.taskCard.tomorrow{
+  background:var(--orangeSoft);
+  border-color:#fde68a;
+}
+
+.taskCard:active{
+  cursor:grabbing;
+}
+
+.taskText{
+  font-weight:800;
+  font-size:11px;
+  line-height:1.2;
+  word-break:break-word;
+}
+
+.taskMeta{
+  color:#64748b;
+  font-size:9px;
+  margin-top:2px;
+}
+
+.teamCard{
+  background:#f9fafb;
+  border:1px solid var(--line);
+  border-radius:9px;
+  padding:7px;
+  position:relative;
+  min-height:46px;
+}
+
+.teamName{
+  font-weight:900;
+  font-size:12px;
+  padding-right:52px;
+  line-height:1.2;
+}
+
+.members{
+  display:flex;
+  gap:3px;
+  flex-wrap:wrap;
+  margin-top:5px;
+}
+
+.memberChip{
+  background:#e5e7eb;
+  color:#374151;
+  border-radius:999px;
+  padding:2px 5px;
+  font-size:9px;
+  font-weight:800;
+}
+
+.noMembers{
+  color:var(--muted);
+  font-size:10px;
+  margin-top:4px;
+}
+
+/* ===== BUTTONS ===== */
+
+.iconBtn{
+  position:absolute;
+  top:5px;
+  width:20px;
+  height:20px;
+  padding:0;
+  border-radius:7px;
+  color:white;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:12px;
+  line-height:1;
+}
+
+.editBtn{
+  right:29px;
+  background:var(--blue);
+}
+
+.deleteBtn{
+  right:5px;
+  background:var(--red);
+}
+
+.dragover{
+  border-color:var(--blue)!important;
+  background:#eff6ff!important;
+}
+
+.emptyBoard{
+  padding:18px;
+  color:var(--muted);
+  text-align:center;
+  font-size:12px;
+}
+
+.toast{
+  position:fixed;
+  left:50%;
+  bottom:12px;
+  transform:translateX(-50%);
+  background:#111827;
+  color:white;
+  border-radius:999px;
+  padding:7px 10px;
+  box-shadow:0 10px 30px rgba(0,0,0,.25);
+  display:none;
+  gap:8px;
+  align-items:center;
+  z-index:99;
+  font-size:12px;
+}
+
+.toast button{
+  background:white;
+  color:#111827;
+  padding:4px 7px;
+  border-radius:999px;
+}
+
+/* на маленьком экране доски идут одна под другой */
+@media(max-width:1100px){
+  .doubleBoardWrap{
+    grid-template-columns:1fr;
+  }
+}
+
+@media(max-width:800px){
+  .forms,
+  .pools{
+    grid-template-columns:1fr;
+  }
+
+  .formBox input,
+  .formBox select{
+    flex:1;
+    min-width:110px;
+  }
+
+  .main{
+    padding:6px;
+  }
+}
+</style>
+</head>
+
+<body>
+
+<header class="topbar">
+  <div class="topline">
+    <div>
+      <div class="brandTitle">Складская доска</div>
+      <div class="brandSub">Две компактные линии: активная / команда / следующая</div>
+    </div>
+
+    <div class="stats" id="stats"></div>
+  </div>
+
+  <div class="forms">
+    <div class="formBox">
+      <input id="teamName" placeholder="Команда">
+      <input id="teamMembers" placeholder="Состав через запятую">
+      <button class="primaryBtn" id="addTeamBtn">+ Команда</button>
+    </div>
+
+    <div class="formBox">
+      <input id="taskName" placeholder="Новая задача">
+      <select id="taskBucket">
+        <option value="today">Сегодня</option>
+        <option value="tomorrow">Завтра</option>
+      </select>
+      <button class="greenBtn" id="addTaskBtn">+ Задача</button>
+    </div>
+  </div>
+</header>
+
+<main class="main">
+
+  <section class="pools">
+    <div class="poolPanel">
+      <div class="panelHead">
+        <div>
+          <div class="panelTitle">Безхозные сегодня</div>
+          <div class="panelHint">Перетащи в активную или следующую</div>
+        </div>
+      </div>
+      <div id="todayPool" class="poolList"></div>
+    </div>
+
+    <div class="poolPanel">
+      <div class="panelHead">
+        <div>
+          <div class="panelTitle">План на завтра</div>
+          <div class="panelHint">Можно заранее набить задачи</div>
+        </div>
+      </div>
+      <div id="tomorrowPool" class="poolList"></div>
+    </div>
+  </section>
+
+  <section class="doubleBoardWrap" id="boardsWrap"></section>
+
+</main>
+
+<div class="toast" id="toast">
+  <span id="toastText"></span>
+  <button id="toastUndoBtn">Отменить</button>
+</div>
+
+<script>
+const STORAGE = "warehouse_board_double_compact_v1";
+
+const LEGACY_KEYS = [
+  "warehouse_board_compact_tomorrow_v1",
+  "warehouse_board_visual_v1",
+  "warehouse_board_v10",
+  "warehouse_board_v9",
+  "warehouse_board_v8",
+  "warehouse_board_v7",
+  "warehouse_board_v6"
+];
+
+let state = loadState();
+let draggedTaskId = null;
+let undoAction = null;
+let toastTimer = null;
+
+const teamNameInput = document.getElementById("teamName");
+const teamMembersInput = document.getElementById("teamMembers");
+const taskNameInput = document.getElementById("taskName");
+const taskBucketSelect = document.getElementById("taskBucket");
+
+const addTeamBtn = document.getElementById("addTeamBtn");
+const addTaskBtn = document.getElementById("addTaskBtn");
+
+const boardsWrapEl = document.getElementById("boardsWrap");
+const todayPoolEl = document.getElementById("todayPool");
+const tomorrowPoolEl = document.getElementById("tomorrowPool");
+const statsEl = document.getElementById("stats");
+
+const toastEl = document.getElementById("toast");
+const toastTextEl = document.getElementById("toastText");
+const toastUndoBtn = document.getElementById("toastUndoBtn");
+
+function id(){
+  return Date.now().toString(36) + Math.random().toString(36).slice(2);
+}
+
+function loadState(){
+  const raw = localStorage.getItem(STORAGE);
+
+  if(raw){
+    try{
+      return normalizeState(JSON.parse(raw));
+    }catch(e){}
+  }
+
+  for(const key of LEGACY_KEYS){
+    const old = localStorage.getItem(key);
+    if(old){
+      try{
+        const parsed = normalizeState(JSON.parse(old));
+        localStorage.setItem(STORAGE, JSON.stringify(parsed));
+        return parsed;
+      }catch(e){}
+    }
+  }
+
+  return {
+    teams:[],
+    unassigned:[],
+    tomorrow:[]
+  };
+}
+
+function normalizeState(s){
+  const clean = {
+    teams:Array.isArray(s.teams) ? s.teams : [],
+    unassigned:Array.isArray(s.unassigned) ? s.unassigned : [],
+    tomorrow:Array.isArray(s.tomorrow) ? s.tomorrow : []
+  };
+
+  clean.unassigned = clean.unassigned
+    .filter(t => t && t.id && t.text)
+    .map(t => ({
+      id:t.id,
+      text:t.text,
+      createdAt:t.createdAt || Date.now(),
+      day:"today"
+    }));
+
+  clean.tomorrow = clean.tomorrow
+    .filter(t => t && t.id && t.text)
+    .map(t => ({
+      id:t.id,
+      text:t.text,
+      createdAt:t.createdAt || Date.now(),
+      day:"tomorrow"
+    }));
+
+  clean.teams = clean.teams
+    .filter(t => t && t.id && t.name)
+    .map(t => ({
+      id:t.id,
+      name:t.name,
+      members:Array.isArray(t.members) ? t.members : [],
+      activeTask:t.activeTask && t.activeTask.id ? t.activeTask : null,
+      nextTask:t.nextTask && t.nextTask.id ? t.nextTask : null
+    }));
+
+  return clean;
+}
+
+function save(){
+  localStorage.setItem(STORAGE, JSON.stringify(state));
+}
+
+function el(tag, className, text){
+  const node = document.createElement(tag);
+  if(className) node.className = className;
+  if(text !== undefined) node.textContent = text;
+  return node;
+}
+
+function stopBtnEvents(btn){
+  btn.draggable = false;
+
+  btn.addEventListener("mousedown", e => {
+    e.stopPropagation();
+  });
+
+  btn.addEventListener("click", e => {
+    e.stopPropagation();
+  });
+}
+
+/* ===== ADD ===== */
+
+function addTeam(){
+  const name = teamNameInput.value.trim();
+  const membersRaw = teamMembersInput.value.trim();
+
+  if(!name) return;
+
+  state.teams.push({
+    id:id(),
+    name,
+    members: membersRaw
+      ? membersRaw.split(",").map(x => x.trim()).filter(Boolean)
+      : [],
+    activeTask:null,
+    nextTask:null
+  });
+
+  teamNameInput.value = "";
+  teamMembersInput.value = "";
+
+  save();
+  render();
+}
+
+function addTask(){
+  const text = taskNameInput.value.trim();
+  if(!text) return;
+
+  const task = {
+    id:id(),
+    text,
+    createdAt:Date.now(),
+    day:taskBucketSelect.value
+  };
+
+  if(taskBucketSelect.value === "tomorrow"){
+    state.tomorrow.push(task);
+  }else{
+    state.unassigned.push(task);
+  }
+
+  taskNameInput.value = "";
+
+  save();
+  render();
+}
+
+/* ===== FIND / MOVE TASKS ===== */
+
+function findTaskLocation(taskId){
+  const todayIndex = state.unassigned.findIndex(t => t.id === taskId);
+
+  if(todayIndex !== -1){
+    return {
+      area:"pool",
+      pool:"unassigned",
+      index:todayIndex,
+      task:state.unassigned[todayIndex]
+    };
+  }
+
+  const tomorrowIndex = state.tomorrow.findIndex(t => t.id === taskId);
+
+  if(tomorrowIndex !== -1){
+    return {
+      area:"pool",
+      pool:"tomorrow",
+      index:tomorrowIndex,
+      task:state.tomorrow[tomorrowIndex]
+    };
+  }
+
+  for(const team of state.teams){
+    if(team.activeTask?.id === taskId){
+      return {
+        area:"team",
+        teamId:team.id,
+        slot:"activeTask",
+        task:team.activeTask
+      };
+    }
+
+    if(team.nextTask?.id === taskId){
+      return {
+        area:"team",
+        teamId:team.id,
+        slot:"nextTask",
+        task:team.nextTask
+      };
+    }
+  }
+
+  return null;
+}
+
+function takeTask(taskId){
+  const source = findTaskLocation(taskId);
+  if(!source) return null;
+
+  const task = source.task;
+
+  if(source.area === "pool"){
+    state[source.pool].splice(source.index, 1);
+  }
+
+  if(source.area === "team"){
+    const team = state.teams.find(t => t.id === source.teamId);
+    if(team){
+      team[source.slot] = null;
+    }
+  }
+
+  return { task, source };
+}
+
+function restoreTaskToSource(task, source){
+  if(!task || !source){
+    state.unassigned.push(task);
+    return;
+  }
+
+  if(source.area === "pool"){
+    const list = state[source.pool] || state.unassigned;
+    const index = Math.min(source.index, list.length);
+    list.splice(index, 0, task);
+    return;
+  }
+
+  if(source.area === "team"){
+    const team = state.teams.find(t => t.id === source.teamId);
+
+    if(team && !team[source.slot]){
+      team[source.slot] = task;
+    }else{
+      task.day = "today";
+      state.unassigned.push(task);
+    }
+  }
+}
+
+function moveTaskToPool(taskId, poolName){
+  const current = findTaskLocation(taskId);
+
+  if(current && current.area === "pool" && current.pool === poolName){
+    return;
+  }
+
+  const taken = takeTask(taskId);
+  if(!taken) return;
+
+  taken.task.day = poolName === "tomorrow" ? "tomorrow" : "today";
+  state[poolName].push(taken.task);
+
+  save();
+  render();
+}
+
+function moveTaskToSlot(taskId, targetTeamId, targetSlot){
+  const current = findTaskLocation(taskId);
+
+  if(
+    current &&
+    current.area === "team" &&
+    current.teamId === targetTeamId &&
+    current.slot === targetSlot
+  ){
+    return;
+  }
+
+  const taken = takeTask(taskId);
+  if(!taken) return;
+
+  const targetTeam = state.teams.find(t => t.id === targetTeamId);
+
+  if(!targetTeam){
+    restoreTaskToSource(taken.task, taken.source);
+    return;
+  }
+
+  const displaced = targetTeam[targetSlot];
+
+  if(displaced && displaced.id !== taken.task.id){
+    targetTeam[targetSlot] = null;
+    restoreTaskToSource(displaced, taken.source);
+  }
+
+  targetTeam[targetSlot] = taken.task;
+
+  save();
+  render();
+}
+
+function deleteTask(taskId){
+  const taken = takeTask(taskId);
+  if(!taken) return;
+
+  undoAction = {
+    type:"task",
+    task:taken.task,
+    source:taken.source
+  };
+
+  save();
+  render();
+  showToast("Задача удалена", true);
+}
+
+function undoDeleteTask(){
+  if(!undoAction || undoAction.type !== "task") return;
+
+  removeTaskEverywhere(undoAction.task.id);
+  restoreTaskToSource(undoAction.task, undoAction.source);
+
+  undoAction = null;
+
+  save();
+  render();
+  hideToast();
+}
+
+function removeTaskEverywhere(taskId){
+  state.unassigned = state.unassigned.filter(t => t.id !== taskId);
+  state.tomorrow = state.tomorrow.filter(t => t.id !== taskId);
+
+  state.teams.forEach(team => {
+    if(team.activeTask?.id === taskId) team.activeTask = null;
+    if(team.nextTask?.id === taskId) team.nextTask = null;
+  });
+}
+
+/* ===== TEAM OPS ===== */
+
+function editTeam(teamId){
+  const team = state.teams.find(t => t.id === teamId);
+  if(!team) return;
+
+  const name = prompt("Название команды", team.name);
+  if(name === null) return;
+
+  const members = prompt("Состав через запятую", team.members.join(", "));
+  if(members === null) return;
+
+  const cleanName = name.trim();
+  if(!cleanName) return;
+
+  team.name = cleanName;
+  team.members = members.split(",").map(x => x.trim()).filter(Boolean);
+
+  save();
+  render();
+}
+
+function deleteTeam(teamId){
+  const index = state.teams.findIndex(t => t.id === teamId);
+  if(index === -1) return;
+
+  const team = state.teams[index];
+
+  if(team.activeTask){
+    team.activeTask.day = "today";
+    state.unassigned.push(team.activeTask);
+  }
+
+  if(team.nextTask){
+    team.nextTask.day = "today";
+    state.unassigned.push(team.nextTask);
+  }
+
+  state.teams.splice(index, 1);
+
+  save();
+  render();
+  showToast("Команда удалена, задачи вернулись в сегодня", false);
+}
+
+/* ===== DROP ===== */
+
+function setDropZone(zone, onDrop){
+  zone.ondragover = e => {
+    if(!draggedTaskId) return;
+    e.preventDefault();
+    zone.classList.add("dragover");
+  };
+
+  zone.ondragleave = e => {
+    if(!zone.contains(e.relatedTarget)){
+      zone.classList.remove("dragover");
+    }
+  };
+
+  zone.ondrop = e => {
+    e.preventDefault();
+    zone.classList.remove("dragover");
+
+    if(!draggedTaskId) return;
+
+    onDrop(draggedTaskId);
+    draggedTaskId = null;
+  };
+}
+
+function clearDragHighlights(){
+  document.querySelectorAll(".dragover").forEach(x => {
+    x.classList.remove("dragover");
+  });
+}
+
+/* ===== TOAST ===== */
+
+function showToast(text, canUndo){
+  toastTextEl.textContent = text;
+  toastUndoBtn.style.display = canUndo ? "inline-flex" : "none";
+  toastEl.style.display = "flex";
+
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => {
+    hideToast();
+  }, 5000);
+}
+
+function hideToast(){
+  toastEl.style.display = "none";
+}
+
+/* ===== RENDER HELPERS ===== */
+
+function renderStats(){
+  const activeCount = state.teams.filter(t => t.activeTask).length;
+  const nextCount = state.teams.filter(t => t.nextTask).length;
+
+  statsEl.innerHTML = "";
+
+  [
+    `Команд: ${state.teams.length}`,
+    `Сегодня: ${state.unassigned.length}`,
+    `Завтра: ${state.tomorrow.length}`,
+    `Актив: ${activeCount}`,
+    `След: ${nextCount}`
+  ].forEach(text => {
+    statsEl.appendChild(el("div", "stat", text));
+  });
+}
+
+function makeIconButton(className, text, handler){
+  const btn = el("button", "iconBtn " + className, text);
+  stopBtnEvents(btn);
+  btn.addEventListener("click", e => {
+    e.stopPropagation();
+    handler();
+  });
+  return btn;
+}
+
+function makeTaskCard(task, origin){
+  const card = el("div", "taskCard");
+
+  if(origin === "tomorrow" || task.day === "tomorrow"){
+    card.classList.add("tomorrow");
+  }
+
+  card.draggable = true;
+
+  card.addEventListener("dragstart", e => {
+    draggedTaskId = task.id;
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/plain", task.id);
+  });
+
+  card.addEventListener("dragend", () => {
+    draggedTaskId = null;
+    clearDragHighlights();
+  });
+
+  card.appendChild(el("div", "taskText", task.text));
+
+  const metaText = task.day === "tomorrow" ? "завтра" : "сегодня";
+  card.appendChild(el("div", "taskMeta", metaText));
+
+  const del = makeIconButton("deleteBtn", "×", () => {
+    deleteTask(task.id);
+  });
+
+  card.appendChild(del);
+
+  return card;
+}
+
+function makeSlot(team, slotName){
+  const slot = el("div", "slot");
+
+  setDropZone(slot, taskId => {
+    moveTaskToSlot(taskId, team.id, slotName);
+  });
+
+  const task = team[slotName];
+
+  if(task){
+    slot.appendChild(makeTaskCard(task));
+  }else{
+    const emptyText = slotName === "activeTask"
+      ? "актив"
+      : "след";
+
+    slot.appendChild(el("div", "slotEmpty", emptyText));
+  }
+
+  return slot;
+}
+
+function makeTeamCard(team){
+  const card = el("div", "teamCard");
+
+  card.appendChild(el("div", "teamName", team.name));
+
+  const edit = makeIconButton("editBtn", "✎", () => {
+    editTeam(team.id);
+  });
+
+  const del = makeIconButton("deleteBtn", "×", () => {
+    deleteTeam(team.id);
+  });
+
+  card.appendChild(edit);
+  card.appendChild(del);
+
+  if(team.members.length){
+    const members = el("div", "members");
+
+    team.members.forEach(m => {
+      members.appendChild(el("span", "memberChip", m));
+    });
+
+    card.appendChild(members);
+  }else{
+    card.appendChild(el("div", "noMembers", "состав не указан"));
+  }
+
+  return card;
+}
+
+function renderPool(poolEl, poolName, emptyText){
+  poolEl.innerHTML = "";
+
+  setDropZone(poolEl, taskId => {
+    moveTaskToPool(taskId, poolName);
+  });
+
+  const list = state[poolName];
+
+  if(!list.length){
+    poolEl.appendChild(el("div", "slotEmpty", emptyText));
+    return;
+  }
+
+  list.forEach(task => {
+    poolEl.appendChild(makeTaskCard(task, poolName));
+  });
+}
+
+function createMiniBoard(title, teams){
+  const shell = el("section", "miniBoardShell");
+
+  shell.appendChild(el("div", "miniBoardTitle", title));
+
+  const board = el("div", "miniBoard");
+
+  const header = el("div", "boardHeader");
+  header.appendChild(el("div", "headCell", "Активная"));
+  header.appendChild(el("div", "headCell", "Команда"));
+  header.appendChild(el("div", "headCell", "Следующая"));
+  board.appendChild(header);
+
+  if(!teams.length){
+    board.appendChild(el("div", "emptyBoard", "Пока пусто"));
+    shell.appendChild(board);
+    return shell;
+  }
+
+  teams.forEach(team => {
+    const row = el("div", "teamRow");
+
+    const activeCell = el("div", "cell");
+    activeCell.appendChild(makeSlot(team, "activeTask"));
+
+    const teamCell = el("div", "cell");
+    teamCell.appendChild(makeTeamCard(team));
+
+    const nextCell = el("div", "cell");
+    nextCell.appendChild(makeSlot(team, "nextTask"));
+
+    row.appendChild(activeCell);
+    row.appendChild(teamCell);
+    row.appendChild(nextCell);
+
+    board.appendChild(row);
+  });
+
+  shell.appendChild(board);
+  return shell;
+}
+
+function renderBoards(){
+  boardsWrapEl.innerHTML = "";
+
+  const middle = Math.ceil(state.teams.length / 2);
+  const leftTeams = state.teams.slice(0, middle);
+  const rightTeams = state.teams.slice(middle);
+
+  boardsWrapEl.appendChild(createMiniBoard("СЕГОДНЯ", leftTeams));
+  boardsWrapEl.appendChild(createMiniBoard("УТРО СЛЕДУЮЩЕГО ДНЯ ", rightTeams));
 }
 
 function render(){
