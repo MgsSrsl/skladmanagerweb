@@ -90,6 +90,13 @@ export default async function handler(req, res) {
     }
 
     const task = taskSnap.data();
+    // 🔒 идемпотентность (защита от старых клиентов и ретраев)
+if (task.notifyCreatedProcessed) {
+  return res.json({
+    ok: true,
+    skipped: "already_processed"
+  });
+}
     // не отправляем уведомления по задачам старше суток
 const created = task.createdAt?.toDate?.();
 
@@ -125,7 +132,11 @@ if (created) {
     };
 
     const result = await admin.messaging().sendEachForMulticast(message);
-
+await taskSnap.ref.update({
+  notifyCreatedProcessed: true,
+  notifyCreatedSentAt: admin.firestore.FieldValue.serverTimestamp(),
+  notifyCreatedSuccess: result.successCount,
+});
     return res.json({
       ok: true,
       sent: result.successCount,
