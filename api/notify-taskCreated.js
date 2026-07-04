@@ -16,24 +16,7 @@ function initAdmin() {
     projectId: sa.project_id,
   });
 
-  console.log("✅ Firebase initialized");
   return app;
-}
-
-function getBody(req) {
-  return new Promise((resolve, reject) => {
-    let data = "";
-
-    req.on("data", chunk => (data += chunk));
-    req.on("end", () => {
-      try {
-        resolve(data ? JSON.parse(data) : {});
-      } catch (e) {
-        reject(e);
-      }
-    });
-    req.on("error", reject);
-  });
 }
 
 async function getUsersTokens(db, assigneeIds = []) {
@@ -59,68 +42,61 @@ async function getUsersTokens(db, assigneeIds = []) {
 export default async function handler(req, res) {
   try {
     if (req.method !== "POST") {
-      return res.status(405).json({ ok: false, error: "Method not allowed" });
+      return res.status(200).json({ ok: true, stop: true });
     }
 
     initAdmin();
     const db = admin.firestore();
 
-    const body = await getBody(req);
-
+    const body = req.body || {};
     const taskId = String(body.taskId || "").trim();
+
     if (!taskId) {
       return res.status(200).json({ ok: true, ignored: "missing_taskId" });
     }
 
-    let assigneeIds = [];
-    if (typeof body.assigneeIds === "string") {
-      assigneeIds = body.assigneeIds.split(",").map(s => s.trim()).filter(Boolean);
-    } else if (Array.isArray(body.assigneeIds)) {
-      assigneeIds = body.assigneeIds;
-    }
+    const ref = db.collection("tasks").doc(taskId);
 
-    const taskSnap = await db.collection("tasks").doc(taskId).get();
+    // 🔒 АТОМАРНЫЙ LOCK (главный фикс квоты + дублей)
+    const lockOk = await db.runTransaction(async (tx) => {
+      const snap = await tx.get(ref);
+      const data = snap.data();
 
-    // 🔥 ВАЖНО: нет задачи → 200 (чтобы старые клиенты заткнулись)
-    if (!taskSnap.exists) {
-      console.log("[taskCreated] not found:", taskId);
-      return res.status(200).json({
-        ok: true,
-        ignored: "task_not_found"
+      if (!snap.exists) return false;
+
+      if (data?.notifyCreatedProcessed) return false;
+
+      const created = data?.createdAt?.toDate?.();
+      if (created) {
+        const ageMs = Date.now() - created.getTime();
+        if (ageMs > 24 * 60 * 60 * 1000) return false;
+      }
+
+      tx.update(ref, {
+        notifyCreatedProcessed: true,
+        notifyCreatedProcessingAt: admin.firestore.FieldValue.serverTimestamp(),
       });
-    }
 
-    const task = taskSnap.data() || {};
-
-    // 🔒 ИДЕМПОТЕНТНОСТЬ (главный фикс против старых клиентов)
-    if (task.notifyCreatedProcessed) {
-      return res.status(200).json({
-        ok: true,
-        skipped: "already_processed"
-      });
-    }
-
-    // 🔥 ставим "lock" сразу (чтобы второй запрос не прошёл)
-    await taskSnap.ref.update({
-      notifyCreatedProcessed: true,
-      notifyCreatedProcessingAt: admin.firestore.FieldValue.serverTimestamp(),
+      return true;
     });
 
-    // защита от старых задач
-    const created = task.createdAt?.toDate?.();
-
-    if (created) {
-      const ageHours = (Date.now() - created.getTime()) / 3600000;
-
-      if (ageHours > 24) {
-        console.log("[taskCreated] too old:", taskId);
-
-        return res.status(200).json({
-          ok: true,
-          ignored: "task_too_old"
-        });
-      }
+    if (!lockOk) {
+      return res.status(200).json({
+        ok: true,
+        skipped: "locked_or_too_old"
+      });
     }
+
+    const snap = await ref.get();
+    const task = snap.data() || {};
+
+    const assigneeIds =
+      Array.isArray(body.assigneeIds)
+        ? body.assigneeIds
+        : String(body.assigneeIds || "")
+            .split(",")
+            .map(s => s.trim())
+            .filter(Boolean);
 
     const tokens = await getUsersTokens(db, assigneeIds);
 
@@ -128,22 +104,19 @@ export default async function handler(req, res) {
       return res.status(200).json({ ok: true, sent: 0 });
     }
 
-    const message = {
+    const result = await admin.messaging().sendEachForMulticast({
       tokens,
       notification: {
         title: "Новая задача",
         body: task.title || "Без названия",
       },
       data: {
-        taskId: String(taskId),
+        taskId,
         type: "taskCreated",
       },
-    };
+    });
 
-    const result = await admin.messaging().sendEachForMulticast(message);
-
-    // финальный апдейт
-    await taskSnap.ref.update({
+    await ref.update({
       notifyCreatedSentAt: admin.firestore.FieldValue.serverTimestamp(),
       notifyCreatedSuccess: result.successCount,
       notifyCreatedFailed: result.failureCount,
@@ -156,22 +129,11 @@ export default async function handler(req, res) {
     });
 
   } catch (e) {
-    console.error("notify-taskCreated error:", e);
-
-    // квоты → НЕ даём клиенту ретраить
-    if (
-      String(e.message).includes("RESOURCE_EXHAUSTED") ||
-      String(e.details || "").includes("Quota exceeded")
-    ) {
-      return res.status(200).json({
-        ok: true,
-        ignored: "quota_exceeded"
-      });
-    }
+    console.error(e);
 
     return res.status(200).json({
       ok: true,
-      ignored: "server_error"
+      error: e.message
     });
   }
 }
