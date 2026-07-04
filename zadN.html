@@ -135,72 +135,6 @@
     .toast.ok{ background:#065f46; }
     .toast.err{ background:#991b1b; }
     .toast.info{ background:#111827; }
-
-    /* Windows 95 × cyberpunk */
-    :root{
-      --brand-red:#ff2bd6; --text:#eaffff; --muted:#8eeaf2;
-      --line:#00f6ff; --glass:#11152a; --bg:#050713;
-    }
-    *{ scrollbar-color:#00f6ff #090b18 }
-    body{
-      font-family:"Courier New",monospace;
-      background:
-        linear-gradient(rgba(0,246,255,.035) 1px,transparent 1px),
-        linear-gradient(90deg,rgba(255,43,214,.035) 1px,transparent 1px),
-        radial-gradient(circle at 80% 0,rgba(255,43,214,.18),transparent 38%),
-        #050713;
-      background-size:24px 24px,24px 24px,auto,auto;
-    }
-    h1{
-      width:max-content; max-width:100%; padding:8px 12px;
-      color:#050713; background:#00f6ff; border:2px solid #fff;
-      box-shadow:4px 4px 0 #ff2bd6; text-transform:uppercase; letter-spacing:1px;
-    }
-    .card,.task,.drop,input[type="text"],input[type="search"],textarea,select{
-      color:var(--text); background:#0b0e1d; border-radius:0; border:2px solid;
-      border-color:#eaffff #3b4668 #3b4668 #eaffff;
-      box-shadow:inset 1px 1px 0 #7782a2,inset -1px -1px 0 #02030a;
-    }
-    input::placeholder,textarea::placeholder{ color:#6f829c }
-    .card{ box-shadow:5px 5px 0 rgba(255,43,214,.6) }
-    .queue-mode{ border-radius:0; padding:4px; background:#070916; border:2px solid #00f6ff }
-    .queue-option,.queue-option.active,.queue-option.approve.active{
-      border-radius:0; color:#dffcff; background:#141931; border:2px solid;
-      border-color:#f5ffff #343b5a #343b5a #f5ffff; box-shadow:none;
-    }
-    .queue-option.active{ color:#050713; background:#00f6ff }
-    .queue-option.approve.active{
-      color:#fff; background:#9b147f; border-color:#ff9bea #3d0733 #3d0733 #ff9bea;
-    }
-    .btn,.btn-secondary,.btn-ghost,.chip{
-      border-radius:0; font-family:"Courier New",monospace; font-weight:700;
-      color:#050713; background:#00f6ff; border:2px solid;
-      border-color:#fff #11626a #11626a #fff; box-shadow:2px 2px 0 #000;
-    }
-    .btn:active,.btn-secondary:active,.btn-ghost:active,.chip:active{
-      transform:translate(2px,2px); box-shadow:none;
-      border-color:#11626a #fff #fff #11626a;
-    }
-    .btn-secondary,.btn-ghost,.chip{ color:#eaffff; background:#252b46 }
-    .footer{
-      background:#090b18; border-top:2px solid #00f6ff;
-      box-shadow:0 -3px 18px rgba(0,246,255,.25);
-    }
-    .task:hover{ box-shadow:4px 4px 0 #00f6ff }
-    .pill{ border-radius:0;background:#202640;color:#fff;border-color:#00f6ff }
-    .pill.ok{color:#03140a;background:#57ff91;border-color:#c9ffdb}
-    .pill.info{color:#050713;background:#00f6ff;border-color:#caffff}
-    .pill.warn{color:#fff;background:#9b147f;border-color:#ff9bea}
-    dialog{
-      color:var(--text); background:#0b0e1d; border:3px solid;
-      border-color:#fff #343b5a #343b5a #fff; border-radius:0;
-      box-shadow:8px 8px 0 #ff2bd6;
-    }
-    dialog::backdrop{ background:rgba(1,2,8,.82) }
-    dialog .modal{ min-width:min(720px,88vw) }
-    dialog .hdr{ display:flex;align-items:center;justify-content:space-between;gap:12px }
-    .updated{ color:#00f6ff;text-shadow:0 0 8px #00f6ff }
-    .toast{ border-radius:0;border:2px solid #fff;box-shadow:5px 5px 0 #ff2bd6 }
   </style>
 </head>
 <body>
@@ -743,7 +677,7 @@
           isPickup,
           category, status,
           createdAt:firebase.firestore.FieldValue.serverTimestamp(),
-          creatorId:auth.currentUser?.uid || "unknown",
+          creatorId:"unknown",
           creatorName:"unknown",
           files:[]
       });
@@ -759,9 +693,12 @@
             : Math.max(0, cachedBaseline);
           const nextNumber = current + 1;
           const title = buildAutoTitle(manualTitle, queueMode, nextNumber);
+
           tx.set(counterRef, {
-            value: nextNumber, dateKey, queueMode,
-            updatedAt:firebase.firestore.FieldValue.serverTimestamp()
+            value: nextNumber,
+            dateKey,
+            queueMode,
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
           }, {merge:true});
           tx.set(taskRef, taskData(title));
         });
