@@ -1,8 +1,7 @@
 <!doctype html>
-
 <html lang="ru">
 <head>
-
+  
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Создать задание — СкладСборка</title>
@@ -20,154 +19,156 @@
     .shell{ max-width:1120px; margin:0 auto; padding:20px 14px 120px }
     h1{ margin:6px 0 18px; font-size:28px; font-weight:800 }
 
-.grid{ display:grid; grid-template-columns:1fr 440px; gap:16px; align-items:start }
-@media (max-width:980px){ .grid{ grid-template-columns:1fr } }
+    .grid{ display:grid; grid-template-columns:1fr 440px; gap:16px; align-items:start }
+    @media (max-width:980px){ .grid{ grid-template-columns:1fr } }
 
-.card{ background:var(--glass); border:1px solid rgba(0,0,0,.06); border-radius:16px; padding:16px }
-label{ font-weight:600; font-size:14px; display:block; margin:12px 0 6px }
-input[type="text"], textarea, select{
-  width:100%; padding:12px 14px; border-radius:12px; border:1px solid rgba(0,0,0,.12); font:inherit; background:#fff
-}
-textarea{ min-height:96px; resize:vertical }
-.row{ display:grid; grid-template-columns:1fr 1fr; gap:12px }
-.muted{ color:var(--muted); font-size:13px }
-.btn{ border:none; background:var(--brand-red); color:#fff; padding:12px 14px; border-radius:12px; font-weight:800; cursor:pointer }
-.btn:disabled{ opacity:.6; cursor:not-allowed }
-.btn-secondary{ background:#fff; color:var(--text); border:1px solid rgba(0,0,0,.12) }
-.btn-ghost{ background:transparent; color:var(--text); border:1px dashed var(--line) }
-.files{ display:flex; flex-wrap:wrap; gap:8px; margin-top:8px }
-.chip{ display:inline-flex; gap:8px; align-items:center; background:#fff; border:1px solid rgba(0,0,0,.12); padding:8px 10px; border-radius:12px }
-.chip button{ border:none; background:transparent; font-weight:800; cursor:pointer }
-.switch{ display:flex; align-items:center; gap:10px; margin-top:28px }
-.drop{ padding:12px; border:2px dashed rgba(0,0,0,.2); border-radius:12px; background:#fff }
-.drop.drag{ background:#f8fbff; border-color:#3d7bfd }
+    .card{ background:var(--glass); border:1px solid rgba(0,0,0,.06); border-radius:16px; padding:16px }
+    label{ font-weight:600; font-size:14px; display:block; margin:12px 0 6px }
+    input[type="text"], textarea, select{
+      width:100%; padding:12px 14px; border-radius:12px; border:1px solid rgba(0,0,0,.12); font:inherit; background:#fff
+    }
+    textarea{ min-height:96px; resize:vertical }
+    .row{ display:grid; grid-template-columns:1fr 1fr; gap:12px }
+    .muted{ color:var(--muted); font-size:13px }
+    .btn{ border:none; background:var(--brand-red); color:#fff; padding:12px 14px; border-radius:12px; font-weight:800; cursor:pointer }
+    .btn:disabled{ opacity:.6; cursor:not-allowed }
+    .btn-secondary{ background:#fff; color:var(--text); border:1px solid rgba(0,0,0,.12) }
+    .btn-ghost{ background:transparent; color:var(--text); border:1px dashed var(--line) }
+    .files{ display:flex; flex-wrap:wrap; gap:8px; margin-top:8px }
+    .chip{ display:inline-flex; gap:8px; align-items:center; background:#fff; border:1px solid rgba(0,0,0,.12); padding:8px 10px; border-radius:12px }
+    .chip button{ border:none; background:transparent; font-weight:800; cursor:pointer }
+    .switch{ display:flex; align-items:center; gap:10px; margin-top:28px }
+    .drop{ padding:12px; border:2px dashed rgba(0,0,0,.2); border-radius:12px; background:#fff }
+    .drop.drag{ background:#f8fbff; border-color:#3d7bfd }
 
-.footer{ position:fixed; left:0; right:0; bottom:0; background:#fff; border-top:1px solid var(--line); padding:12px }
-.footer .inner{ max-width:1120px; margin:0 auto; display:flex; gap:10px; justify-content:flex-end }
+    .footer{ position:fixed; left:0; right:0; bottom:0; background:#fff; border-top:1px solid var(--line); padding:12px }
+    .footer .inner{ max-width:1120px; margin:0 auto; display:flex; gap:10px; justify-content:flex-end }
 
-.updated{ position:fixed; right:14px; bottom:70px; font-size:13px; color:#222; opacity:.8 }
+    .updated{ position:fixed; right:14px; bottom:70px; font-size:13px; color:#222; opacity:.8 }
 
-/* Сайдбар задач */
-.aside{ position:sticky; top:12px }
-.aside .hdr{ display:flex; align-items:center; justify-content:space-between; margin-bottom:10px }
-.aside .search{ width:100%; margin-bottom:10px; display:flex; gap:8px }
-.aside input[type="search"]{ flex:1; padding:10px 12px; border-radius:12px; border:1px solid var(--line); background:#fff; font:inherit }
-.tasklist{
-  display:flex; flex-direction:column; gap:10px;
-  max-height:82vh; overflow-y:auto; overflow-x:hidden; padding-right:2px;
-}
-.task{ border:1px solid var(--line); background:#fff; border-radius:14px; padding:10px 12px; display:grid; gap:6px }
-.task .t1{ display:flex; align-items:center; justify-content:space-between; gap:8px }
-.task .title{ font-weight:700; font-size:14px; line-height:1.2; word-break:break-word }
-.badges{ display:flex; gap:6px; flex-wrap:wrap; align-items:center }
-.pill{ font-size:11px; font-weight:700; padding:4px 8px; border-radius:999px; border:1px solid var(--line); background:#fafafa }
-.pill.ok{ color:#065f46; background:#ecfdf5; border-color:#a7f3d0 }
-.pill.info{ color:#1e40af; background:#eff6ff; border-color:#bfdbfe }
-.pill.warn{ color:#7c2d12; background:#fffbeb; border-color:#fde68a }
-.pill.assem{ color:#991b1b; background:#fef2f2; border-color:#fecaca }
-.task .meta{ font-size:12px; color:#555; display:flex; gap:10px; flex-wrap:wrap }
-.task .meta span{ display:inline-flex; align-items:center; gap:6px }
-.task .line{ height:1px; background:var(--line); margin:2px 0 }
-.task .assignees{ font-size:12px; color:#444; }
-.task:hover{ box-shadow:0 1px 0 rgba(0,0,0,.02), 0 6px 16px rgba(0,0,0,.06) }
-.row-compact{ display:grid; grid-template-columns:auto auto 1fr auto; gap:8px; align-items:center }
+    /* Сайдбар задач */
+    .aside{ position:sticky; top:12px }
+    .aside .hdr{ display:flex; align-items:center; justify-content:space-between; margin-bottom:10px }
+    .aside .search{ width:100%; margin-bottom:10px; display:flex; gap:8px }
+    .aside input[type="search"]{ flex:1; padding:10px 12px; border-radius:12px; border:1px solid var(--line); background:#fff; font:inherit }
+    .tasklist{
+      display:flex; flex-direction:column; gap:10px;
+      max-height:82vh; overflow-y:auto; overflow-x:hidden; padding-right:2px;
+    }
+    .task{ border:1px solid var(--line); background:#fff; border-radius:14px; padding:10px 12px; display:grid; gap:6px }
+    .task .t1{ display:flex; align-items:center; justify-content:space-between; gap:8px }
+    .task .title{ font-weight:700; font-size:14px; line-height:1.2; word-break:break-word }
+    .badges{ display:flex; gap:6px; flex-wrap:wrap; align-items:center }
+    .pill{ font-size:11px; font-weight:700; padding:4px 8px; border-radius:999px; border:1px solid var(--line); background:#fafafa }
+    .pill.ok{ color:#065f46; background:#ecfdf5; border-color:#a7f3d0 }
+    .pill.info{ color:#1e40af; background:#eff6ff; border-color:#bfdbfe }
+    .pill.warn{ color:#7c2d12; background:#fffbeb; border-color:#fde68a }
+    .pill.assem{ color:#991b1b; background:#fef2f2; border-color:#fecaca }
+    .task .meta{ font-size:12px; color:#555; display:flex; gap:10px; flex-wrap:wrap }
+    .task .meta span{ display:inline-flex; align-items:center; gap:6px }
+    .task .line{ height:1px; background:var(--line); margin:2px 0 }
+    .task .assignees{ font-size:12px; color:#444; }
+    .task:hover{ box-shadow:0 1px 0 rgba(0,0,0,.02), 0 6px 16px rgba(0,0,0,.06) }
+    .row-compact{ display:grid; grid-template-columns:auto auto 1fr auto; gap:8px; align-items:center }
 
 
-/* Уведомление сверху вместо alert после создания */
-.toast{
-  position:fixed;
-  top:14px;
-  right:14px;
-  z-index:99999;
-  background:#111;
-  color:#fff;
-  padding:12px 14px;
-  border-radius:14px;
-  font-weight:800;
-  box-shadow:0 10px 30px rgba(0,0,0,.18);
-  opacity:0;
-  transform:translateY(-10px);
-  transition:.22s ease;
-  pointer-events:none;
-  max-width:360px;
-}
-.toast.show{
-  opacity:1;
-  transform:translateY(0);
-}
-.toast.ok{ background:#065f46; }
-.toast.err{ background:#991b1b; }
-.toast.info{ background:#111827; }
-
+    /* Уведомление сверху вместо alert после создания */
+    .toast{
+      position:fixed;
+      top:14px;
+      right:14px;
+      z-index:99999;
+      background:#111;
+      color:#fff;
+      padding:12px 14px;
+      border-radius:14px;
+      font-weight:800;
+      box-shadow:0 10px 30px rgba(0,0,0,.18);
+      opacity:0;
+      transform:translateY(-10px);
+      transition:.22s ease;
+      pointer-events:none;
+      max-width:360px;
+    }
+    .toast.show{
+      opacity:1;
+      transform:translateY(0);
+    }
+    .toast.ok{ background:#065f46; }
+    .toast.err{ background:#991b1b; }
+    .toast.info{ background:#111827; }
   </style>
 </head>
 <body>
   <div class="shell">
     <h1>Создать задание</h1>
 
-<div class="grid">
-  <!-- Левая колонка — форма -->
-  <div class="left">
-    <div class="card">
-      <div class="row">
-        <div>
-          <label for="title">Название задания</label>
-          <input id="title" type="text" placeholder="Например: Заказ 12345" />
-        </div>
-        <div class="switch">
-          <input id="cbAssembled" type="checkbox" />
-          <label for="cbAssembled" style="margin:0">Собранный заказ</label>
-        </div>
-      </div>
-
-      <label for="comment">Комментарий</label>
-      <textarea id="comment" placeholder="Опционально: примечания"></textarea>
-
-      <div class="row">
-        <div>
-          <label>Файлы (PDF/изображения)</label>
-          <div id="drop" class="drop">
-            <input id="fileInput" type="file" multiple accept="image/*,application/pdf,.pdf" />
-            <div class="muted">Выберите, перетащите или вставьте (Ctrl+V) скриншот</div>
+    <div class="grid">
+      <!-- Левая колонка — форма -->
+      <div class="left">
+        <div class="card">
+          <div class="row">
+            <div>
+              <label for="title">Номер Машины</label>
+              <input id="title" type="text" placeholder="Только цифры" />
+            </div>
+            <div class="switch">
+              <input id="cbAssembled" type="checkbox" />
+              <label for="cbAssembled" style="margin:0">Не трогаем</label>
+            </div>
           </div>
-          <div id="files" class="files"></div>
-          <div class="muted" id="filesInfo">Файлы не выбраны</div>
-        </div>
-        <div>
-          <label>Кладовщики (мультивыбор)</label>
-          <div id="users" class="card" style="padding:8px; height:180px; overflow:auto"></div>
-          <div class="muted" id="assigneesInfo">Исполнители не выбраны (необязательно)</div>
+
+          <label>Выбери себя</label>
+          <div id="commentCreators" class="files"></div>
+          <div class="muted">Кнопка только добавляет строку в комментарий.</div>
+
+          <label for="comment">Комментарий</label>
+          <textarea id="comment" placeholder="одной партией и т.д"></textarea>
+
+          <div class="row">
+            <div>
+              <label>Файлы (PDF/изображения)</label>
+              <div id="drop" class="drop">
+                <input id="fileInput" type="file" multiple accept="image/*,application/pdf,.pdf" />
+                <div class="muted">Выберите, перетащите или вставьте (Ctrl+V) скриншот</div>
+              </div>
+              <div id="files" class="files"></div>
+              <div class="muted" id="filesInfo">Файлы не выбраны</div>
+            </div>
+            <div>
+              <label>Кладовщики (мультивыбор)</label>
+              <div id="users" class="card" style="padding:8px; height:180px; overflow:auto"></div>
+              <div class="muted" id="assigneesInfo">Не трогаем (необязательно)</div>
+            </div>
+          </div>
+          <div class="muted" style="margin-top:10px">Подсказка: можно просто нажать <b>Ctrl/Cmd + V</b>, чтобы приклеить скриншот из буфера.</div>
         </div>
       </div>
-      <div class="muted" style="margin-top:10px">Подсказка: можно просто нажать <b>Ctrl/Cmd + V</b>, чтобы приклеить скриншот из буфера.</div>
-    </div>
-  </div>
 
-  <!-- Правая колонка — список задач -->
-  <aside class="aside">
-    <div class="hdr">
-      <div style="font-weight:800">Задачи</div>
-      <div class="row-compact" style="grid-template-columns:auto 1fr auto">
-        <select id="statusFilter">
-          <option value="">Все</option>
-          <option value="assigned">Назначено</option>
-          <option value="in_progress">В работе</option>
-          <option value="done">Готово</option>
-        </select>
-        <div></div>
-        <button id="btnReload" class="btn btn-secondary" type="button" title="Обновить">Обновить</button>
-      </div>
+      <!-- Правая колонка — список задач -->
+      <aside class="aside">
+        <div class="hdr">
+          <div style="font-weight:800">Задачи</div>
+          <div class="row-compact" style="grid-template-columns:auto 1fr auto">
+            <select id="statusFilter">
+              <option value="">Все</option>
+              <option value="assigned">Назначено</option>
+              <option value="in_progress">В работе</option>
+              <option value="done">Готово</option>
+            </select>
+            <div></div>
+            <button id="btnReload" class="btn btn-secondary" type="button" title="Обновить">Обновить</button>
+          </div>
+        </div>
+        <div class="search">
+          <input id="q" type="search" placeholder="Поиск в заголовке/комменте…" />
+        </div>
+        <div id="tasklist" class="tasklist card" style="padding:10px"></div>
+        <div class="muted" style="margin-top:6px">Показываем последние 50. Реальное время.</div>
+      </aside>
     </div>
-    <div class="search">
-      <input id="q" type="search" placeholder="Поиск в заголовке/комменте…" />
-    </div>
-    <div id="tasklist" class="tasklist card" style="padding:10px"></div>
-    <div class="muted" style="margin-top:6px">Показываем последние 50. Реальное время.</div>
-  </aside>
-</div>
 
-<div class="updated" id="tvHomeLastUpdated">Список актуален: —</div>
-
+    <div class="updated" id="tvHomeLastUpdated">Список актуален: —</div>
   </div>
 
   <div class="footer">
@@ -178,7 +179,6 @@ textarea{ min-height:96px; resize:vertical }
   </div>
 
   <!-- Модалка редактирования -->
-
   <dialog id="editDialog">
     <form method="dialog" class="modal">
       <div class="hdr">
@@ -186,56 +186,54 @@ textarea{ min-height:96px; resize:vertical }
         <button type="button" id="btnCloseEdit" class="btn-ghost">Закрыть</button>
       </div>
 
-  <div class="row">
-    <div>
-      <label for="edTitle">Название</label>
-      <input id="edTitle" type="text" />
-    </div>
-  </div>
-
-  <label for="edComment">Комментарий</label>
-  <textarea id="edComment"></textarea>
-
-  <div class="row section">
-    <label style="display:flex;align-items:center;gap:8px;margin:0">
-      <input id="edAssembled" type="checkbox" /> Собранный заказ
-    </label>
-    <label style="display:flex;align-items:center;gap:8px;margin:0">
-      <input id="edPickup" type="checkbox" /> Самовывоз
-    </label>
-  </div>
-
-  <div class="section">
-    <label>Исполнители</label>
-    <div id="edUsers" class="card" style="padding:8px; max-height:200px; overflow:auto"></div>
-    <div class="muted" id="edAssigneesInfo" style="margin-top:4px"></div>
-  </div>
-
-  <div class="section">
-    <label>Вложения</label>
-    <div id="edExistingFiles" class="files"></div>
-    <div class="sub">Крест — убрать из задачи. 👁 — открыть в новой вкладке.</div>
-    <div class="card" style="margin-top:8px; padding:10px">
-      <div id="edDrop" class="drop">
-        <input id="edFileInput" type="file" multiple accept="image/*,application/pdf,.pdf" />
-        <div class="muted">Добавить файлы: выберите, перетащите или вставьте (Ctrl+V)</div>
+      <div class="row">
+        <div>
+          <label for="edTitle">Название</label>
+          <input id="edTitle" type="text" />
+        </div>
       </div>
-      <div id="edNewFiles" class="files"></div>
-      <div class="muted" id="edFilesInfo">Новые файлы не выбраны</div>
-    </div>
-  </div>
 
-  <div class="act" style="margin-top:12px">
-    <button type="button" id="btnDelete" class="btn btn-secondary" style="border-color:#f00;color:#f00">Удалить</button>
-    <div style="flex:1"></div>
-    <button type="button" id="btnSaveEdit" class="btn">Сохранить</button>
-  </div>
-</form>
+      <label for="edComment">Комментарий</label>
+      <textarea id="edComment"></textarea>
 
+      <div class="row section">
+        <label style="display:flex;align-items:center;gap:8px;margin:0">
+          <input id="edAssembled" type="checkbox" /> Собранный заказ
+        </label>
+        <label style="display:flex;align-items:center;gap:8px;margin:0">
+          <input id="edPickup" type="checkbox" /> Самовывоз
+        </label>
+      </div>
+
+      <div class="section">
+        <label>Исполнители</label>
+        <div id="edUsers" class="card" style="padding:8px; max-height:200px; overflow:auto"></div>
+        <div class="muted" id="edAssigneesInfo" style="margin-top:4px"></div>
+      </div>
+
+      <div class="section">
+        <label>Вложения</label>
+        <div id="edExistingFiles" class="files"></div>
+        <div class="sub">Крест — убрать из задачи. 👁 — открыть в новой вкладке.</div>
+        <div class="card" style="margin-top:8px; padding:10px">
+          <div id="edDrop" class="drop">
+            <input id="edFileInput" type="file" multiple accept="image/*,application/pdf,.pdf" />
+            <div class="muted">Добавить файлы: выберите, перетащите или вставьте (Ctrl+V)</div>
+          </div>
+          <div id="edNewFiles" class="files"></div>
+          <div class="muted" id="edFilesInfo">Новые файлы не выбраны</div>
+        </div>
+      </div>
+
+      <div class="act" style="margin-top:12px">
+        <button type="button" id="btnDelete" class="btn btn-secondary" style="border-color:#f00;color:#f00">Удалить</button>
+        <div style="flex:1"></div>
+        <button type="button" id="btnSaveEdit" class="btn">Сохранить</button>
+      </div>
+    </form>
   </dialog>
 
   <!-- Диалог «Вложения» -->
-
   <dialog id="filesDialog">
     <form method="dialog" class="modal">
       <div class="hdr">
@@ -248,11 +246,8 @@ textarea{ min-height:96px; resize:vertical }
   </dialog>
 
   <!-- Firebase (compat) -->
-
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
-
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 
   <script>
@@ -278,6 +273,7 @@ textarea{ min-height:96px; resize:vertical }
   const els = {
     title: document.getElementById('title'),
     comment: document.getElementById('comment'),
+    commentCreators: document.getElementById('commentCreators'),
     cbAssembled: document.getElementById('cbAssembled'),
     fileInput: document.getElementById('fileInput'),
     files: document.getElementById('files'),
@@ -323,6 +319,15 @@ textarea{ min-height:96px; resize:vertical }
   let edRemovedPids = new Set();
   const edNewSelected = [];
 
+  // Эти имена НИКУДА не сохраняются отдельными полями.
+  // Кнопка просто добавляет строку "От: Имя" в комментарий.
+  const COMMENT_CREATOR_NAMES = [
+    "Настя",
+    "Маша",
+    "Галя",
+    "Юля"
+  ];
+
   // ====== NOTIFY SAFE SEND ======
   // Старую очередь пушей удаляем, чтобы браузер не переотправлял старый мусор бесконечно.
   const QUEUE_KEY = 'notify_queue_v1';
@@ -365,6 +370,7 @@ textarea{ min-height:96px; resize:vertical }
  auth.signInAnonymously()
   .then(() => { 
  
+    renderCommentCreatorButtons();
     touchLastUpdated();
     loadUsers();
     initTasksFeed();
@@ -405,6 +411,33 @@ textarea{ min-height:96px; resize:vertical }
     els.assigneesInfo.textContent = selectedWorkerNames.size
       ? "Исполнители: " + [...selectedWorkerNames].join(", ")
       : "Исполнители не выбраны (необязательно)";
+  }
+
+  // ======= КНОПКИ "КТО СОЗДАЛ" — ТОЛЬКО В КОММЕНТАРИЙ =======
+  function renderCommentCreatorButtons(){
+    if(!els.commentCreators) return;
+    els.commentCreators.innerHTML = '';
+
+    COMMENT_CREATOR_NAMES.forEach(name => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'chip';
+      btn.style.cursor = 'pointer';
+      btn.textContent = name;
+      btn.addEventListener('click', () => addCreatorToComment(name));
+      els.commentCreators.appendChild(btn);
+    });
+  }
+
+  function addCreatorToComment(name){
+    const prefix = `От: ${name}`;
+    let text = els.comment.value || '';
+
+    // Если уже была строка "Создал:" первой строкой — заменяем её, а не плодим дубли.
+    text = text.replace(/^Создал:\s*.*(?:\r?\n)?/i, '').trimStart();
+
+    els.comment.value = text ? `${prefix}\n${text}` : prefix;
+    els.comment.focus();
   }
 
   // ======= FILES UI / DND / PASTE (создание) =======
@@ -486,11 +519,50 @@ textarea{ min-height:96px; resize:vertical }
     }, 1600);
   }
 
+  // ======= АВТОНОМЕР БЕЗ ЛИШНИХ ЗАПРОСОВ FIREBASE =======
+  function localDateKey(d){
+    const pad=n=>String(n).padStart(2,'0');
+    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+  }
+
+  function getNextLoadedDailyNumber(){
+    const today = localDateKey(new Date());
+    let todayCount = 0;
+    let maxNumber = 0;
+
+    for(const t of lastTasks || []){
+      if(!t.createdAt) continue;
+      if(localDateKey(t.createdAt) !== today) continue;
+
+      todayCount++;
+
+      const title = String(t.title || '');
+      const m = title.match(/(?:^|[^0-9])№\s*(\d+)/i) || title.match(/Задача\s*№\s*(\d+)/i);
+      if(m){
+        const n = parseInt(m[1], 10);
+        if(Number.isFinite(n) && n > maxNumber) maxNumber = n;
+      }
+    }
+
+    return (maxNumber > 0 ? maxNumber : todayCount) + 1;
+  }
+
+  function buildAutoTitle(manualTitle){
+    const raw = String(manualTitle || '').trim();
+
+    // Если номер уже вписан руками — не дублируем его.
+    if(/^(Задача\s*)?№\s*\d+/i.test(raw)) return raw;
+
+    const n = getNextLoadedDailyNumber();
+    return raw ? `№${n} — ${raw}` : `Задача №${n}`;
+  }
+
   // ======= SAVE (создание) =======
   els.btnSave.addEventListener('click', onSave);
   async function onSave(){
-    const title=els.title.value.trim(); const comment=els.comment.value.trim(); const isAssembled=!!els.cbAssembled.checked;
-    if(!title){ alert("Введите название задания"); return; }
+    const manualTitle = els.title.value.trim();
+    const title = buildAutoTitle(manualTitle);
+    const comment=els.comment.value.trim(); const isAssembled=!!els.cbAssembled.checked;
     freeze(true,"Сохраняю…");
     try{
       const audienceIds=[...selectedWorkerIds]; const audienceNames=[...selectedWorkerNames];
