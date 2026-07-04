@@ -432,9 +432,6 @@
   // ======= SAVE (создание) =======
   els.btnSave.addEventListener('click', onSave);
   async function onSave(){
-    await notifyTaskCreated(taskRef.id,audienceIds);
-
-showTopToast("Задание создано");
     const title=els.title.value.trim(); const comment=els.comment.value.trim(); const isAssembled=!!els.cbAssembled.checked;
     if(!title){ alert("Введите название задания"); return; }
     freeze(true,"Сохраняю…");
@@ -465,35 +462,7 @@ showTopToast("Задание создано");
       els.title.value=''; els.comment.value=''; els.cbAssembled.checked=false;
       [...document.querySelectorAll('#users input[type=checkbox]')].forEach(ch=>ch.checked=false);
       selectedWorkerIds.clear(); selectedWorkerNames.clear(); updateAssigneesInfo();
-  function showTopToast(text) {
-  let el = document.getElementById("toast");
-  if (!el) {
-    el = document.createElement("div");
-    el.id = "toast";
-    el.style.cssText = `
-      position:fixed;
-      top:12px;
-      left:50%;
-      transform:translateX(-50%);
-      background:#111;
-      color:#fff;
-      padding:10px 16px;
-      border-radius:10px;
-      font-weight:600;
-      z-index:9999;
-      opacity:0;
-      transition:.2s;
-    `;
-    document.body.appendChild(el);
-  }
-
-  el.textContent = text;
-  el.style.opacity = "1";
-
-  setTimeout(() => {
-    el.style.opacity = "0";
-  }, 2000);
-}
+      alert("Задание создано");
     }catch(e){ alert("Ошибка сохранения: "+(e?.message||e)); }
     finally{ freeze(false); touchLastUpdated(); }
   }
