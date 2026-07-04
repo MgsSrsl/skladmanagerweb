@@ -90,6 +90,21 @@ export default async function handler(req, res) {
     }
 
     const task = taskSnap.data();
+    // не отправляем уведомления по задачам старше суток
+const created = task.createdAt?.toDate?.();
+
+if (created) {
+  const ageHours = (Date.now() - created.getTime()) / 3600000;
+
+  if (ageHours > 24) {
+    console.log("Skip old task:", taskId);
+
+    return res.json({
+      ok: true,
+      ignored: "task_too_old"
+    });
+  }
+}
 
     const tokens = await getUsersTokens(db, assigneeIds);
 
@@ -118,7 +133,22 @@ export default async function handler(req, res) {
     });
 
   } catch (e) {
-    console.error("notify-taskCreated error:", e);
-    return res.status(500).json({ ok: false, error: e.message });
+  console.error("notify-taskCreated error:", e);
+
+  if (
+    String(e.message).includes("RESOURCE_EXHAUSTED") ||
+    String(e.details || "").includes("Quota exceeded")
+  ) {
+    console.log("Firestore quota exceeded -> return OK");
+
+    return res.json({
+      ok: true,
+      ignored: "quota_exceeded"
+    });
   }
+
+  return res.status(500).json({
+    ok: false,
+    error: e.message
+  });
 }
