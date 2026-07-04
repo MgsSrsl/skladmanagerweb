@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Складская доска</title>
+<title>Складская доска онлайн</title>
 
 <style>
 :root{
@@ -12,11 +12,9 @@
   --text:#111827;
   --muted:#6b7280;
   --line:#e5e7eb;
-  --dark:#111827;
   --blue:#2563eb;
   --blueSoft:#dbeafe;
   --green:#16a34a;
-  --orange:#f59e0b;
   --orangeSoft:#fef3c7;
   --red:#ef4444;
   --shadow:0 5px 15px rgba(15,23,42,.08);
@@ -31,8 +29,6 @@ body{
   background:var(--bg);
   color:var(--text);
 }
-
-/* ===== TOP ===== */
 
 .topbar{
   background:linear-gradient(135deg,#111827,#1f2937);
@@ -121,8 +117,6 @@ button{
   color:#fff;
 }
 
-/* ===== MAIN ===== */
-
 .main{
   padding:8px;
 }
@@ -163,8 +157,6 @@ button{
   flex-wrap:wrap;
   align-items:flex-start;
 }
-
-/* ===== TWO BOARDS ===== */
 
 .doubleBoardWrap{
   display:grid;
@@ -250,8 +242,6 @@ button{
   font-size:11px;
 }
 
-/* ===== CARDS ===== */
-
 .taskCard{
   background:var(--blueSoft);
   border:1px solid #bfdbfe;
@@ -328,8 +318,6 @@ button{
   font-size:10px;
   margin-top:4px;
 }
-
-/* ===== BUTTONS ===== */
 
 .iconBtn{
   position:absolute;
@@ -422,7 +410,7 @@ button{
 <header class="topbar">
   <div class="topline">
     <div>
-      <div class="brandTitle">Складская доска</div>
+      <div class="brandTitle">Складская доска онлайн</div>
       <div class="brandSub">Сегодня и завтра: активная / команда / следующая</div>
     </div>
 
@@ -476,10 +464,40 @@ button{
   <button id="toastUndoBtn">Отменить</button>
 </div>
 
-<script>
-const STORAGE = "warehouse_board_today_tomorrow_v1";
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
+import {
+  getFirestore,
+  doc,
+  onSnapshot,
+  setDoc,
+  serverTimestamp
+} from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
+import {
+  getAuth,
+  signInAnonymously
+} from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
+
+/* ====== FIREBASE ====== */
+
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyAH58ZpWAp64mhM589KD6jXHcOlPqU0aYU",
+  authDomain: "skladsborka-6c2a7.firebaseapp.com",
+  projectId: "skladsborka-6c2a7",
+  storageBucket: "skladsborka-6c2a7.firebasestorage.app",
+  appId: "1:516526717198:android:e470c17aed370572757f5f"
+};
+
+const ONLINE_ENABLED = true;
+const BOARD_COLLECTION = "boards";
+const BOARD_DOC_ID = "main";
+
+/* ====== STATE ====== */
+
+const STORAGE = "warehouse_board_today_tomorrow_online_v1";
 
 const LEGACY_KEYS = [
+  "warehouse_board_today_tomorrow_v1",
   "warehouse_board_double_compact_v1",
   "warehouse_board_compact_tomorrow_v1",
   "warehouse_board_visual_v1",
@@ -490,10 +508,28 @@ const LEGACY_KEYS = [
   "warehouse_board_v6"
 ];
 
+let db = null;
+let auth = null;
+let boardRef = null;
+let onlineReady = false;
+let applyingRemote = false;
+let onlineStatus = "локально";
+let writeTimer = null;
+
 let state = loadState();
 let draggedTaskId = null;
 let undoAction = null;
 let toastTimer = null;
+
+const CLIENT_ID_KEY = "warehouse_board_client_id";
+let clientId = localStorage.getItem(CLIENT_ID_KEY);
+
+if(!clientId){
+  clientId = id();
+  localStorage.setItem(CLIENT_ID_KEY, clientId);
+}
+
+/* ====== DOM ====== */
 
 const teamNameInput = document.getElementById("teamName");
 const teamMembersInput = document.getElementById("teamMembers");
@@ -513,6 +549,8 @@ const statsEl = document.getElementById("stats");
 const toastEl = document.getElementById("toast");
 const toastTextEl = document.getElementById("toastText");
 const toastUndoBtn = document.getElementById("toastUndoBtn");
+
+/* ====== HELPERS ====== */
 
 function id(){
   return Date.now().toString(36) + Math.random().toString(36).slice(2);
@@ -589,6 +627,33 @@ function normalizeState(s){
 
 function save(){
   localStorage.setItem(STORAGE, JSON.stringify(state));
+
+  if(ONLINE_ENABLED && onlineReady && !applyingRemote){
+    writeOnline();
+  }
+}
+
+function writeOnline(){
+  clearTimeout(writeTimer);
+
+  writeTimer = setTimeout(async () => {
+    if(!boardRef) return;
+
+    try{
+      await setDoc(boardRef, {
+        state: JSON.parse(JSON.stringify(state)),
+        updatedAt: serverTimestamp(),
+        updatedBy: clientId
+      });
+
+      onlineStatus = "онлайн";
+      renderStats();
+    }catch(e){
+      console.error("Firestore write error:", e);
+      onlineStatus = "ошибка записи";
+      renderStats();
+    }
+  }, 150);
 }
 
 function el(tag, className, text){
@@ -662,7 +727,7 @@ function addTask(){
   render();
 }
 
-/* ===== FIND / MOVE TASKS ===== */
+/* ===== TASK MOVE ===== */
 
 function findTaskLocation(taskId){
   const todayIndex = state.unassigned.findIndex(t => t.id === taskId);
@@ -954,7 +1019,7 @@ function hideToast(){
   toastEl.style.display = "none";
 }
 
-/* ===== RENDER HELPERS ===== */
+/* ===== RENDER ===== */
 
 function renderStats(){
   const todayTeams = state.teams.filter(t => (t.day || "today") === "today").length;
@@ -965,6 +1030,7 @@ function renderStats(){
   statsEl.innerHTML = "";
 
   [
+    `Статус: ${onlineStatus}`,
     `Команд сегодня: ${todayTeams}`,
     `Команд завтра: ${tomorrowTeams}`,
     `Задач сегодня: ${state.unassigned.length}`,
@@ -1175,7 +1241,65 @@ taskNameInput.addEventListener("keydown", e => {
 
 toastUndoBtn.addEventListener("click", undoDeleteTask);
 
-render();
+/* ===== ONLINE INIT ===== */
+
+async function initOnline(){
+  render();
+
+  if(!ONLINE_ENABLED){
+    onlineStatus = "локально";
+    renderStats();
+    return;
+  }
+
+  try{
+    onlineStatus = "подключение...";
+    renderStats();
+
+    const app = initializeApp(FIREBASE_CONFIG);
+    db = getFirestore(app);
+    auth = getAuth(app);
+
+    await signInAnonymously(auth);
+
+    boardRef = doc(db, BOARD_COLLECTION, BOARD_DOC_ID);
+
+    onSnapshot(boardRef, snap => {
+      onlineReady = true;
+
+      if(snap.exists()){
+        const data = snap.data();
+
+        if(data && data.state){
+          applyingRemote = true;
+
+          state = normalizeState(data.state);
+          localStorage.setItem(STORAGE, JSON.stringify(state));
+
+          onlineStatus = "онлайн";
+          render();
+
+          applyingRemote = false;
+        }
+      }else{
+        onlineStatus = "создаю доску";
+        renderStats();
+        writeOnline();
+      }
+    }, err => {
+      console.error("Firestore listen error:", err);
+      onlineStatus = "ошибка онлайн";
+      renderStats();
+    });
+
+  }catch(e){
+    console.error("Firebase init error:", e);
+    onlineStatus = "локально / ошибка";
+    renderStats();
+  }
+}
+
+initOnline();
 </script>
 
 </body>
