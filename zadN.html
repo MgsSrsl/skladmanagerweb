@@ -145,14 +145,10 @@
       <!-- Левая колонка — форма -->
       <div class="left">
         <div class="card">
-          <div class="row">
+          <div>
             <div>
               <label for="title">Номер Машины</label>
               <input id="title" type="text" placeholder="Только цифры" />
-            </div>
-            <div class="switch">
-              <input id="cbAssembled" type="checkbox" />
-              <label for="cbAssembled" style="margin:0">Не трогаем</label>
             </div>
           </div>
 
@@ -247,10 +243,7 @@
       <label for="edComment">Комментарий</label>
       <textarea id="edComment"></textarea>
 
-      <div class="row section">
-        <label style="display:flex;align-items:center;gap:8px;margin:0">
-          <input id="edAssembled" type="checkbox" /> Собранный заказ
-        </label>
+      <div class="section">
         <label style="display:flex;align-items:center;gap:8px;margin:0">
           <input id="edPickup" type="checkbox" /> Самовывоз
         </label>
@@ -313,6 +306,7 @@
   const CLOUDINARY_CLOUD_NAME    = "dnx1taqp7";
   const CLOUDINARY_UPLOAD_PRESET = "unsigned_tasks";
   const FOLDER_PREFIX            = "tasks";
+  const CLOUDINARY_DELETE_URL    = "https://skladsborka-notify.vercel.app/api/delete-cloudinary";
   const NOTIFY_URL_CREATED       = "https://skladsborka-notify.vercel.app/api/notify-taskCreated";
   const NOTIFY_URL_ASSIGNEES     = "https://skladsborka-notify.vercel.app/api/notify-assigneesChanged";
   // =====================
@@ -325,7 +319,6 @@
     title: document.getElementById('title'),
     comment: document.getElementById('comment'),
     commentCreators: document.getElementById('commentCreators'),
-    cbAssembled: document.getElementById('cbAssembled'),
     queueModeNormal: document.getElementById('queueModeNormal'),
     queueModeApprove: document.getElementById('queueModeApprove'),
     queueModeNormalLabel: document.getElementById('queueModeNormalLabel'),
@@ -350,7 +343,6 @@
     btnDelete: document.getElementById('btnDelete'),
     edTitle: document.getElementById('edTitle'),
     edComment: document.getElementById('edComment'),
-    edAssembled: document.getElementById('edAssembled'),
     edPickup: document.getElementById('edPickup'),
     edUsers: document.getElementById('edUsers'),
     edAssigneesInfo: document.getElementById('edAssigneesInfo'),
@@ -654,15 +646,9 @@
     return (maxNumber > 0 ? maxNumber : todayCount) + 1;
   }
 
-  function buildAutoTitle(manualTitle, queueMode){
+  function buildAutoTitle(manualTitle, queueMode, n){
     const raw = String(manualTitle || '').trim();
     const isApprove = queueMode === 'approve';
-
-    // Если номер уже вписан руками — не дублируем его.
-    // В этом случае оставляем как написал менеджер.
-    if(/^(Задача\s*)?№\s*\d+/i.test(raw)) return raw;
-
-    const n = getNextLoadedDailyNumber(queueMode);
 
     if(isApprove){
       return raw ? `№${n} согласовать — ${raw}` : ` №${n} на согласование`;
@@ -676,25 +662,43 @@
   async function onSave(){
     const manualTitle = els.title.value.trim();
     const queueMode = getQueueMode();
-    const title = buildAutoTitle(manualTitle, queueMode);
-    const comment=els.comment.value.trim(); const isAssembled=!!els.cbAssembled.checked;
+    const comment=els.comment.value.trim();
     freeze(true,"Сохраняю…");
     try{
       const audienceIds=[...selectedWorkerIds]; const audienceNames=[...selectedWorkerNames];
-      const category=isAssembled?"assembled_order":(audienceIds.length===0?"pickup":"default");
-      const status=isAssembled?"assembled":"assigned"; const isPickup=isAssembled?false:(audienceIds.length===0);
+      const category=audienceIds.length===0?"pickup":"default";
+      const status="assigned"; const isPickup=audienceIds.length===0;
 
       const taskRef=db.collection('tasks').doc();
-      await taskRef.set({
-        title, comment,
-        queueMode,
-        needsApproval: queueMode === 'approve',
-        assignees:audienceIds, assigneeNames:audienceNames,
-        isPickup, assembledOrder:isAssembled,
-        category, status,
-        createdAt:firebase.firestore.FieldValue.serverTimestamp(),
-        creatorId:"unknown", creatorName:"unknown",
-        files:[]
+      await db.runTransaction(async tx=>{
+        const dateKey = localDateKey(new Date());
+        const counterRef = db.collection('taskCounters').doc(`${dateKey}_${queueMode}`);
+        const counterSnap = await tx.get(counterRef);
+        const cachedBaseline = getNextLoadedDailyNumber(queueMode) - 1;
+        const current = counterSnap.exists
+          ? Number(counterSnap.data()?.value || 0)
+          : Math.max(0, cachedBaseline);
+        const nextNumber = current + 1;
+        const title = buildAutoTitle(manualTitle, queueMode, nextNumber);
+
+        tx.set(counterRef, {
+          value: nextNumber,
+          dateKey,
+          queueMode,
+          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        }, {merge:true});
+        tx.set(taskRef, {
+          title, comment,
+          queueMode,
+          needsApproval: queueMode === 'approve',
+          assignees:audienceIds, assigneeNames:audienceNames,
+          isPickup,
+          category, status,
+          createdAt:firebase.firestore.FieldValue.serverTimestamp(),
+          creatorId:auth.currentUser?.uid || "unknown",
+          creatorName:"unknown",
+          files:[]
+        });
       });
 
       if(selectedFiles.length){
@@ -708,7 +712,7 @@
 
       // reset
       selectedFiles.length=0; renderFiles(); els.fileInput.value='';
-      els.title.value=''; els.comment.value=''; els.cbAssembled.checked=false; resetQueueMode();
+      els.title.value=''; els.comment.value=''; resetQueueMode();
       [...document.querySelectorAll('#users input[type=checkbox]')].forEach(ch=>ch.checked=false);
       selectedWorkerIds.clear(); selectedWorkerNames.clear(); updateAssigneesInfo();
       showToast("Задание создано", "ok");
@@ -730,6 +734,7 @@
       out.push({
         url: j.secure_url || j.url || "",
         publicId: j.public_id || "",
+        resourceType: j.resource_type || "image",
         type: (f.type==='application/pdf' || /\.pdf$/i.test(f.name)) ? "pdf" : "image",
         name: f.name || "file"
       });
@@ -786,7 +791,6 @@
           needsApproval: x.needsApproval === true || x.queueMode === 'approve' || String(x.title||'').toLowerCase().includes('соглас'),
           status: String(x.status||'assigned').toLowerCase(),
           isPickup: !!x.isPickup,
-          assembledOrder: !!x.assembledOrder || String(x.status).toLowerCase()==='assembled',
           files: Array.isArray(x.files)? x.files : [],
           assigneeNames: Array.isArray(x.assigneeNames)? x.assigneeNames : [],
           assignees: Array.isArray(x.assignees)? x.assignees : [],
@@ -822,7 +826,6 @@
       else if(st==='in_progress') badges.push(`<span class="pill info">В работе</span>`);
       else badges.push(`<span class="pill">Назначено</span>`);
       if(t.isPickup) badges.push(`<span class="pill warn">Самовывоз</span>`);
-      if(t.assembledOrder) badges.push(`<span class="pill assem">Собранный</span>`);
       if(detectTaskQueueMode(t) === 'approve') badges.push(`<span class="pill warn">Согласовать</span>`);
       const created = t.createdAt ? formatTime(t.createdAt) : '—';
       const filesCount = (t.files||[]).length;
@@ -875,7 +878,6 @@
       comment: x.comment||'',
       status: String(x.status||'assigned'),
       isPickup: !!x.isPickup,
-      assembledOrder: !!x.assembledOrder || String(x.status).toLowerCase()==='assembled',
       assignees: Array.isArray(x.assignees)? x.assignees : [],
       assigneeNames: Array.isArray(x.assigneeNames)? x.assigneeNames : [],
       files: Array.isArray(x.files)? x.files : []
@@ -883,7 +885,6 @@
 
     els.edTitle.value = editingTask.title;
     els.edComment.value = editingTask.comment;
-    els.edAssembled.checked = !!editingTask.assembledOrder;
     els.edPickup.checked = !!editingTask.isPickup;
 
     edSelectedIds = new Set(editingTask.assignees);
@@ -991,7 +992,6 @@
     const newTitle = els.edTitle.value.trim();
     if(!newTitle){ alert('Название обязательно'); return; }
     const newComment = els.edComment.value.trim();
-    const newAssembled = !!els.edAssembled.checked;
     const newPickup = !!els.edPickup.checked;
 
     const oldAssignees = new Set(editingTask.assignees||[]);
@@ -1010,13 +1010,21 @@
       await db.collection('tasks').doc(editingTask.id).update({
         title:newTitle,
         comment:newComment,
-        assembledOrder:newAssembled,
         isPickup:newPickup,
+        category:newPickup ? "pickup" : "default",
         assignees:newAssignees,
         assigneeNames:newAssigneeNames,
         files: filesMerged
       });
 
+      const removedFiles = edExisting.filter(f=> edRemovedPids.has(f.publicId));
+      if(removedFiles.length){
+        try{ await deleteCloudinaryFiles(removedFiles); }
+        catch(e){
+          console.warn('Cloudinary cleanup failed:', e);
+          showToast('Сохранено, но часть файлов не удалена из Cloudinary', 'err');
+        }
+      }
       await notifyAssigneesChanged(editingTask.id, onlyNewAssignees);
       els.dlg.close();
     }catch(e){
@@ -1025,18 +1033,50 @@
   });
 
   async function deleteTask(taskId){
-    if(!confirm('Удалить задачу безвозвратно?')) return;
+    if(!confirm('Удалить задачу безвозвратно?')) return false;
     try{
-      await db.collection('tasks').doc(taskId).delete();
+      const ref = db.collection('tasks').doc(taskId);
+      const snap = await ref.get();
+      const files = snap.exists && Array.isArray(snap.data()?.files) ? snap.data().files : [];
+      await ref.delete();
+      if(files.length){
+        try{ await deleteCloudinaryFiles(files); }
+        catch(e){
+          console.warn('Cloudinary cleanup failed:', e);
+          showToast('Задача удалена, но часть файлов осталась в Cloudinary', 'err');
+        }
+      }
+      return true;
     }catch(e){
       alert('Ошибка удаления: '+(e?.message||e));
+      return false;
     }
   }
   document.getElementById('btnDelete')?.addEventListener('click', async ()=>{
     if(!editingTask) return;
-    await deleteTask(editingTask.id);
-    els.dlg.close();
+    if(await deleteTask(editingTask.id)) els.dlg.close();
   });
+
+  async function deleteCloudinaryFiles(files){
+    const payload = (files || [])
+      .filter(f=>f?.publicId)
+      .map(f=>({publicId:f.publicId, resourceType:f.resourceType || 'image'}));
+    if(!payload.length) return;
+    const token = await auth.currentUser?.getIdToken();
+    if(!token) throw new Error('Нет токена авторизации');
+    const resp = await fetch(CLOUDINARY_DELETE_URL, {
+      method:'POST',
+      headers:{
+        'Content-Type':'application/json',
+        'Authorization':`Bearer ${token}`
+      },
+      body:JSON.stringify({files:payload})
+    });
+    if(!resp.ok){
+      const message = await resp.text().catch(()=>'');
+      throw new Error(`Cloudinary delete failed (${resp.status}) ${message}`);
+    }
+  }
 
   function openFilesChooser(task){
     els.filesDialogList.innerHTML = '';
@@ -1065,3 +1105,4 @@
     window.open(url, '_blank', 'noopener,noreferrer');
   }
   </script>
+
