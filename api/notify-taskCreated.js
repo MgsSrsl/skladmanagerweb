@@ -43,18 +43,13 @@ async function getUsersTokens(db, assigneeIds = []) {
     for (const uid of assigneeIds) {
       const snap = await db.collection("users").doc(uid).get();
       const u = snap.data() || {};
-      if (Array.isArray(u.fcmTokens)) {
-        tokens.push(...u.fcmTokens);
-      }
+      if (Array.isArray(u.fcmTokens)) tokens.push(...u.fcmTokens);
     }
   } else {
     const qs = await db.collection("users").where("onPickup", "==", true).get();
-
     qs.forEach(doc => {
       const u = doc.data();
-      if (Array.isArray(u.fcmTokens)) {
-        tokens.push(...u.fcmTokens);
-      }
+      if (Array.isArray(u.fcmTokens)) tokens.push(...u.fcmTokens);
     });
   }
 
@@ -74,7 +69,7 @@ export default async function handler(req, res) {
 
     const taskId = String(body.taskId || "").trim();
     if (!taskId) {
-      return res.status(400).json({ ok: false, error: "taskId required" });
+      return res.status(200).json({ ok: true, ignored: "missing_taskId" });
     }
 
     let assigneeIds = [];
@@ -85,38 +80,52 @@ export default async function handler(req, res) {
     }
 
     const taskSnap = await db.collection("tasks").doc(taskId).get();
+
+    // 🔥 ВАЖНО: нет задачи → 200 (чтобы старые клиенты заткнулись)
     if (!taskSnap.exists) {
-      return res.status(404).json({ ok: false, error: "task not found" });
+      console.log("[taskCreated] not found:", taskId);
+      return res.status(200).json({
+        ok: true,
+        ignored: "task_not_found"
+      });
     }
 
-    const task = taskSnap.data();
-    // 🔒 идемпотентность (защита от старых клиентов и ретраев)
-if (task.notifyCreatedProcessed) {
-  return res.json({
-    ok: true,
-    skipped: "already_processed"
-  });
-}
-    // не отправляем уведомления по задачам старше суток
-const created = task.createdAt?.toDate?.();
+    const task = taskSnap.data() || {};
 
-if (created) {
-  const ageHours = (Date.now() - created.getTime()) / 3600000;
+    // 🔒 ИДЕМПОТЕНТНОСТЬ (главный фикс против старых клиентов)
+    if (task.notifyCreatedProcessed) {
+      return res.status(200).json({
+        ok: true,
+        skipped: "already_processed"
+      });
+    }
 
-  if (ageHours > 24) {
-    console.log("Skip old task:", taskId);
-
-    return res.json({
-      ok: true,
-      ignored: "task_too_old"
+    // 🔥 ставим "lock" сразу (чтобы второй запрос не прошёл)
+    await taskSnap.ref.update({
+      notifyCreatedProcessed: true,
+      notifyCreatedProcessingAt: admin.firestore.FieldValue.serverTimestamp(),
     });
-  }
-}
+
+    // защита от старых задач
+    const created = task.createdAt?.toDate?.();
+
+    if (created) {
+      const ageHours = (Date.now() - created.getTime()) / 3600000;
+
+      if (ageHours > 24) {
+        console.log("[taskCreated] too old:", taskId);
+
+        return res.status(200).json({
+          ok: true,
+          ignored: "task_too_old"
+        });
+      }
+    }
 
     const tokens = await getUsersTokens(db, assigneeIds);
 
     if (!tokens.length) {
-      return res.json({ ok: true, sent: 0 });
+      return res.status(200).json({ ok: true, sent: 0 });
     }
 
     const message = {
@@ -132,34 +141,37 @@ if (created) {
     };
 
     const result = await admin.messaging().sendEachForMulticast(message);
-await taskSnap.ref.update({
-  notifyCreatedProcessed: true,
-  notifyCreatedSentAt: admin.firestore.FieldValue.serverTimestamp(),
-  notifyCreatedSuccess: result.successCount,
-});
-    return res.json({
+
+    // финальный апдейт
+    await taskSnap.ref.update({
+      notifyCreatedSentAt: admin.firestore.FieldValue.serverTimestamp(),
+      notifyCreatedSuccess: result.successCount,
+      notifyCreatedFailed: result.failureCount,
+    });
+
+    return res.status(200).json({
       ok: true,
       sent: result.successCount,
       failed: result.failureCount,
     });
 
   } catch (e) {
-  console.error("notify-taskCreated error:", e);
+    console.error("notify-taskCreated error:", e);
 
-  if (
-    String(e.message).includes("RESOURCE_EXHAUSTED") ||
-    String(e.details || "").includes("Quota exceeded")
-  ) {
-    console.log("Firestore quota exceeded -> return OK");
+    // квоты → НЕ даём клиенту ретраить
+    if (
+      String(e.message).includes("RESOURCE_EXHAUSTED") ||
+      String(e.details || "").includes("Quota exceeded")
+    ) {
+      return res.status(200).json({
+        ok: true,
+        ignored: "quota_exceeded"
+      });
+    }
 
-    return res.json({
+    return res.status(200).json({
       ok: true,
-      ignored: "quota_exceeded"
+      ignored: "server_error"
     });
   }
-
-  return res.status(500).json({
-    ok: false,
-    error: e.message
-  });
 }
