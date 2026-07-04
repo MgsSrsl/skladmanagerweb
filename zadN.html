@@ -70,6 +70,33 @@
     .task .assignees{ font-size:12px; color:#444; }
     .task:hover{ box-shadow:0 1px 0 rgba(0,0,0,.02), 0 6px 16px rgba(0,0,0,.06) }
     .row-compact{ display:grid; grid-template-columns:auto auto 1fr auto; gap:8px; align-items:center }
+
+
+    /* Уведомление сверху вместо alert после создания */
+    .toast{
+      position:fixed;
+      top:14px;
+      right:14px;
+      z-index:99999;
+      background:#111;
+      color:#fff;
+      padding:12px 14px;
+      border-radius:14px;
+      font-weight:800;
+      box-shadow:0 10px 30px rgba(0,0,0,.18);
+      opacity:0;
+      transform:translateY(-10px);
+      transition:.22s ease;
+      pointer-events:none;
+      max-width:360px;
+    }
+    .toast.show{
+      opacity:1;
+      transform:translateY(0);
+    }
+    .toast.ok{ background:#065f46; }
+    .toast.err{ background:#991b1b; }
+    .toast.info{ background:#111827; }
   </style>
 </head>
 <body>
@@ -316,13 +343,29 @@
   async function sendFormOrQueue(url, params){
     const ct = 'application/x-www-form-urlencoded';
     const body = new URLSearchParams(params).toString();
+
+    // Важно: пуши не должны зависать и ломать создание/редактирование задачи.
+    // Если endpoint недоступен — кладём запрос в очередь и пробуем отправить позже.
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 3500);
+
     try{
-      const resp = await fetch(url, { method:'POST', headers:{'Content-Type': ct}, body });
+      const resp = await fetch(url, {
+        method:'POST',
+        headers:{'Content-Type': ct},
+        body,
+        signal: controller.signal
+      });
       if(!resp.ok) throw new Error(String(resp.status));
     }catch(e){
+      console.warn('notify queued:', e?.message || e);
       qSaveItem({ url, ct, body });
+    }finally{
+      clearTimeout(timer);
     }
   }
+
+  window.addEventListener('online', qTryResendAll);
   
 
   // ======= AUTH + старт =======
@@ -332,6 +375,7 @@
     touchLastUpdated();
     loadUsers();
     initTasksFeed();
+    qTryResendAll();
   })
   .catch(e => alert("Auth error: " + (e?.message||e)));
 
@@ -398,6 +442,27 @@
   const short=s=>s.length>36?(s.slice(0,16)+'…'+s.slice(-16)):s;
   const escapeHtml=s=>String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
 
+
+  function showToast(text, type='info'){
+    let el = document.getElementById('toast');
+    if(!el){
+      el = document.createElement('div');
+      el.id = 'toast';
+      el.className = 'toast';
+      document.body.appendChild(el);
+    }
+
+    el.className = 'toast ' + type;
+    el.textContent = text;
+
+    requestAnimationFrame(() => el.classList.add('show'));
+
+    clearTimeout(window.__toastTimer);
+    window.__toastTimer = setTimeout(() => {
+      el.classList.remove('show');
+    }, 2600);
+  }
+
   document.addEventListener('paste', e=>{
     if (els.dlg.open) return;
     const dt=e.clipboardData; if(!dt)return;
@@ -456,13 +521,16 @@
         if(uploaded.length){ await taskRef.update({files:uploaded}); }
       }
 
-      await notifyTaskCreated(taskRef.id,audienceIds);
+      // Пуши отправляем отдельно: если они сломаются, задача всё равно создана.
+      notifyTaskCreated(taskRef.id, audienceIds)
+        .catch(e => console.warn('notifyTaskCreated failed:', e));
+
       // reset
       selectedFiles.length=0; renderFiles(); els.fileInput.value='';
       els.title.value=''; els.comment.value=''; els.cbAssembled.checked=false;
       [...document.querySelectorAll('#users input[type=checkbox]')].forEach(ch=>ch.checked=false);
       selectedWorkerIds.clear(); selectedWorkerNames.clear(); updateAssigneesInfo();
-      alert("Задание создано");
+      showToast("Задание создано", "ok");
     }catch(e){ alert("Ошибка сохранения: "+(e?.message||e)); }
     finally{ freeze(false); touchLastUpdated(); }
   }
