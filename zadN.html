@@ -314,65 +314,43 @@
   let edRemovedPids = new Set();
   const edNewSelected = [];
 
-  // ====== OFFLINE RESEND QUEUE (form-urlencoded) ======
+  // ====== NOTIFY SAFE SEND ======
+  // Старую очередь пушей удаляем, чтобы браузер не переотправлял старый мусор бесконечно.
   const QUEUE_KEY = 'notify_queue_v1';
+  try {
+    localStorage.removeItem(QUEUE_KEY);
+  } catch (e) {
+    console.warn('cannot clear notify queue:', e);
+  }
 
-  function qSaveItem(item){
-    const arr = JSON.parse(localStorage.getItem(QUEUE_KEY)||'[]');
-    arr.push(item);
-    localStorage.setItem(QUEUE_KEY, JSON.stringify(arr));
-  }
-  async function qTryResendAll(){
-    let arr = JSON.parse(localStorage.getItem(QUEUE_KEY)||'[]');
-    if(!arr.length) return;
-    const keep = [];
-    for(const it of arr){
-      try{
-        await fetch("/api/notify-taskCreated", {
-  method: "POST",
-  headers: {
-    "Content-Type": "application/json",
-    "x-notify-secret": "sklad_notify_secret_2026_x9k2"
-  },
-  body: JSON.stringify({
-    taskId,
-    assigneeIds: assigneeIds.join(",")
-  })
-});
-        if(!resp.ok) throw new Error(String(resp.status));
-      }catch(e){
-        keep.push(it);
-      }
-    }
-    localStorage.setItem(QUEUE_KEY, JSON.stringify(keep));
-  }
-  async function sendFormOrQueue(url, params){
-    const ct = 'application/x-www-form-urlencoded';
+  /**
+   * Пуши отправляем ОДИН раз.
+   * Без очереди. Без повторов. Без зависимости от ответа сервера.
+   *
+   * mode:'no-cors' нужен, чтобы браузер не валил создание задания из-за CORS.
+   * Для notify нам не важно читать ответ — задача уже создана в Firestore.
+   */
+  async function sendNotifyOnce(url, params){
+    if (!url) return;
+
     const body = new URLSearchParams(params).toString();
 
-    // Важно: пуши не должны зависать и ломать создание/редактирование задачи.
-    // Если endpoint недоступен — кладём запрос в очередь и пробуем отправить позже.
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 3500);
-
-    try{
-      const resp = await fetch(url, {
-        method:'POST',
-        headers:{'Content-Type': ct},
-        body,
-        signal: controller.signal
+    try {
+      await fetch(url, {
+        method: 'POST',
+        mode: 'no-cors',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded'
+        },
+        body
       });
-      if(!resp.ok) throw new Error(String(resp.status));
-    }catch(e){
-      console.warn('notify queued:', e?.message || e);
-      qSaveItem({ url, ct, body });
-    }finally{
-      clearTimeout(timer);
+    } catch (e) {
+      // Ничего не повторяем.
+      // Notify не должен ломать страницу и не должен плодить очередь.
+      console.warn('notify skipped:', e?.message || e);
     }
   }
 
-  window.addEventListener('online', qTryResendAll);
-  
 
   // ======= AUTH + старт =======
  auth.signInAnonymously()
@@ -381,7 +359,6 @@
     touchLastUpdated();
     loadUsers();
     initTasksFeed();
-    qTryResendAll();
   })
   .catch(e => alert("Auth error: " + (e?.message||e)));
 
@@ -562,14 +539,22 @@
     return out;
   }
 
-  // безопасные уведомления (form-urlencoded + офлайн очередь)
-  function notifyTaskCreated(taskId,audienceIds){
-    const assigneeIdsCsv=(audienceIds&&audienceIds.length)?audienceIds.join(","):"";
-    return sendFormOrQueue(NOTIFY_URL_CREATED, { taskId, assigneeIds: assigneeIdsCsv });
+  // безопасные уведомления БЕЗ очереди
+  function notifyTaskCreated(taskId, audienceIds){
+    const assigneeIdsCsv = (audienceIds && audienceIds.length)
+      ? audienceIds.join(",")
+      : "";
+
+    return sendNotifyOnce(NOTIFY_URL_CREATED, {
+      taskId,
+      assigneeIds: assigneeIdsCsv
+    });
   }
+
   function notifyAssigneesChanged(taskId, newIds){
-    if(!newIds || !newIds.length) return Promise.resolve();
-    return sendFormOrQueue(NOTIFY_URL_ASSIGNEES, { taskId, assigneeIds: newIds.join(",") });
+    // Временно отключено.
+    // Старые/лишние пуши при изменении исполнителей сейчас не нужны.
+    return Promise.resolve();
   }
 
   function freeze(flag,text){ els.btnSave.disabled=!!flag; els.btnSave.textContent=flag?(text||"…"):"Сохранить задание"; }
