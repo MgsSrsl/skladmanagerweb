@@ -743,7 +743,7 @@
           isPickup,
           category, status,
           createdAt:firebase.firestore.FieldValue.serverTimestamp(),
-          creatorId:auth.currentUser?.uid || "unknown",
+          creatorId:"unknown",
           creatorName:"unknown",
           files:[]
       });
