@@ -38,6 +38,44 @@
     .chip{ display:inline-flex; gap:8px; align-items:center; background:#fff; border:1px solid rgba(0,0,0,.12); padding:8px 10px; border-radius:12px }
     .chip button{ border:none; background:transparent; font-weight:800; cursor:pointer }
     .switch{ display:flex; align-items:center; gap:10px; margin-top:28px }
+
+    /* Переключатель режима очереди */
+    .queue-mode{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:8px;
+      margin-top:14px;
+      padding:6px;
+      border-radius:14px;
+      background:#f3f4f6;
+      border:1px solid rgba(0,0,0,.08);
+    }
+    .queue-option{
+      margin:0;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      gap:8px;
+      padding:10px 12px;
+      border-radius:12px;
+      cursor:pointer;
+      font-weight:800;
+      font-size:14px;
+      color:#444;
+      user-select:none;
+    }
+    .queue-option input{ display:none }
+    .queue-option.active{
+      background:#fff;
+      color:var(--text);
+      box-shadow:0 2px 8px rgba(0,0,0,.08);
+      border:1px solid rgba(0,0,0,.08);
+    }
+    .queue-option.approve.active{
+      color:#7c2d12;
+      background:#fffbeb;
+      border-color:#fde68a;
+    }
     .drop{ padding:12px; border:2px dashed rgba(0,0,0,.2); border-radius:12px; background:#fff }
     .drop.drag{ background:#f8fbff; border-color:#3d7bfd }
 
@@ -117,6 +155,19 @@
               <label for="cbAssembled" style="margin:0">Не трогаем</label>
             </div>
           </div>
+
+          <label>Режим очереди</label>
+          <div class="queue-mode" id="queueModeBox">
+            <label class="queue-option active" id="queueModeNormalLabel">
+              <input id="queueModeNormal" name="queueMode" type="radio" value="normal" checked />
+              <span>Обычный клиент</span>
+            </label>
+            <label class="queue-option approve" id="queueModeApproveLabel">
+              <input id="queueModeApprove" name="queueMode" type="radio" value="approve" />
+              <span>Согласовать</span>
+            </label>
+          </div>
+          <div class="muted" id="queueModeHint">Обычный: своя очередь. Согласовать: отдельная очередь со своими номерами.</div>
 
           <label>Выбери себя</label>
           <div id="commentCreators" class="files"></div>
@@ -275,6 +326,11 @@
     comment: document.getElementById('comment'),
     commentCreators: document.getElementById('commentCreators'),
     cbAssembled: document.getElementById('cbAssembled'),
+    queueModeNormal: document.getElementById('queueModeNormal'),
+    queueModeApprove: document.getElementById('queueModeApprove'),
+    queueModeNormalLabel: document.getElementById('queueModeNormalLabel'),
+    queueModeApproveLabel: document.getElementById('queueModeApproveLabel'),
+    queueModeHint: document.getElementById('queueModeHint'),
     fileInput: document.getElementById('fileInput'),
     files: document.getElementById('files'),
     filesInfo: document.getElementById('filesInfo'),
@@ -371,6 +427,7 @@
   .then(() => { 
  
     renderCommentCreatorButtons();
+    initQueueModeSwitch();
     touchLastUpdated();
     loadUsers();
     initTasksFeed();
@@ -438,6 +495,42 @@
 
     els.comment.value = text ? `${prefix}\n${text}` : prefix;
     els.comment.focus();
+  }
+
+  // ======= РЕЖИМ ОЧЕРЕДИ =======
+  function getQueueMode(){
+    return els.queueModeApprove?.checked ? 'approve' : 'normal';
+  }
+
+  function initQueueModeSwitch(){
+    if(!els.queueModeNormal || !els.queueModeApprove) return;
+
+    els.queueModeNormal.checked = true;
+    els.queueModeApprove.checked = false;
+    updateQueueModeUi();
+
+    els.queueModeNormal.addEventListener('change', updateQueueModeUi);
+    els.queueModeApprove.addEventListener('change', updateQueueModeUi);
+  }
+
+  function updateQueueModeUi(){
+    const isApprove = getQueueMode() === 'approve';
+
+    els.queueModeNormalLabel?.classList.toggle('active', !isApprove);
+    els.queueModeApproveLabel?.classList.toggle('active', isApprove);
+
+    if(els.queueModeHint){
+      els.queueModeHint.textContent = isApprove
+        ? 'На согласование: отдельная очередь, например: №1 согласовать — 123. Обычная очередь не трогается.'
+        : 'Обычный клиент: своя очередь, например: №1 — 123. Очередь согласования не трогается.';
+    }
+  }
+
+  function resetQueueMode(){
+    if(!els.queueModeNormal || !els.queueModeApprove) return;
+    els.queueModeNormal.checked = true;
+    els.queueModeApprove.checked = false;
+    updateQueueModeUi();
   }
 
   // ======= FILES UI / DND / PASTE (создание) =======
@@ -525,14 +618,28 @@
     return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
   }
 
-  function getNextLoadedDailyNumber(){
+  function detectTaskQueueMode(t){
+    const title = String(t?.title || '').toLowerCase();
+
+    // Новые задачи имеют queueMode/needsApproval.
+    // Старые задачи без этих полей распознаём по слову "соглас" в названии.
+    if(t?.queueMode === 'approve') return 'approve';
+    if(t?.needsApproval === true) return 'approve';
+    if(title.includes('соглас')) return 'approve';
+
+    return 'normal';
+  }
+
+  function getNextLoadedDailyNumber(queueMode){
     const today = localDateKey(new Date());
+    const targetMode = queueMode === 'approve' ? 'approve' : 'normal';
     let todayCount = 0;
     let maxNumber = 0;
 
     for(const t of lastTasks || []){
       if(!t.createdAt) continue;
       if(localDateKey(t.createdAt) !== today) continue;
+      if(detectTaskQueueMode(t) !== targetMode) continue;
 
       todayCount++;
 
@@ -547,13 +654,20 @@
     return (maxNumber > 0 ? maxNumber : todayCount) + 1;
   }
 
-  function buildAutoTitle(manualTitle){
+  function buildAutoTitle(manualTitle, queueMode){
     const raw = String(manualTitle || '').trim();
+    const isApprove = queueMode === 'approve';
 
     // Если номер уже вписан руками — не дублируем его.
+    // В этом случае оставляем как написал менеджер.
     if(/^(Задача\s*)?№\s*\d+/i.test(raw)) return raw;
 
-    const n = getNextLoadedDailyNumber();
+    const n = getNextLoadedDailyNumber(queueMode);
+
+    if(isApprove){
+      return raw ? `№${n} согласовать — ${raw}` : ` №${n} на согласование`;
+    }
+
     return raw ? `№${n} — ${raw}` : `Задача №${n}`;
   }
 
@@ -561,7 +675,8 @@
   els.btnSave.addEventListener('click', onSave);
   async function onSave(){
     const manualTitle = els.title.value.trim();
-    const title = buildAutoTitle(manualTitle);
+    const queueMode = getQueueMode();
+    const title = buildAutoTitle(manualTitle, queueMode);
     const comment=els.comment.value.trim(); const isAssembled=!!els.cbAssembled.checked;
     freeze(true,"Сохраняю…");
     try{
@@ -572,6 +687,8 @@
       const taskRef=db.collection('tasks').doc();
       await taskRef.set({
         title, comment,
+        queueMode,
+        needsApproval: queueMode === 'approve',
         assignees:audienceIds, assigneeNames:audienceNames,
         isPickup, assembledOrder:isAssembled,
         category, status,
@@ -591,7 +708,7 @@
 
       // reset
       selectedFiles.length=0; renderFiles(); els.fileInput.value='';
-      els.title.value=''; els.comment.value=''; els.cbAssembled.checked=false;
+      els.title.value=''; els.comment.value=''; els.cbAssembled.checked=false; resetQueueMode();
       [...document.querySelectorAll('#users input[type=checkbox]')].forEach(ch=>ch.checked=false);
       selectedWorkerIds.clear(); selectedWorkerNames.clear(); updateAssigneesInfo();
       showToast("Задание создано", "ok");
@@ -665,6 +782,8 @@
           id:d.id,
           title: x.title || '(без названия)',
           comment: x.comment || '',
+          queueMode: x.queueMode || ((x.needsApproval === true || String(x.title||'').toLowerCase().includes('соглас')) ? 'approve' : 'normal'),
+          needsApproval: x.needsApproval === true || x.queueMode === 'approve' || String(x.title||'').toLowerCase().includes('соглас'),
           status: String(x.status||'assigned').toLowerCase(),
           isPickup: !!x.isPickup,
           assembledOrder: !!x.assembledOrder || String(x.status).toLowerCase()==='assembled',
@@ -704,6 +823,7 @@
       else badges.push(`<span class="pill">Назначено</span>`);
       if(t.isPickup) badges.push(`<span class="pill warn">Самовывоз</span>`);
       if(t.assembledOrder) badges.push(`<span class="pill assem">Собранный</span>`);
+      if(detectTaskQueueMode(t) === 'approve') badges.push(`<span class="pill warn">Согласовать</span>`);
       const created = t.createdAt ? formatTime(t.createdAt) : '—';
       const filesCount = (t.files||[]).length;
       const ass = t.assigneeNames?.length ? `👥 ${escapeHtml(t.assigneeNames.join(', '))}` : '';
