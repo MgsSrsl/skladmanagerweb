@@ -328,11 +328,17 @@
     const keep = [];
     for(const it of arr){
       try{
-        const resp = await fetch(it.url, {
-          method:'POST',
-          headers:{'Content-Type': it.ct || 'application/x-www-form-urlencoded'},
-          body: it.body || ''
-        });
+        await fetch("/api/notify-taskCreated", {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+    "x-notify-secret": "sklad_notify_secret_2026_x9k2"
+  },
+  body: JSON.stringify({
+    taskId,
+    assigneeIds: assigneeIds.join(",")
+  })
+});
         if(!resp.ok) throw new Error(String(resp.status));
       }catch(e){
         keep.push(it);
