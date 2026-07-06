@@ -1,0 +1,7 @@
+// /doska/sw.js
+// PWA cache for "Складская доска". Scope: /doska/
+const CACHE_VERSION = "doska-pwa-v2-2026-07-06";
+const APP_SHELL = ["/doska/","/doska/index.html","/doska/manifest.webmanifest","/doska/icons/icon-192.png","/doska/icons/icon-512.png"];
+self.addEventListener("install",event=>{console.log("[DOSKA SW] install:",CACHE_VERSION);event.waitUntil(caches.open(CACHE_VERSION).then(cache=>cache.addAll(APP_SHELL)).then(()=>self.skipWaiting()));});
+self.addEventListener("activate",event=>{console.log("[DOSKA SW] activate:",CACHE_VERSION);event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(key=>key.startsWith("doska-pwa-")&&key!==CACHE_VERSION).map(key=>caches.delete(key)))).then(()=>self.clients.claim()));});
+self.addEventListener("fetch",event=>{const req=event.request;if(req.method!=="GET")return;const url=new URL(req.url);if(url.origin!==self.location.origin)return;if(!url.pathname.startsWith("/doska/"))return;if(url.pathname.startsWith("/api/"))return;if(req.mode==="navigate"){event.respondWith(fetch(req).then(res=>{const copy=res.clone();caches.open(CACHE_VERSION).then(cache=>{cache.put("/doska/",copy.clone());cache.put("/doska/index.html",copy);});return res;}).catch(()=>caches.match("/doska/index.html")));return;}event.respondWith(caches.match(req).then(cached=>cached||fetch(req).then(res=>{if(!res||res.status!==200)return res;const copy=res.clone();caches.open(CACHE_VERSION).then(cache=>cache.put(req,copy));return res;})));});
