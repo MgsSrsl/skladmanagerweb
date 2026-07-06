@@ -1,0 +1,19 @@
+{
+  "name": "СкладСборка",
+  "short_name": "СкладСборка",
+  "description": "Создание задач склада",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f5f6f8",
+  "theme_color": "#ff3b30",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "/icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
