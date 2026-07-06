@@ -3,7 +3,7 @@
   
   <meta name="viewport" content="width=device-width,initial-scale=1">
   
-  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="manifest" href="/doska/manifest.webmanifest">
   <meta name="theme-color" content="#000080">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -575,7 +575,7 @@
   if ("serviceWorker" in navigator) {
     window.addEventListener("load", async () => {
       try {
-        const reg = await navigator.serviceWorker.register("/sw.js", { scope: "/" });
+        const reg = await navigator.serviceWorker.register("/doska/sw.js", { scope: "/doska/" });
         console.log("✅ Service Worker registered:", reg.scope);
 
         try {
