@@ -32,29 +32,48 @@ function getHeader(req, name) {
   return Array.isArray(value) ? value[0] : value;
 }
 
+function normalizeOrigin(value) {
+  return String(value || "")
+    .trim()
+    .replace(/\/+$/, "");
+}
+
 function parseAllowedOrigins() {
   return String(process.env.NOTIFY_ALLOWED_ORIGINS || "")
     .split(",")
-    .map(s => s.trim())
+    .map(normalizeOrigin)
     .filter(Boolean);
 }
 
 function setCors(req, res) {
-  const origin = String(getHeader(req, "origin") || "").trim();
+  const origin = normalizeOrigin(getHeader(req, "origin"));
   const allowed = parseAllowedOrigins();
 
-  if (origin && allowed.includes(origin)) {
+  if (!allowed.length) {
+    // Если список доменов не задан — разрешаем CORS, но сам POST всё равно
+    // ниже будет проверяться через isAllowedRequest().
+    res.setHeader("Access-Control-Allow-Origin", "*");
+  } else if (origin && allowed.includes(origin)) {
     res.setHeader("Access-Control-Allow-Origin", origin);
+    res.setHeader("Vary", "Origin");
+  } else {
+    // Лог нужен, чтобы сразу увидеть несовпадение домена в Vercel Logs.
+    console.log("⚠️ CORS origin not allowed:", {
+      origin,
+      allowed,
+    });
   }
 
-  res.setHeader("Vary", "Origin");
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type, x-notify-secret");
+  res.setHeader(
+    "Access-Control-Allow-Headers",
+    "Content-Type, X-Notify-Secret, x-notify-secret"
+  );
+  res.setHeader("Access-Control-Max-Age", "86400");
   res.setHeader("Cache-Control", "no-store");
 }
 
 function isAllowedRequest(req) {
-  // 1) Разрешаем по секрету, если он есть
   const expectedSecret = String(process.env.NOTIFY_SECRET || "").trim();
   const gotSecret = String(getHeader(req, "x-notify-secret") || "").trim();
 
@@ -62,7 +81,6 @@ function isAllowedRequest(req) {
     return true;
   }
 
-  // 2) Разрешаем по Origin/Referer от твоей web-страницы
   const allowedOrigins = parseAllowedOrigins();
 
   if (!allowedOrigins.length) {
@@ -70,8 +88,8 @@ function isAllowedRequest(req) {
     return false;
   }
 
-  const origin = String(getHeader(req, "origin") || "").trim();
-  const referer = String(getHeader(req, "referer") || "").trim();
+  const origin = normalizeOrigin(getHeader(req, "origin"));
+  const referer = normalizeOrigin(getHeader(req, "referer"));
 
   if (origin && allowedOrigins.includes(origin)) {
     return true;
@@ -116,7 +134,6 @@ async function parseBody(req) {
   try {
     return JSON.parse(raw);
   } catch (_) {
-    // form-urlencoded
     const params = new URLSearchParams(raw);
     const obj = {};
 
@@ -142,7 +159,15 @@ function parseIds(value) {
 function normRole(role) {
   const s = String(role || "").toLowerCase().trim();
 
-  if (["кладовщик", "кладовщица", "storekeeper", "kladovshik", "кладовщик склада"].includes(s)) {
+  if (
+    [
+      "кладовщик",
+      "кладовщица",
+      "storekeeper",
+      "kladovshik",
+      "кладовщик склада",
+    ].includes(s)
+  ) {
     return "storekeeper";
   }
 
@@ -161,11 +186,16 @@ async function createLock(db, taskId) {
   const lockId = `taskCreated_${taskId}`;
   const ref = db.collection("_notifyLocks").doc(lockId);
 
+  const expiresAt = admin.firestore.Timestamp.fromMillis(
+    Date.now() + 24 * 60 * 60 * 1000
+  );
+
   try {
     await ref.create({
       taskId,
       type: "taskCreated",
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      expiresAt,
     });
 
     return true;
@@ -200,7 +230,9 @@ async function collectTokens(db, assigneeIds, authorUid) {
       const u = await getUserById(db, uid);
       if (!u) continue;
 
-      const list = Array.isArray(u.fcmTokens) ? u.fcmTokens.filter(Boolean) : [];
+      const list = Array.isArray(u.fcmTokens)
+        ? u.fcmTokens.filter(Boolean)
+        : [];
 
       picked.push({
         uid,
@@ -219,7 +251,9 @@ async function collectTokens(db, assigneeIds, authorUid) {
 
       if (role !== "storekeeper" && role !== "head") return;
 
-      const list = Array.isArray(u.fcmTokens) ? u.fcmTokens.filter(Boolean) : [];
+      const list = Array.isArray(u.fcmTokens)
+        ? u.fcmTokens.filter(Boolean)
+        : [];
 
       picked.push({
         uid: doc.id,
@@ -234,7 +268,7 @@ async function collectTokens(db, assigneeIds, authorUid) {
 
   tokens = [...new Set(tokens)].filter(Boolean);
 
-  // Не шлём автору, если у него есть токены
+  // Не шлём автору, если у него есть токены.
   if (authorUid) {
     const author = await getUserById(db, authorUid);
 
@@ -250,6 +284,7 @@ async function collectTokens(db, assigneeIds, authorUid) {
   }
 
   console.log("👥 picked users:", picked.length, "🎫 tokens:", tokens.length);
+  console.log("👥 picked details:", picked);
 
   return tokens;
 }
@@ -277,7 +312,14 @@ export default async function handler(req, res) {
   try {
     setCors(req, res);
 
+    console.log("➡️ notify-taskCreated hit:", req.method, {
+      origin: getHeader(req, "origin") || "",
+      referer: getHeader(req, "referer") || "",
+      hasSecret: Boolean(String(getHeader(req, "x-notify-secret") || "").trim()),
+    });
+
     if (req.method === "OPTIONS") {
+      console.log("✅ CORS preflight ok");
       return res.status(204).end();
     }
 
@@ -287,14 +329,13 @@ export default async function handler(req, res) {
         ok: true,
         sent: 0,
         ignored: true,
-        reason: "not_post"
+        reason: "not_post",
       });
     }
 
     /**
-     * САМОЕ ВАЖНОЕ:
-     * сначала отсечка старых клиентов.
-     * До этого места Firebase НЕ инициализируется и НЕ читает Firestore.
+     * Сначала отсечка старых/левых клиентов.
+     * До этого места Firebase НЕ инициализируется и Firestore НЕ читается.
      */
     if (!isAllowedRequest(req)) {
       console.log("🚫 notify-taskCreated ignored before Firebase: not allowed");
@@ -303,11 +344,16 @@ export default async function handler(req, res) {
         ok: true,
         sent: 0,
         ignored: true,
-        reason: "not_allowed"
+        reason: "not_allowed",
       });
     }
 
     const body = await parseBody(req);
+
+    console.log("📦 notify-taskCreated body:", {
+      taskId: body.taskId || "",
+      assigneeIds: body.assigneeIds || "",
+    });
 
     const taskId = String(body.taskId || "").trim();
 
@@ -316,7 +362,7 @@ export default async function handler(req, res) {
         ok: true,
         sent: 0,
         ignored: true,
-        reason: "missing_taskId"
+        reason: "missing_taskId",
       });
     }
 
@@ -331,11 +377,13 @@ export default async function handler(req, res) {
     const firstTime = await createLock(db, taskId);
 
     if (!firstTime) {
+      console.log("♻️ duplicate notify ignored:", taskId);
+
       return res.status(200).json({
         ok: true,
         sent: 0,
         duplicate: true,
-        reason: "already_processed"
+        reason: "already_processed",
       });
     }
 
@@ -343,35 +391,39 @@ export default async function handler(req, res) {
     const snap = await taskRef.get();
 
     if (!snap.exists) {
+      console.log("⚠️ task not found:", taskId);
+
       return res.status(200).json({
         ok: true,
         sent: 0,
         ignored: true,
-        reason: "task_not_found"
+        reason: "task_not_found",
       });
     }
 
     const task = snap.data() || {};
 
-    // Не шлём пуши по очень старым задачам
+    // Не шлём пуши по очень старым задачам.
     const created = task.createdAt?.toDate?.();
 
     if (created) {
       const ageMs = Date.now() - created.getTime();
 
       if (ageMs > 24 * 60 * 60 * 1000) {
+        console.log("🕒 task too old, skip notify:", taskId);
+
         return res.status(200).json({
           ok: true,
           sent: 0,
           ignored: true,
-          reason: "task_too_old"
+          reason: "task_too_old",
         });
       }
     }
 
     let assigneeIds = parseIds(body.assigneeIds);
 
-    // Если с web-страницы исполнители не пришли — берём из задачи
+    // Если с web-страницы исполнители не пришли — берём из задачи.
     if (!assigneeIds.length) {
       if (Array.isArray(task.assignees)) {
         assigneeIds = task.assignees.filter(Boolean);
@@ -386,6 +438,8 @@ export default async function handler(req, res) {
       taskId,
       assigneesCount: assigneeIds.length,
       authorUid,
+      status: task.status || "",
+      title: task.title || "",
     });
 
     const tokens = await collectTokens(db, assigneeIds, authorUid);
@@ -402,19 +456,20 @@ export default async function handler(req, res) {
       return res.status(200).json({
         ok: true,
         sent: 0,
-        reason: "no_tokens"
+        reason: "no_tokens",
       });
     }
 
     const title = task.title ? String(task.title) : "Новая задача";
 
-    const pushBody =
-      task.comment
-        ? String(task.comment)
+    const pushBody = task.comment
+      ? String(task.comment)
+      : task.creatorName
+        ? `От: ${task.creatorName}`
         : "Новое задание";
 
     /**
-     * data-only, как в твоём старом рабочем варианте.
+     * data-only, как в старом рабочем варианте.
      * Android сам показывает уведомление и открывает задачу по taskId.
      */
     const message = {
@@ -452,7 +507,6 @@ export default async function handler(req, res) {
       failed: result.failureCount,
       tokensTried: tokens.length,
     });
-
   } catch (e) {
     console.error("🔥 notify-taskCreated error:", e);
 
