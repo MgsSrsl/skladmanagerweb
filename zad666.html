@@ -176,6 +176,23 @@
       background:#ff3b30;
       color:#fff;
     }
+    .field-error{
+      border-color:#ff3158 !important;
+      background:#fff1f2 !important;
+      box-shadow:0 0 0 3px rgba(255,49,88,.18);
+    }
+
+    .shake{
+      animation:shake .25s linear 1;
+    }
+
+    @keyframes shake{
+      0%{ transform:translateX(0); }
+      25%{ transform:translateX(-4px); }
+      50%{ transform:translateX(4px); }
+      75%{ transform:translateX(-3px); }
+      100%{ transform:translateX(0); }
+    }
   </style>
 </head>
 <body>
@@ -189,7 +206,14 @@
           <div>
             <div>
               <label for="title">Номер Машины</label>
-              <input id="title" type="text" placeholder="Только цифры" />
+              <input
+  id="title"
+  type="text"
+  placeholder="Только цифры"
+  inputmode="numeric"
+  pattern="[0-9]*"
+  autocomplete="off"
+/>
             </div>
           </div>
 
@@ -613,6 +637,39 @@
     }, 2600);
   }
 
+
+  function cleanCarNumber(value){
+    return String(value || "").replace(/[^\d]/g, "").trim();
+  }
+
+  function blockEmptyCarNumber(message){
+    const text = message || "Введите номер машины";
+
+    if (els.title) {
+      els.title.classList.add("field-error", "shake");
+      els.title.focus();
+
+      setTimeout(() => {
+        els.title.classList.remove("shake");
+      }, 300);
+    }
+
+    showToast(text, "err");
+  }
+
+  els.title.addEventListener("input", () => {
+    const cleaned = cleanCarNumber(els.title.value);
+
+    if (els.title.value !== cleaned) {
+      els.title.value = cleaned;
+    }
+
+    if (cleaned) {
+      els.title.classList.remove("field-error");
+    }
+  });
+
+
   document.addEventListener('paste', e=>{
     if (els.dlg.open) return;
     const dt=e.clipboardData; if(!dt)return;
@@ -700,9 +757,17 @@
   // ======= SAVE (создание) =======
   els.btnSave.addEventListener('click', onSave);
   async function onSave(){
-    const manualTitle = els.title.value.trim();
+    const manualTitle = cleanCarNumber(els.title.value);
+    els.title.value = manualTitle;
+
+    if (!manualTitle) {
+      blockEmptyCarNumber("Нельзя создать задание без номера машины");
+      return;
+    }
+
     const queueMode = getQueueMode();
     const comment=els.comment.value.trim();
+
     freeze(true,"Сохраняю…");
     try{
       const audienceIds=[...selectedWorkerIds]; const audienceNames=[...selectedWorkerNames];
@@ -809,7 +874,7 @@
     return Promise.resolve();
   }
 
-  function freeze(flag,text){ els.btnSave.disabled=!!flag; els.btnSave.textContent=flag?(text||"…"):"Сохранить задание"; }
+  function freeze(flag,text){ els.btnSave.disabled=!!flag; els.btnSave.textContent=flag?(text||"…"):"Создать задание"; }
   function touchLastUpdated(){
     const d=new Date(); const pad=n=>String(n).padStart(2,'0');
     const s=`${pad(d.getDate())}.${pad(d.getMonth()+1)} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
@@ -1119,7 +1184,7 @@
 
   <script>
   // ====== PWA / установка как приложение ======
-  const APP_VERSION = "web-pwa-2026-07-06-1";
+  const APP_VERSION = "web-pwa-2026-07-08-block-empty-car-1";
   console.log("APP_VERSION:", APP_VERSION);
 
   let deferredPwaPrompt = null;
