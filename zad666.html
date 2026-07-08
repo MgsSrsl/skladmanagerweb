@@ -193,6 +193,33 @@
       75%{ transform:translateX(-3px); }
       100%{ transform:translateX(0); }
     }
+
+    .version-badge{
+      position:fixed;
+      left:12px;
+      bottom:70px;
+      z-index:99998;
+      padding:7px 10px;
+      border-radius:999px;
+      background:rgba(17,24,39,.88);
+      color:#fff;
+      font-size:12px;
+      font-weight:800;
+      letter-spacing:.02em;
+      box-shadow:0 8px 22px rgba(0,0,0,.18);
+      user-select:none;
+      pointer-events:none;
+    }
+    .version-badge .dot{
+      display:inline-block;
+      width:8px;
+      height:8px;
+      margin-right:6px;
+      border-radius:50%;
+      background:#22c55e;
+      vertical-align:middle;
+    }
+
   </style>
 </head>
 <body>
@@ -1184,7 +1211,7 @@
 
   <script>
   // ====== PWA / установка как приложение ======
-  const APP_VERSION = "web-pwa-2026-07-08-block-empty-car-1";
+  const APP_VERSION = "web-2026-07-08-2-empty-car-version";
   console.log("APP_VERSION:", APP_VERSION);
 
   let deferredPwaPrompt = null;
@@ -1280,6 +1307,25 @@
       }
     });
   }
+  </script>
+
+
+  <script>
+  // ====== ВИДИМАЯ ВЕРСИЯ В ИНТЕРФЕЙСЕ ======
+  window.APP_VISIBLE_VERSION = "web-2026-07-08-2-empty-car-version";
+
+  window.addEventListener("load", () => {
+    let badge = document.getElementById("appVersionBadge");
+
+    if (!badge) {
+      badge = document.createElement("div");
+      badge.id = "appVersionBadge";
+      badge.className = "version-badge";
+      document.body.appendChild(badge);
+    }
+
+    badge.innerHTML = '<span class="dot"></span>' + window.APP_VISIBLE_VERSION;
+  });
   </script>
 
 </body>
