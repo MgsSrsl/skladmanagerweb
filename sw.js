@@ -2,7 +2,7 @@
 // PWA cache for СкладСборка.
 // Кэшируем только оболочку сайта. API/Firebase/Cloudinary/notify НЕ кэшируем.
 
-const CACHE_VERSION = "sklad-pwa-v3-2026-07-08-block-empty-car";
+const CACHE_VERSION = "sklad-pwa-v4-2026-07-08-empty-car-version";
 
 const APP_SHELL = [
   "/",
@@ -49,14 +49,18 @@ self.addEventListener("fetch", event => {
 
   const url = new URL(req.url);
 
+  // Внешние сервисы НЕ кэшируем:
+  // Firebase, Google, Cloudinary, notify на другом домене и т.д.
   if (url.origin !== self.location.origin) {
     return;
   }
 
+  // API не кэшируем вообще.
   if (url.pathname.startsWith("/api/")) {
     return;
   }
 
+  // Главная страница: сначала сеть, если сеть умерла — отдаём кэш.
   if (req.mode === "navigate") {
     event.respondWith(
       fetch(req)
@@ -76,6 +80,7 @@ self.addEventListener("fetch", event => {
     return;
   }
 
+  // Статика: сначала кэш, потом сеть.
   event.respondWith(
     caches.match(req).then(cached => {
       if (cached) return cached;
