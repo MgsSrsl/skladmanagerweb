@@ -4,18 +4,20 @@
   
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <link rel="manifest" href="/manifest.webmanifest">
+  <meta name="theme-color" content="#ff3b30">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="application-name" content="СкладСборка">
+  <meta name="apple-mobile-web-app-title" content="СкладСборка">
   <title>Создать задание — СкладСборка</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
-  <meta http-equiv="Cache-Control" content="no-store" />
-  <style>
+<style>
     :root{
       --brand-red:#FF3B30; --text:#0d0d0d; --muted:#666; --line:rgba(0,0,0,.08);
       --glass:#fff; --bg:#f5f6f8;
     }
     *{ box-sizing:border-box }
-    body{ margin:0; font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial; background:var(--bg); color:var(--text) }
+    body{ margin:0; font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif; background:var(--bg); color:var(--text) }
     .shell{ max-width:1120px; margin:0 auto; padding:20px 14px 120px }
     h1{ margin:6px 0 18px; font-size:28px; font-weight:800 }
 
@@ -135,6 +137,62 @@
     .toast.ok{ background:#065f46; }
     .toast.err{ background:#991b1b; }
     .toast.info{ background:#111827; }
+
+    /* PWA install/update */
+    .pwa-install-btn{
+      position:fixed;
+      right:14px;
+      bottom:82px;
+      z-index:999999;
+      border:0;
+      border-radius:14px;
+      padding:12px 16px;
+      font-weight:800;
+      cursor:pointer;
+      background:#ff3b30;
+      color:#fff;
+      box-shadow:0 10px 30px rgba(0,0,0,.25);
+    }
+    .pwa-update-box{
+      position:fixed;
+      left:14px;
+      right:14px;
+      bottom:82px;
+      z-index:999999;
+      background:#111827;
+      color:#fff;
+      padding:14px 16px;
+      border-radius:16px;
+      box-shadow:0 10px 30px rgba(0,0,0,.28);
+      font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+    }
+    .pwa-update-box button{
+      margin-top:10px;
+      border:0;
+      border-radius:12px;
+      padding:10px 14px;
+      font-weight:800;
+      cursor:pointer;
+      background:#ff3b30;
+      color:#fff;
+    }
+    .field-error{
+      border-color:#ff3158 !important;
+      background:#fff1f2 !important;
+      box-shadow:0 0 0 3px rgba(255,49,88,.18);
+    }
+
+    .shake{
+      animation:shake .25s linear 1;
+    }
+
+    @keyframes shake{
+      0%{ transform:translateX(0); }
+      25%{ transform:translateX(-4px); }
+      50%{ transform:translateX(4px); }
+      75%{ transform:translateX(-3px); }
+      100%{ transform:translateX(0); }
+    }
   </style>
 </head>
 <body>
@@ -148,7 +206,14 @@
           <div>
             <div>
               <label for="title">Номер Машины</label>
-              <input id="title" type="text" placeholder="Только цифры" />
+              <input
+  id="title"
+  type="text"
+  placeholder="Только цифры"
+  inputmode="numeric"
+  pattern="[0-9]*"
+  autocomplete="off"
+/>
             </div>
           </div>
 
@@ -572,6 +637,39 @@
     }, 2600);
   }
 
+
+  function cleanCarNumber(value){
+    return String(value || "").replace(/[^\d]/g, "").trim();
+  }
+
+  function blockEmptyCarNumber(message){
+    const text = message || "Введите номер машины";
+
+    if (els.title) {
+      els.title.classList.add("field-error", "shake");
+      els.title.focus();
+
+      setTimeout(() => {
+        els.title.classList.remove("shake");
+      }, 300);
+    }
+
+    showToast(text, "err");
+  }
+
+  els.title.addEventListener("input", () => {
+    const cleaned = cleanCarNumber(els.title.value);
+
+    if (els.title.value !== cleaned) {
+      els.title.value = cleaned;
+    }
+
+    if (cleaned) {
+      els.title.classList.remove("field-error");
+    }
+  });
+
+
   document.addEventListener('paste', e=>{
     if (els.dlg.open) return;
     const dt=e.clipboardData; if(!dt)return;
@@ -659,9 +757,17 @@
   // ======= SAVE (создание) =======
   els.btnSave.addEventListener('click', onSave);
   async function onSave(){
-    const manualTitle = els.title.value.trim();
+    const manualTitle = cleanCarNumber(els.title.value);
+    els.title.value = manualTitle;
+
+    if (!manualTitle) {
+      blockEmptyCarNumber("Нельзя создать задание без номера машины");
+      return;
+    }
+
     const queueMode = getQueueMode();
     const comment=els.comment.value.trim();
+
     freeze(true,"Сохраняю…");
     try{
       const audienceIds=[...selectedWorkerIds]; const audienceNames=[...selectedWorkerNames];
@@ -768,7 +874,7 @@
     return Promise.resolve();
   }
 
-  function freeze(flag,text){ els.btnSave.disabled=!!flag; els.btnSave.textContent=flag?(text||"…"):"Сохранить задание"; }
+  function freeze(flag,text){ els.btnSave.disabled=!!flag; els.btnSave.textContent=flag?(text||"…"):"Создать задание"; }
   function touchLastUpdated(){
     const d=new Date(); const pad=n=>String(n).padStart(2,'0');
     const s=`${pad(d.getDate())}.${pad(d.getMonth()+1)} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
@@ -1074,3 +1180,107 @@
     window.open(url, '_blank', 'noopener,noreferrer');
   }
   </script>
+
+
+  <script>
+  // ====== PWA / установка как приложение ======
+  const APP_VERSION = "web-pwa-2026-07-08-block-empty-car-1";
+  console.log("APP_VERSION:", APP_VERSION);
+
+  let deferredPwaPrompt = null;
+
+  function isStandalonePwa() {
+    return window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true;
+  }
+
+  function showPwaInstallButton() {
+    if (isStandalonePwa()) return;
+    if (document.getElementById("pwaInstallBtn")) return;
+
+    const btn = document.createElement("button");
+    btn.id = "pwaInstallBtn";
+    btn.className = "pwa-install-btn";
+    btn.type = "button";
+    btn.textContent = "Установить приложение";
+
+    btn.onclick = async () => {
+      if (!deferredPwaPrompt) {
+        alert("Установка пока недоступна. Сделайте Ctrl+F5, подождите 5–10 секунд и попробуйте снова.");
+        return;
+      }
+
+      deferredPwaPrompt.prompt();
+
+      try {
+        await deferredPwaPrompt.userChoice;
+      } catch (_) {}
+
+      deferredPwaPrompt = null;
+      btn.remove();
+    };
+
+    document.body.appendChild(btn);
+  }
+
+  window.addEventListener("beforeinstallprompt", event => {
+    event.preventDefault();
+    deferredPwaPrompt = event;
+    showPwaInstallButton();
+  });
+
+  window.addEventListener("appinstalled", () => {
+    console.log("✅ PWA installed");
+    const btn = document.getElementById("pwaInstallBtn");
+    if (btn) btn.remove();
+  });
+
+  function showPwaUpdateBox() {
+    if (document.getElementById("pwaUpdateBox")) return;
+
+    const box = document.createElement("div");
+    box.id = "pwaUpdateBox";
+    box.className = "pwa-update-box";
+    box.innerHTML = `
+      <div style="font-weight:800;">Доступна новая версия сайта</div>
+      <div style="font-size:13px;opacity:.85;margin-top:4px;">Нажмите «Обновить», чтобы загрузить свежую версию.</div>
+      <button type="button" id="pwaReloadBtn">Обновить</button>
+    `;
+
+    document.body.appendChild(box);
+
+    document.getElementById("pwaReloadBtn").onclick = () => {
+      location.reload();
+    };
+  }
+
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", async () => {
+      try {
+        const reg = await navigator.serviceWorker.register("/sw.js", { scope: "/" });
+        console.log("✅ Service Worker registered:", reg.scope);
+
+        // Проверяем обновления при каждом открытии приложения.
+        try {
+          await reg.update();
+        } catch (_) {}
+
+        reg.addEventListener("updatefound", () => {
+          const worker = reg.installing;
+          if (!worker) return;
+
+          worker.addEventListener("statechange", () => {
+            if (worker.state === "installed" && navigator.serviceWorker.controller) {
+              console.log("🔄 New PWA version installed");
+              showPwaUpdateBox();
+            }
+          });
+        });
+      } catch (e) {
+        console.error("❌ Service Worker register failed:", e);
+      }
+    });
+  }
+  </script>
+
+</body>
+</html>
