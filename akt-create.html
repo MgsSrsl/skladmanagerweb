@@ -44,7 +44,7 @@
   const APP_VERSION="AKT-MVP-2026-07-08-11-QTY-FIELDS-CLEAN";
   const FIREBASE_CONFIG={apiKey:"AIzaSyAH58ZpWAp64mhM589KD6jXHcOlPqU0aYU",authDomain:"skladsborka-6c2a7.firebaseapp.com",projectId:"skladsborka-6c2a7",storageBucket:"skladsborka-6c2a7.firebasestorage.app",appId:"1:516526717198:android:e470c17aed370572757f5f"};
   const CLOUDINARY_CLOUD_NAME="dnx1taqp7", CLOUDINARY_UPLOAD_PRESET="unsigned_tasks", CLOUDINARY_FOLDER="acts";
-  const MANAGERS=[{code:"anna",name:"Анна"},{code:"olga",name:"Ольга"},{code:"max",name:"Макс"}];
+  const MANAGERS=[{code:"Galina",name:"Галя"},{code:"marina",name:"Марина"},{code:"Yula",name:"Юля"}];
   const app=initializeApp(FIREBASE_CONFIG),auth=getAuth(app),db=getFirestore(app),$=id=>document.getElementById(id),params=new URL(location.href).searchParams;
   let managerClients=[], clientsLoadedFor="";
   $("versionBadge").textContent="v "+APP_VERSION;
