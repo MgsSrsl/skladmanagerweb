@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta http-equiv="Cache-Control" content="no-store" />
+  <title>Создание акта</title>
+  <style>
+    :root{--bg:#f4f6f8;--card:#fff;--text:#111827;--muted:#6b7280;--line:#e5e7eb;--red:#ef4444;--green:#16a34a;--blue:#2563eb;--shadow:0 12px 35px rgba(15,23,42,.08);--radius:18px}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}button,input,select,textarea{font:inherit}.wrap{max-width:860px;margin:0 auto;padding:18px}.top{display:flex;gap:12px;align-items:center;justify-content:space-between;margin-bottom:14px}.brand{display:flex;gap:10px;align-items:center;font-weight:900;font-size:22px}.logo{width:38px;height:38px;border-radius:12px;background:#111827;color:#fff;display:grid;place-items:center;font-weight:900}.version{font-size:12px;color:var(--muted);padding:6px 10px;border:1px solid var(--line);border-radius:999px;background:#fff}.card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:16px}.card h2,.card h3{margin:0 0 12px}.muted{color:var(--muted);font-size:13px;line-height:1.35}.small{font-size:12px}.hidden{display:none!important}label{display:block;font-size:13px;font-weight:700;margin:0 0 6px}input,select,textarea{width:100%;border:1px solid var(--line);border-radius:12px;padding:11px;background:#fff;color:var(--text);outline:none}.row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}.section{border-top:1px solid var(--line);padding-top:14px;margin-top:14px}.actions{display:flex;gap:10px;flex-wrap:wrap;align-items:center}.btn{border:0;border-radius:14px;padding:11px 14px;font-weight:900;cursor:pointer;background:#111827;color:#fff;display:inline-flex;gap:8px;align-items:center;justify-content:center;text-decoration:none}.btn.secondary{background:#fff;color:#111827;border:1px solid var(--line)}.btn.green{background:var(--green)}.btn.blue{background:var(--blue)}.btn:disabled{opacity:.55;cursor:not-allowed}.linkBox{display:grid;gap:10px}.toast{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);background:#111827;color:#fff;padding:12px 14px;border-radius:14px;box-shadow:var(--shadow);z-index:1000;max-width:90%;font-weight:800;white-space:pre-line}.toast.err{background:#991b1b}.toast.ok{background:#166534}.notice{border:1px solid var(--line);background:#f9fafb;border-radius:14px;padding:12px;color:var(--muted);font-size:13px;line-height:1.4}
+    .clientSuggest{position:relative}.suggestBox{position:absolute;left:0;right:0;top:calc(100% + 6px);background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);z-index:50;max-height:240px;overflow:auto;padding:6px}.suggestItem{width:100%;border:0;background:#fff;color:#111827;text-align:left;padding:10px 11px;border-radius:10px;cursor:pointer;font-weight:800}.suggestItem:hover{background:#f3f4f6}.suggestEmpty{padding:10px 11px;color:var(--muted);font-size:13px}
+    @media(max-width:760px){.row{grid-template-columns:1fr}.brand{font-size:19px}}
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top"><div class="brand"><div class="logo">АКТ</div><div>Создание акта <div class="muted small">Отдельная страница для менеджера</div></div></div><span class="version" id="versionBadge"></span></div>
+  <div class="card">
+    <h2>Создать ссылку клиенту</h2>
+    <div class="notice">Эта страница только создаёт ссылку или загружает готовый акт. Журнал вынесен отдельно, чтобы не читать акты из Firebase без необходимости.</div>
+    <div class="section linkBox">
+      <div class="row">
+        <div><label>Менеджер *</label><select id="linkManagerCode"></select></div>
+        <div><label>Клиент *</label><div class="clientSuggest"><input id="linkClient" placeholder="ООО Клиент" autocomplete="off" spellcheck="false" autocapitalize="off" /><div id="clientDropdown" class="suggestBox hidden"></div></div><div id="clientHint" class="muted small" style="margin-top:6px">Начни вводить — покажем клиентов этого менеджера из базы.</div></div>
+      </div>
+      <div><label>Вариант</label><select id="linkType"><option value="defect">Брак</option><option value="qty">Недогруз / перегруз</option><option value="upload">Акт уже есть — загрузить</option></select></div>
+      <div id="linkUploadBox" class="hidden"><label>Готовый акт / файл</label><input id="existingActFile" type="file" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx" /></div>
+      <div id="clientLinkBox"><label>Ссылка клиенту</label><input id="clientLink" readonly placeholder="ссылка появится тут" /></div>
+      <div><label>Авто дата и № акта</label><input id="generatedActInfo" readonly placeholder="появится после создания" /></div>
+      <div class="actions">
+        <button class="btn blue" id="makeLinkBtn">Создать ссылку</button>
+        <button class="btn green hidden" id="uploadExistingActBtn">Загрузить готовый акт</button>
+        <button class="btn secondary" id="copyClientLinkBtn">Скопировать ссылку</button>
+        <a class="btn secondary" href="akt-journal.html">Открыть журнал</a><a class="btn secondary" href="akt-settings.html">Админка</a>
+      </div>
+      <div class="muted small">Клиенту отправляй только ссылку из поля выше. Журнал клиенту недоступен из клиентской формы.</div>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
+  import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
+  import { getFirestore, collection, addDoc, doc, runTransaction, serverTimestamp, query, where, getDocs, setDoc, limit } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
+  const APP_VERSION="AKT-MVP-2026-07-08-13-REQUIRED-FIRST";
+  const FIREBASE_CONFIG={apiKey:"AIzaSyAH58ZpWAp64mhM589KD6jXHcOlPqU0aYU",authDomain:"skladsborka-6c2a7.firebaseapp.com",projectId:"skladsborka-6c2a7",storageBucket:"skladsborka-6c2a7.firebasestorage.app",appId:"1:516526717198:android:e470c17aed370572757f5f"};
+  const CLOUDINARY_CLOUD_NAME="dnx1taqp7", CLOUDINARY_UPLOAD_PRESET="unsigned_tasks", CLOUDINARY_FOLDER="acts";
+  const DEFAULT_MANAGERS=[{code:"marina",name:"Марина",active:true},{code:"galina",name:"Галя",active:true},{code:"yulia",name:"Юля",active:true}];
+  let MANAGERS=[...DEFAULT_MANAGERS];
+  const app=initializeApp(FIREBASE_CONFIG),auth=getAuth(app),db=getFirestore(app),$=id=>document.getElementById(id),params=new URL(location.href).searchParams;
+  let managerClients=[], clientsLoadedFor="";
+  $("versionBadge").textContent="v "+APP_VERSION;
+  function esc(v){return String(v??"").replace(/[&<>'"]/g,s=>({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#39;",'"':"&quot;"}[s]))}
+  function val(id){return($(id)?.value||"").trim()}function setVal(id,v){if($(id))$(id).value=v??""}
+  function toast(msg,type=""){const el=document.createElement("div");el.className="toast "+type;el.textContent=msg;document.body.appendChild(el);setTimeout(()=>el.remove(),3600)}
+  function managerByCode(code){return MANAGERS.find(m=>m.code===code)||null}
+  function managerOptions(selected=""){return`<option value="">Выбери менеджера</option>`+MANAGERS.map(m=>`<option value="${esc(m.code)}" ${m.code===selected?"selected":""}>${esc(m.name)}</option>`).join("")}
+  function clientPageUrl(id){const base=location.pathname.replace(/\/[^\/]*$/,"/");return`${location.origin}${base}akt-client.html?id=${encodeURIComponent(id)}`}
+  function clientKey(managerCode,client){return `${managerCode}_${encodeURIComponent(String(client||"").trim().toLowerCase()).slice(0,900)}`}
+  function setClientHint(text){const h=$("clientHint");if(h)h.textContent=text}
+  function hideClientSuggestions(){const box=$("clientDropdown");if(box)box.classList.add("hidden")}
+  async function rememberClient(manager,client){
+    if(!manager?.code||!client)return;
+    try{localStorage.setItem("akt_last_manager",manager.code)}catch(e){}
+    const clean=String(client).trim();
+    try{
+      await setDoc(doc(db,"actClients",clientKey(manager.code,clean)),{
+        managerCode:manager.code,
+        managerName:manager.name,
+        clientName:clean,
+        clientSearch:clean.toLowerCase(),
+        active:true,
+        updatedAt:serverTimestamp()
+      },{merge:true});
+      if(!managerClients.some(c=>c.toLowerCase()===clean.toLowerCase())){
+        managerClients.push(clean);
+        managerClients.sort((a,b)=>a.localeCompare(b,"ru"));
+      }
+    }catch(e){
+      console.warn("client remember failed",e);
+      setClientHint("Клиент сохранён в акте, но список клиентов не обновился. Проверь правила Firestore для actClients.");
+    }
+  }
+  async function loadManagerClients(){
+    const code=val("linkManagerCode");
+    managerClients=[];clientsLoadedFor=code;hideClientSuggestions();
+    if(!code){setClientHint("Сначала выбери менеджера.");return;}
+    setClientHint("Загружаю клиентов менеджера...");
+    try{
+      const snap=await getDocs(query(collection(db,"actClients"),where("managerCode","==",code),limit(300)));
+      const seen=new Set();
+      snap.forEach(d=>{const x=d.data();if(x.active===false)return;const name=String(x.clientName||"").trim();const key=name.toLowerCase();if(name&&!seen.has(key)){seen.add(key);managerClients.push(name)}});
+      managerClients.sort((a,b)=>a.localeCompare(b,"ru"));
+      setClientHint(managerClients.length?`Клиентов в списке: ${managerClients.length}`:"У этого менеджера пока нет сохранённых клиентов. Первый введённый клиент добавится в список после создания ссылки.");
+    }catch(e){
+      console.warn("client load failed",e);
+      setClientHint("Не удалось загрузить список клиентов. Проверь правила Firestore для actClients.");
+    }
+  }
+  function renderClientSuggestions(show=true){
+    const box=$("clientDropdown");if(!box)return;
+    const q=val("linkClient").toLowerCase();
+    const matches=managerClients.filter(c=>!q||c.toLowerCase().includes(q)).slice(0,12);
+    if(!show||!matches.length){hideClientSuggestions();return;}
+    box.innerHTML=matches.map(c=>`<button type="button" class="suggestItem" data-client="${esc(c)}">${esc(c)}</button>`).join("");
+    box.classList.remove("hidden");
+    box.querySelectorAll(".suggestItem").forEach(btn=>btn.addEventListener("mousedown",e=>{e.preventDefault();setVal("linkClient",btn.dataset.client||"");hideClientSuggestions();}));
+  }
+  function updateLinkMode(){const upload=val("linkType")==="upload";$("linkUploadBox").classList.toggle("hidden",!upload);$("uploadExistingActBtn").classList.toggle("hidden",!upload);$("makeLinkBtn").classList.toggle("hidden",upload);$("clientLinkBox").classList.toggle("hidden",upload);$("copyClientLinkBtn").classList.toggle("hidden",upload)}
+  async function copyText(text){if(!text)return toast("Сначала создай ссылку","err");await navigator.clipboard.writeText(text);toast("Ссылка скопирована","ok")}
+  function todayIso(){const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`}
+  async function reserveActIdentity(){const day=todayIso();try{const counterRef=doc(db,"actCounters",day);return await runTransaction(db,async tx=>{const snap=await tx.get(counterRef);const next=(snap.exists()?Number(snap.data().lastNo||0):0)+1;tx.set(counterRef,{day,lastNo:next,updatedAt:serverTimestamp()},{merge:true});return{createdDay:day,dailyNo:next,actNo:String(next),actDate:day}})}catch(e){console.warn("actCounters unavailable, fallback to day scan",e);const snap=await getDocs(query(collection(db,"acts"),where("createdDay","==",day)));let max=0;snap.forEach(d=>{const n=Number(d.data().dailyNo||d.data().actNo||0);if(n>max)max=n});const next=max+1;return{createdDay:day,dailyNo:next,actNo:String(next),actDate:day}}}
+  function applyIdentityToPayload(payload,ident){payload.actNo=ident.actNo;payload.actDate=ident.actDate;payload.createdDay=ident.createdDay;payload.dailyNo=ident.dailyNo;if(payload.type==="defect")payload.defect={...(payload.defect||{}),actNo:ident.actNo,actDate:ident.actDate};if(payload.type==="qty")payload.quantity={...(payload.quantity||{}),actNo:ident.actNo,actDate:ident.actDate};return payload}
+  function showIdentity(ident){setVal("generatedActInfo",ident?`Акт № ${ident.actNo} от ${ident.actDate}`:"")}
+  async function uploadFile(file){const fd=new FormData();fd.append("file",file);fd.append("upload_preset",CLOUDINARY_UPLOAD_PRESET);fd.append("folder",CLOUDINARY_FOLDER);const res=await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/auto/upload`,{method:"POST",body:fd});if(!res.ok)throw new Error("Cloudinary upload failed: "+file.name);const j=await res.json();return{name:file.name,url:j.secure_url,publicId:j.public_id,type:j.resource_type,format:j.format||"",bytes:file.size}}
+  async function makeClientLink(){const m=managerByCode(val("linkManagerCode")),client=val("linkClient"),type=val("linkType")||"defect";if(!m)return toast("Выбери менеджера","err");if(!client)return toast("Укажи клиента","err");const btn=$("makeLinkBtn");btn.disabled=true;btn.textContent="Создаю...";try{const ident=await reserveActIdentity();let payload={appVersion:APP_VERSION,type,status:"draft",managerCode:m.code,managerName:m.name,clientName:client,items:[],source:"client_link",createdAtText:new Date().toLocaleString("ru-RU"),createdAt:serverTimestamp(),updatedAt:serverTimestamp()};payload=applyIdentityToPayload(payload,ident);const ref=await addDoc(collection(db,"acts"),payload);setVal("clientLink",clientPageUrl(ref.id));showIdentity(ident);await rememberClient(m,client);renderClientSuggestions(false);toast(`Ссылка создана. Акт № ${ident.actNo} от ${ident.actDate}`,"ok")}catch(e){toast(e.message||String(e),"err")}finally{btn.disabled=false;btn.textContent="Создать ссылку"}}
+  async function uploadExistingAct(){const m=managerByCode(val("linkManagerCode")),client=val("linkClient"),file=$("existingActFile").files?.[0];if(!m)return toast("Выбери менеджера","err");if(!client)return toast("Укажи клиента","err");if(!file)return toast("Выбери файл готового акта","err");const btn=$("uploadExistingActBtn");btn.disabled=true;btn.textContent="Загружаю...";try{const ident=await reserveActIdentity();const att=await uploadFile(file);let payload={appVersion:APP_VERSION,type:"uploaded",status:"new",managerCode:m.code,managerName:m.name,clientName:client,attachments:[att],items:[],createdAtText:new Date().toLocaleString("ru-RU"),createdAt:serverTimestamp(),updatedAt:serverTimestamp()};payload=applyIdentityToPayload(payload,ident);await addDoc(collection(db,"acts"),payload);showIdentity(ident);await rememberClient(m,client);setVal("linkClient","");renderClientSuggestions(false);$("existingActFile").value="";toast(`Готовый акт загружен. Акт № ${ident.actNo} от ${ident.actDate}`,"ok")}catch(e){toast(e.message||String(e),"err")}finally{btn.disabled=false;btn.textContent="Загрузить готовый акт"}}
+  async function loadManagers(){
+    try{
+      const snap=await getDocs(query(collection(db,"actManagers"),limit(200)));
+      const arr=[];
+      snap.forEach(d=>{const x=d.data();const code=String(x.code||d.id||"").trim();const name=String(x.name||code).trim();if(code&&name&&x.active!==false)arr.push({code,name,active:x.active!==false})});
+      if(arr.length){MANAGERS=arr.sort((a,b)=>a.name.localeCompare(b.name,"ru"));}
+    }catch(e){console.warn("managers load failed",e);}
+  }
+  function renderManagersSelect(){const selected=params.get("manager")||localStorage.getItem("akt_last_manager")||val("linkManagerCode")||"";$("linkManagerCode").innerHTML=managerOptions(selected);if(selected)setVal("linkManagerCode",selected)}
+  async function init(){await loadManagers();renderManagersSelect();updateLinkMode();setClientHint(val("linkManagerCode")?"Загрузка списка клиентов после входа...":"Сначала выбери менеджера.")}
+  $("linkType").onchange=updateLinkMode;
+  $("linkManagerCode").onchange=async()=>{await loadManagerClients();renderClientSuggestions(true)};
+  $("linkClient").addEventListener("input",()=>renderClientSuggestions(true));
+  $("linkClient").addEventListener("focus",()=>renderClientSuggestions(true));
+  document.addEventListener("click",e=>{if(!e.target.closest(".clientSuggest"))hideClientSuggestions()});
+  $("makeLinkBtn").onclick=makeClientLink;$("uploadExistingActBtn").onclick=uploadExistingAct;$("copyClientLinkBtn").onclick=()=>copyText(val("clientLink"));onAuthStateChanged(auth,user=>{if(!user)signInAnonymously(auth).catch(e=>toast("Auth error: "+e.message,"err"));else loadManagerClients()});signInAnonymously(auth).catch(()=>{});init().catch(e=>toast(e.message||String(e),"err"));
+</script>
+</body>
+</html>
