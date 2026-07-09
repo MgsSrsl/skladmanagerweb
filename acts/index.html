@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Акты Docke</title>
+  <meta name="theme-color" content="#111827">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Акты Docke">
+  <link rel="apple-touch-icon" href="./icons/icon-192.png">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <style>
+    :root{--bg:#f3f4f6;--card:#fff;--text:#111827;--muted:#6b7280;--line:#e5e7eb;--blue:#2563eb;--dark:#111827}
+    *{box-sizing:border-box} body{margin:0;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial;background:var(--bg);color:var(--text)}
+    .wrap{max-width:900px;margin:0 auto;padding:24px}.top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:18px}.brand{display:flex;align-items:center;gap:12px;font-weight:900}.logo{width:44px;height:44px;border-radius:14px;background:var(--dark);color:white;display:flex;align-items:center;justify-content:center}.muted{color:var(--muted)}
+    .card{background:var(--card);border:1px solid var(--line);border-radius:22px;padding:18px;box-shadow:0 8px 30px rgba(17,24,39,.07)}.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-top:14px}.tile{display:block;text-decoration:none;color:var(--text);background:#f9fafb;border:1px solid var(--line);border-radius:18px;padding:18px;min-height:130px}.tile b{font-size:18px}.tile:hover{border-color:#93c5fd;background:#eff6ff}.btn{border:0;border-radius:14px;padding:11px 14px;font-weight:800;cursor:pointer;background:#e5e7eb}.blue{background:var(--blue);color:#fff}.small{font-size:12px}@media(max-width:760px){.grid{grid-template-columns:1fr}.top{align-items:flex-start;flex-direction:column}}
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <div class="top">
+      <div class="brand"><div class="logo">АКТ</div><div>Акты Docke<div class="muted small">AKT-PWA-2026-07-09-21-EDGE-PWA-FIX</div></div></div>
+      <button id="installPwaBtn" class="btn blue" >Установить приложение</button>
+    </div>
+    <section class="card">
+      <h1 style="margin:0 0 6px">Рабочий экран</h1>
+      <div class="muted">Страницы вынесены в отдельную папку <b>/acts/</b>. Клиенту отправляем только ссылку на его форму.</div>
+      <div class="grid">
+        <a class="tile" href="akt-create.html"><b>Создать акт</b><p class="muted">Создать ссылку клиенту или загрузить готовый акт.</p></a>
+        <a class="tile" href="akt-journal.html"><b>Журнал актов</b><p class="muted">Фильтры, просмотр, редактирование, ссылка клиенту.</p></a>
+        <a class="tile" href="akt-settings.html"><b>Админка</b><p class="muted">Менеджеры, клиенты, настройки акта.</p></a>
+      </div>
+    </section>
+  </main>
+
+<script id="akt-force-install-script">
+(function(){
+  const VERSION = "AKT-PWA-2026-07-09-21-EDGE-PWA-FIX";
+  let deferredPrompt = null;
+  const isStandalone = () => window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+
+  window.addEventListener('beforeinstallprompt', function(e){
+    e.preventDefault();
+    deferredPrompt = e;
+    const btn = document.getElementById('aktHardInstallBtn') || document.getElementById('installPwaBtn');
+    if(btn){ btn.style.display = isStandalone() ? 'none' : 'block'; btn.textContent = 'Установить приложение'; }
+  });
+
+  function platformText(){
+    const ua = navigator.userAgent || '';
+    const isIOS = /iPhone|iPad|iPod/i.test(ua);
+    const isAndroid = /Android/i.test(ua);
+    if(isIOS){
+      return 'На iPhone/iPad: нажми кнопку «Поделиться» в Safari → «На экран Домой».';
+    }
+    if(isAndroid){
+      return 'На Android: открой страницу в Chrome → меню ⋮ → «Установить приложение» или «Добавить на главный экран».';
+    }
+    return 'В Microsoft Edge: открой страницу /acts/ → обнови страницу → нажми кнопку «Установить приложение» на самой странице. Либо меню ⋯ → Другие инструменты → Приложения → Установить этот сайт как приложение. Если пункта нет, Edge ещё не признал страницу PWA или установка запрещена политикой организации.';
+  }
+
+  function ensureModal(){
+    let modal = document.getElementById('aktInstallModal');
+    if(modal) return modal;
+    modal = document.createElement('div');
+    modal.id = 'aktInstallModal';
+    modal.innerHTML = '<div class="box"><h2>Установка приложения</h2><p>Кнопка установки теперь показывается всегда. Если браузер разрешил установку — откроется системное окно. Если нет, установи через меню браузера.</p><div class="steps" id="aktInstallSteps"></div><p style="font-size:12px;color:#6b7280">Версия: '+VERSION+'</p><button class="close" type="button">Понятно</button></div>';
+    document.body.appendChild(modal);
+    modal.addEventListener('click', function(e){ if(e.target === modal) modal.style.display='none'; });
+    modal.querySelector('.close').onclick = () => modal.style.display='none';
+    return modal;
+  }
+
+  async function installClick(){
+    if(isStandalone()) return;
+    if(deferredPrompt){
+      deferredPrompt.prompt();
+      try{ await deferredPrompt.userChoice; }catch(e){}
+      deferredPrompt = null;
+      return;
+    }
+    const modal = ensureModal();
+    modal.querySelector('#aktInstallSteps').textContent = platformText();
+    modal.style.display = 'flex';
+  }
+
+  function makeButton(){
+    if(isStandalone()) return;
+    let btn = document.getElementById('installPwaBtn');
+    if(btn){
+      btn.id = 'aktHardInstallBtn';
+      btn.style.display = 'block';
+      btn.removeAttribute('hidden');
+      btn.textContent = 'Установить приложение';
+    } else {
+      btn = document.createElement('button');
+      btn.id = 'aktHardInstallBtn';
+      btn.type = 'button';
+      btn.textContent = 'Установить приложение';
+      document.body.appendChild(btn);
+    }
+    btn.onclick = installClick;
+  }
+
+  if(!document.getElementById('akt-force-install-css')){
+    const st = document.createElement('style');
+    st.id = 'akt-force-install-css';
+    st.textContent = `#aktHardInstallBtn{position:fixed;right:16px;bottom:16px;z-index:99999;border:0;border-radius:999px;padding:13px 18px;font-weight:900;cursor:pointer;background:#2563eb;color:#fff;box-shadow:0 14px 35px rgba(37,99,235,.35);font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial}#aktHardInstallBtn:active{transform:translateY(1px)}#aktInstallModal{position:fixed;inset:0;z-index:100000;background:rgba(17,24,39,.55);display:none;align-items:center;justify-content:center;padding:16px;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial}#aktInstallModal .box{max-width:560px;width:100%;background:#fff;border-radius:22px;padding:20px;box-shadow:0 20px 60px rgba(0,0,0,.25);color:#111827}#aktInstallModal h2{margin:0 0 8px;font-size:22px}#aktInstallModal p{margin:8px 0;color:#4b5563;line-height:1.45}#aktInstallModal .steps{background:#f3f4f6;border:1px solid #e5e7eb;border-radius:16px;padding:12px;margin:12px 0;color:#111827}#aktInstallModal .close{border:0;border-radius:14px;padding:11px 14px;font-weight:900;cursor:pointer;background:#111827;color:#fff;margin-top:8px}@media(max-width:640px){#aktHardInstallBtn{left:14px;right:14px;bottom:14px;width:calc(100% - 28px)}}@media print{#aktHardInstallBtn,#aktInstallModal{display:none!important}}`;
+    document.head.appendChild(st);
+  }
+
+  if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', makeButton); else makeButton();
+  if('serviceWorker' in navigator) window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js',{scope:'./'}).catch(console.warn));
+})();
+</script>
+
+</body>
+</html>
