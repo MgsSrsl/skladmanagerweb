@@ -79,7 +79,16 @@ self.addEventListener("fetch", event => {
 
     return;
   }
+self.addEventListener("fetch", (event) => {
+  const url = new URL(event.request.url);
 
+  // Не трогаем отдельное приложение актов
+  if (url.pathname.startsWith("/acts/")) {
+    return;
+  }
+
+  // дальше старый код sw.js
+});
   // Статика: сначала кэш, потом сеть.
   event.respondWith(
     caches.match(req).then(cached => {
