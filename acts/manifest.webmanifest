@@ -1,7 +1,7 @@
 {
   "name": "Акты Docke",
   "short_name": "Акты",
-  "description": "Онлайн-акты брака, недогруза и перегруза",
+  "description": "Внутреннее приложение для создания ссылок, журнала и настроек актов",
   "id": "/acts/",
   "start_url": "/acts/index.html",
   "scope": "/acts/",

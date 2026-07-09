@@ -10,12 +10,12 @@
     @media(max-width:980px){.adminGrid{grid-template-columns:1fr}.row,.row3{grid-template-columns:1fr}.toolbar input,.toolbar select{width:100%}.print-page{width:100%;min-height:auto;padding:14px;margin:10px 0}.brand{font-size:19px}}
     @media print{body{background:#fff}.no-print,.top,.card:not(.print-holder),.modal{display:none!important}.wrap{max-width:none;padding:0}.print-holder{display:block!important;box-shadow:none;border:0;padding:0}.print-page{box-shadow:none;border:0;margin:0;width:100%;min-height:auto;padding:0;font-size:12px}@page{size:A4;margin:12mm}}
   </style>
-  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="manifest" href="/acts/manifest.webmanifest">
   <meta name="theme-color" content="#111827">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Акты Docke">
-  <link rel="apple-touch-icon" href="./icons/icon-192.png">
+  <link rel="apple-touch-icon" href="/acts/icons/icon-192.png">
 </head>
 <body>
 <div class="wrap">
@@ -38,7 +38,7 @@
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
   import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
   import { getFirestore, collection, addDoc, query, where, orderBy, limit, getDocs, getDoc, doc, updateDoc, deleteDoc, serverTimestamp, deleteField } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
-  const APP_VERSION="AKT-PWA-2026-07-09-21-EDGE-PWA-FIX";
+  const APP_VERSION="AKT-PWA-2026-07-09-23-SEPARATE-CLIENT-NO-CONFLICT";
   const FIREBASE_CONFIG={apiKey:"AIzaSyAH58ZpWAp64mhM589KD6jXHcOlPqU0aYU",authDomain:"skladsborka-6c2a7.firebaseapp.com",projectId:"skladsborka-6c2a7",storageBucket:"skladsborka-6c2a7.firebasestorage.app",appId:"1:516526717198:android:e470c17aed370572757f5f"};
   const CLOUDINARY_CLOUD_NAME="dnx1taqp7", CLOUDINARY_UPLOAD_PRESET="unsigned_tasks", CLOUDINARY_FOLDER="acts";
   let SUPPLIER_NAME="ООО «Дёке Трейд Маркетинг»";
@@ -48,7 +48,7 @@
   const app=initializeApp(FIREBASE_CONFIG),auth=getAuth(app),db=getFirestore(app),$=id=>document.getElementById(id),params=new URL(location.href).searchParams;let actsCache=[],currentAct=null;$("versionBadge").textContent="v "+APP_VERSION;
   function esc(v){return String(v??"").replace(/[&<>'"]/g,s=>({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#39;",'"':"&quot;"}[s]))}function val(id){return($(id)?.value||"").trim()}function setVal(id,v){if($(id))$(id).value=v??""}function pad2(n){return String(n).padStart(2,"0")}function makeActNo(){const d=new Date();return`${pad2(d.getDate())}${pad2(d.getMonth()+1)}-${pad2(d.getHours())}${pad2(d.getMinutes())}`}function managerByCode(code){return MANAGERS.find(m=>m.code===code)||null}function managerOptions(selected=""){return`<option value="">Выбери менеджера</option>`+MANAGERS.map(m=>`<option value="${esc(m.code)}" ${m.code===selected?"selected":""}>${esc(m.name)}</option>`).join("")}function typeLabel(t){return t==="qty"?"Недогруз / перегруз":t==="uploaded"?"Готовый акт":"Брак"}function actCompany(a){return a.companyName||a.clientName||""}function actDelivery(a){return a.deliveryMethod||a.defect?.deliveryMethod||a.quantity?.deliveryMethod||""}function ruDate(iso){if(!iso)return"___ __________ 20___";const[y,m,d]=iso.split("-");const months=["ЯНВАРЯ","ФЕВРАЛЯ","МАРТА","АПРЕЛЯ","МАЯ","ИЮНЯ","ИЮЛЯ","АВГУСТА","СЕНТЯБРЯ","ОКТЯБРЯ","НОЯБРЯ","ДЕКАБРЯ"];return`«${d}» ${months[Number(m)-1]} ${y}`}function shortDate(iso){if(!iso)return"";const[y,m,d]=iso.split("-");return`${d}.${m}.${String(y).slice(-2)}`}function toast(msg,type=""){const el=document.createElement("div");el.className="toast "+type;el.textContent=msg;document.body.appendChild(el);setTimeout(()=>el.remove(),3600)}function blankRows(n,cols){return Array.from({length:n}).map(()=>`<tr>${Array.from({length:cols}).map(()=>"<td>&nbsp;</td>").join("")}</tr>`).join("")}
   function statusPill(status){const map={draft:["Ожидает клиента","draft"],new:["Новый","new"],work:["В работе","work"],closed:["Закрыт","closed"],rejected:["Отклонён","new"]};const m=map[status]||map.new;return`<span class="pill ${m[1]}">${m[0]}</span>`}
-  function clientPageUrl(id){const base=location.pathname.replace(/\/[^\/]*$/,"/");return`${location.origin}${base}akt-client.html?id=${encodeURIComponent(id)}`}
+  function clientPageUrl(id){return `${location.origin}/act-client.html?id=${encodeURIComponent(id)}`}
   function renderAttachments(attachments=[]){if(!attachments.length)return"";return`<div><b>Приложения:</b><div class="attGrid">${attachments.map(a=>String(a.type).startsWith("image")?`<a href="${esc(a.url)}" target="_blank"><img src="${esc(a.url)}" alt=""></a>`:`<a class="chip" href="${esc(a.url)}" target="_blank">${esc(a.name||"файл")}</a>`).join("")}</div></div>`}
   function renderUploadedAct(a){return`<div class="print-page"><h1>Готовый акт</h1><br><p><b>Компания / клиент:</b> ${esc(actCompany(a))}</p>${actDelivery(a)?`<p><b>Способ доставки:</b> ${esc(actDelivery(a))}</p>`:""}<p><b>Менеджер:</b> ${esc(a.managerName||a.managerCode)}</p><p><b>Дата загрузки:</b> ${esc(a.createdAtText||"")}</p><p><b>Файлы:</b></p>${renderAttachments(a.attachments||[])}<p class="p-small">Это запись для уже готового акта, загруженного менеджером.</p></div>`}
   function renderDefectAct(a){const d=a.defect||{},items=a.items||[],att=a.attachments||[];if(a.status==="draft"&&!items.length)return`<div class="muted">Клиент ещё не заполнил акт.<br><br><b>Ссылка клиенту:</b><br><input readonly value="${esc(clientPageUrl(a.id))}" onclick="this.select()"></div>`;return`<div class="print-page"><div class="p-right p-small">К накладной<br>№ <span class="p-yellow">${esc(d.invoiceNo)}</span> от<br><span class="p-yellow">${ruDate(d.invoiceDate)}</span> г.</div><h1>АКТ № ${esc(d.actNo)}</h1><h2>об обнаружении недостатков<br>Товара</h2><br><div class="p-row"><div>г. <span class="p-line">${esc(d.city||"")}</span><br><span class="p-small">(место составления)</span></div><div><span class="p-yellow">${ruDate(d.actDate)} г.</span><br><span class="p-small">(дата составления)</span></div></div><p>Настоящий Акт составлен по клиенту: <span class="p-line p-yellow" style="min-width:70%">${esc(actCompany(a))}</span></p><p><b>Способ доставки:</b> <span class="p-line p-yellow" style="min-width:45%">${esc(actDelivery(a))}</span></p><p>Поставщик: <b>${SUPPLIER_NAME}</b></p><p>Составлен Акт об обнаружении недостатков переданного Поставщиком Товара на объекте Покупателя по адресу: <span class="p-line" style="min-width:80%">${esc(d.address)}</span></p><p>Дата фактического получения Товара Покупателем: <span class="p-yellow">${ruDate(d.receivedDate)}г.</span></p><p class="p-center"><span class="p-yellow"><b>Обнаружено ${shortDate(d.foundDate)}</b></span></p><table class="p-table"><thead><tr><th>Наименование материала</th><th style="width:100px">Кол-во (уп.,шт,)</th><th style="width:190px">Вид недостатка материала</th></tr></thead><tbody>${items.map(i=>`<tr><td>${esc(i.name)}</td><td class="p-center">${esc(i.qty)}</td><td class="p-center">${esc(i.defect||i.mismatch)}</td></tr>`).join("")}${blankRows(3,3)}</tbody></table><p>Основание осмотра:<br><span class="p-line" style="min-width:100%">${esc(d.basis)}</span></p><p>Требования покупателя: <span class="p-yellow">${esc(d.demand)}</span></p><p><b>Прилагается полный комплект документов в соответствии с приложением №1 к акту об обнаружении недостатков товара.</b></p>${renderAttachments(att)}</div>`}
@@ -76,60 +76,9 @@
   async function deleteCurrentAct(){if(!currentAct)return;if(!confirm(`Удалить акт клиента «${currentAct.clientName||"без клиента"}»?`))return;await deleteDoc(doc(db,"acts",currentAct.id));actsCache=actsCache.filter(a=>a.id!==currentAct.id);currentAct=null;$("adminPreview").innerHTML="Акт удалён.";["printBtn","statusSelect","saveStatusBtn","editActBtn","deleteActBtn"].forEach(id=>$(id).classList.add("hidden"));renderActsList();toast("Акт удалён","ok")}
   function bind(id,evt,fn){const el=$(id);if(el)el.addEventListener(evt,fn)}bind("adminRole","change",loadActs);bind("adminManagerCode","change",loadActs);bind("filterStatus","change",loadActs);bind("filterType","change",loadActs);bind("filterDateFrom","change",loadActs);bind("filterDateTo","change",loadActs);bind("filterLimit","change",loadActs);bind("loadActsBtn","click",loadActs);bind("adminSearch","input",renderActsList);bind("saveStatusBtn","click",saveStatus);bind("editActBtn","click",openEdit);bind("deleteActBtn","click",deleteCurrentAct);bind("closeEditBtn","click",()=>$("editModal").classList.add("hidden"));bind("saveEditBtn","click",saveEdit);bind("editAddItemBtn","click",()=>{const t=val("edit_type");if(t==="defect"||t==="qty")addRowTo($("editItemsBody"),t,{})});bind("printBtn","click",()=>{if(currentAct){$("printPreview").innerHTML=renderAct(currentAct);window.print()}});onAuthStateChanged(auth,user=>{if(!user)signInAnonymously(auth).catch(e=>toast("Auth error: "+e.message,"err"))});signInAnonymously(auth).catch(()=>{});init().catch(e=>toast(e.message||String(e),"err"));
 </script>
-
-<script>
-// ===== PWA install / service worker =====
-const PWA_VERSION = "AKT-PWA-2026-07-09-21-EDGE-PWA-FIX";
-let __aktInstallPrompt = null;
-
-function __aktShowInstallButton(){
-  const topActions = document.querySelector('.top .actions');
-  if (!topActions || document.getElementById('installPwaBtn')) return;
-  const btn = document.createElement('button');
-  btn.id = 'installPwaBtn';
-  btn.className = 'btn secondary';
-  btn.type = 'button';
-  btn.textContent = 'Установить';
-  btn.style.display = 'none';
-  btn.onclick = async () => {
-    if (!__aktInstallPrompt) {
-      alert('Если кнопка установки не появилась: в Chrome/Edge нажми меню ⋮ и выбери “Установить приложение”.');
-      return;
-    }
-    __aktInstallPrompt.prompt();
-    await __aktInstallPrompt.userChoice.catch(()=>{});
-    __aktInstallPrompt = null;
-    btn.style.display = 'none';
-  };
-  topActions.prepend(btn);
-}
-
-window.addEventListener('beforeinstallprompt', (e) => {
-  e.preventDefault();
-  __aktInstallPrompt = e;
-  __aktShowInstallButton();
-  const btn = document.getElementById('installPwaBtn');
-  if (btn) btn.style.display = 'inline-flex';
-});
-
-window.addEventListener('appinstalled', () => {
-  __aktInstallPrompt = null;
-  const btn = document.getElementById('installPwaBtn');
-  if (btn) btn.style.display = 'none';
-});
-
-document.addEventListener('DOMContentLoaded', __aktShowInstallButton);
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./sw.js', { scope: './' }).catch(console.warn);
-  });
-}
-</script>
-
-
 <script id="akt-force-install-script">
 (function(){
-  const VERSION = "AKT-PWA-2026-07-09-21-EDGE-PWA-FIX";
+  const VERSION = "AKT-PWA-2026-07-09-23-SEPARATE-CLIENT-NO-CONFLICT";
   let deferredPrompt = null;
   const isStandalone = () => window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
 
@@ -204,7 +153,7 @@ if ('serviceWorker' in navigator) {
   }
 
   if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', makeButton); else makeButton();
-  if('serviceWorker' in navigator) window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js',{scope:'./'}).catch(console.warn));
+  if('serviceWorker' in navigator) window.addEventListener('load',()=>navigator.serviceWorker.register('/acts/sw.js', { scope: '/acts/' }).catch(console.warn));
 })();
 </script>
 

@@ -8,8 +8,8 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Акты Docke">
-  <link rel="apple-touch-icon" href="./icons/icon-192.png">
-  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="apple-touch-icon" href="/acts/icons/icon-192.png">
+  <link rel="manifest" href="/acts/manifest.webmanifest">
   <style>
     :root{--bg:#f3f4f6;--card:#fff;--text:#111827;--muted:#6b7280;--line:#e5e7eb;--blue:#2563eb;--dark:#111827}
     *{box-sizing:border-box} body{margin:0;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial;background:var(--bg);color:var(--text)}
@@ -20,7 +20,7 @@
 <body>
   <main class="wrap">
     <div class="top">
-      <div class="brand"><div class="logo">АКТ</div><div>Акты Docke<div class="muted small">AKT-PWA-2026-07-09-21-EDGE-PWA-FIX</div></div></div>
+      <div class="brand"><div class="logo">АКТ</div><div>Акты Docke<div class="muted small">AKT-PWA-2026-07-09-23-SEPARATE-CLIENT-NO-CONFLICT</div></div></div>
       <button id="installPwaBtn" class="btn blue" >Установить приложение</button>
     </div>
     <section class="card">
@@ -36,7 +36,7 @@
 
 <script id="akt-force-install-script">
 (function(){
-  const VERSION = "AKT-PWA-2026-07-09-21-EDGE-PWA-FIX";
+  const VERSION = "AKT-PWA-2026-07-09-23-SEPARATE-CLIENT-NO-CONFLICT";
   let deferredPrompt = null;
   const isStandalone = () => window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
 
@@ -111,7 +111,7 @@
   }
 
   if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', makeButton); else makeButton();
-  if('serviceWorker' in navigator) window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js',{scope:'./'}).catch(console.warn));
+  if('serviceWorker' in navigator) window.addEventListener('load',()=>navigator.serviceWorker.register('/acts/sw.js', { scope: '/acts/' }).catch(console.warn));
 })();
 </script>
 

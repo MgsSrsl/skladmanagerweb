@@ -1,110 +1,70 @@
 // sw.js
-// PWA cache for СкладСборка.
-// Кэшируем только оболочку сайта. API/Firebase/Cloudinary/notify НЕ кэшируем.
+// PWA cache for корневого приложения СкладСборка.
+// Важно: отдельные приложения /acts/ и /doska/ НЕ перехватываем, чтобы PWA не конфликтовали.
 
-const CACHE_VERSION = "sklad-pwa-v4-2026-07-08-empty-car-version";
+const CACHE_VERSION = "sklad-root-pwa-v23-no-conflict";
 
 const APP_SHELL = [
   "/",
   "/index.html",
   "/manifest.webmanifest",
-  "/icons/icon-192.png",
-  "/icons/icon-512.png"
+  "/icons/icon.svg"
 ];
 
-self.addEventListener("install", event => {
-  console.log("[SW] install:", CACHE_VERSION);
+function isExcludedPath(pathname) {
+  return pathname.startsWith("/acts/") ||
+         pathname.startsWith("/doska/") ||
+         pathname === "/act-client.html";
+}
 
+self.addEventListener("install", (event) => {
   event.waitUntil(
-    caches
-      .open(CACHE_VERSION)
-      .then(cache => cache.addAll(APP_SHELL))
+    caches.open(CACHE_VERSION)
+      .then((cache) => cache.addAll(APP_SHELL))
       .then(() => self.skipWaiting())
   );
 });
 
-self.addEventListener("activate", event => {
-  console.log("[SW] activate:", CACHE_VERSION);
-
+self.addEventListener("activate", (event) => {
   event.waitUntil(
-    caches
-      .keys()
-      .then(keys => {
-        return Promise.all(
-          keys
-            .filter(key => key !== CACHE_VERSION)
-            .map(key => caches.delete(key))
-        );
-      })
+    caches.keys()
+      .then((keys) => Promise.all(keys.filter((key) => key !== CACHE_VERSION && key.startsWith("sklad-root-pwa")).map((key) => caches.delete(key))))
       .then(() => self.clients.claim())
   );
 });
 
-self.addEventListener("fetch", event => {
+self.addEventListener("fetch", (event) => {
   const req = event.request;
-
-  if (req.method !== "GET") {
-    return;
-  }
+  if (req.method !== "GET") return;
 
   const url = new URL(req.url);
+  if (url.origin !== self.location.origin) return;
+  if (isExcludedPath(url.pathname)) return;
+  if (url.pathname.startsWith("/api/")) return;
 
-  // Внешние сервисы НЕ кэшируем:
-  // Firebase, Google, Cloudinary, notify на другом домене и т.д.
-  if (url.origin !== self.location.origin) {
-    return;
-  }
-
-  // API не кэшируем вообще.
-  if (url.pathname.startsWith("/api/")) {
-    return;
-  }
-
-  // Главная страница: сначала сеть, если сеть умерла — отдаём кэш.
   if (req.mode === "navigate") {
     event.respondWith(
       fetch(req)
-        .then(res => {
+        .then((res) => {
           const copy = res.clone();
-
-          caches.open(CACHE_VERSION).then(cache => {
+          caches.open(CACHE_VERSION).then((cache) => {
             cache.put("/", copy.clone());
             cache.put("/index.html", copy);
           });
-
           return res;
         })
         .catch(() => caches.match("/index.html"))
     );
-
-    return;
-  }
-self.addEventListener("fetch", (event) => {
-  const url = new URL(event.request.url);
-
-  // Не трогаем отдельное приложение актов
-  if (url.pathname.startsWith("/acts/")) {
     return;
   }
 
-  // дальше старый код sw.js
-});
-  // Статика: сначала кэш, потом сеть.
   event.respondWith(
-    caches.match(req).then(cached => {
+    caches.match(req).then((cached) => {
       if (cached) return cached;
-
-      return fetch(req).then(res => {
-        if (!res || res.status !== 200) {
-          return res;
-        }
-
+      return fetch(req).then((res) => {
+        if (!res || res.status !== 200) return res;
         const copy = res.clone();
-
-        caches.open(CACHE_VERSION).then(cache => {
-          cache.put(req, copy);
-        });
-
+        caches.open(CACHE_VERSION).then((cache) => cache.put(req, copy));
         return res;
       });
     })
