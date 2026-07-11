@@ -465,42 +465,371 @@
     "Юля"
   ];
 
-  // ====== NOTIFY SAFE SEND ======
-  // Старую очередь пушей удаляем, чтобы браузер не переотправлял старый мусор бесконечно.
-  const QUEUE_KEY = 'notify_queue_v1';
+  // ====== БЕЗОПАСНАЯ ЛОКАЛЬНАЯ ОЧЕРЕДЬ УВЕДОМЛЕНИЙ ======
+  //
+  // В очередь попадает ТОЛЬКО запрос уведомления.
+  // Задача и файлы повторно не создаются и не загружаются.
+  //
+  // Защита от разгона лимитов:
+  // - одна запись на один taskId;
+  // - максимум 6 попыток;
+  // - максимум 100 записей;
+  // - срок жизни записи 24 часа;
+  // - нет постоянного опроса Firestore;
+  // - серверный _notifyLocks защищает от двойного пуша.
+
+  const LEGACY_NOTIFY_QUEUE_KEY = 'notify_queue_v1';
+  const NOTIFY_QUEUE_KEY = 'notify_task_created_queue_v2';
+  const NOTIFY_QUEUE_MAX_ITEMS = 100;
+  const NOTIFY_MAX_ATTEMPTS = 6;
+  const NOTIFY_ITEM_TTL_MS = 24 * 60 * 60 * 1000;
+  const NOTIFY_REQUEST_TIMEOUT_MS = 15 * 1000;
+
+  const NOTIFY_RETRY_DELAYS_MS = [
+    10 * 1000,       // после 1-й ошибки: 10 секунд
+    30 * 1000,       // после 2-й: 30 секунд
+    2 * 60 * 1000,   // после 3-й: 2 минуты
+    5 * 60 * 1000,   // после 4-й: 5 минут
+    15 * 60 * 1000,  // после 5-й: 15 минут
+    30 * 60 * 1000   // запасной предел
+  ];
+
+  let notifyQueueRunning = false;
+  let notifyQueueTimer = null;
+
+  // Старую опасную очередь удаляем один раз.
   try {
-    localStorage.removeItem(QUEUE_KEY);
+    localStorage.removeItem(LEGACY_NOTIFY_QUEUE_KEY);
   } catch (e) {
-    console.warn('cannot clear notify queue:', e);
+    console.warn('cannot clear legacy notify queue:', e);
   }
 
-  /**
-   * Пуши отправляем ОДИН раз.
-   * Без очереди. Без повторов. Без зависимости от ответа сервера.
-   *
-   * mode:'no-cors' нужен, чтобы браузер не валил создание задания из-за CORS.
-   * Для notify нам не важно читать ответ — задача уже создана в Firestore.
-   */
-  async function sendNotifyOnce(url, params){
-    if (!url) return;
-
-    const body = new URLSearchParams(params).toString();
-
+  function readNotifyQueue(){
     try {
-      await fetch(url, {
-        method: 'POST',
-        mode: 'no-cors',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded'
-        },
-        body
-      });
+      const raw = localStorage.getItem(NOTIFY_QUEUE_KEY);
+      const parsed = raw ? JSON.parse(raw) : [];
+      return Array.isArray(parsed) ? parsed : [];
     } catch (e) {
-      // Ничего не повторяем.
-      // Notify не должен ломать страницу и не должен плодить очередь.
-      console.warn('notify skipped:', e?.message || e);
+      console.warn('cannot read notify queue:', e);
+      return [];
     }
   }
+
+  function writeNotifyQueue(items){
+    try {
+      const now = Date.now();
+      const cleaned = [];
+      const seen = new Set();
+
+      for (const item of Array.isArray(items) ? items : []) {
+        const taskId = String(item?.taskId || '').trim();
+        if (!taskId) continue;
+
+        const createdAt = Number(item?.createdAt || now);
+        if (now - createdAt > NOTIFY_ITEM_TTL_MS) continue;
+
+        const id = `taskCreated:${taskId}`;
+        if (seen.has(id)) continue;
+        seen.add(id);
+
+        cleaned.push({
+          id,
+          type: 'taskCreated',
+          taskId,
+          assigneeIds: Array.isArray(item?.assigneeIds)
+            ? [...new Set(item.assigneeIds.map(String).map(s => s.trim()).filter(Boolean))]
+            : [],
+          attempts: Math.max(0, Number(item?.attempts || 0)),
+          createdAt,
+          nextAttemptAt: Math.max(0, Number(item?.nextAttemptAt || 0)),
+          lastAttemptAt: Math.max(0, Number(item?.lastAttemptAt || 0)),
+          lastError: String(item?.lastError || '').slice(0, 300)
+        });
+      }
+
+      // При переполнении оставляем самые новые записи.
+      const limited = cleaned.slice(-NOTIFY_QUEUE_MAX_ITEMS);
+      localStorage.setItem(NOTIFY_QUEUE_KEY, JSON.stringify(limited));
+      return limited;
+    } catch (e) {
+      console.warn('cannot write notify queue:', e);
+      return [];
+    }
+  }
+
+  function findNotifyQueueItem(id){
+    return readNotifyQueue().find(item => item.id === id) || null;
+  }
+
+  function updateNotifyQueueItem(id, patch){
+    const queue = readNotifyQueue();
+    const updated = queue.map(item => (
+      item.id === id ? {...item, ...patch} : item
+    ));
+    writeNotifyQueue(updated);
+  }
+
+  function removeNotifyQueueItem(id){
+    const queue = readNotifyQueue().filter(item => item.id !== id);
+    writeNotifyQueue(queue);
+  }
+
+  function enqueueTaskCreatedNotify(taskId, audienceIds){
+    const cleanTaskId = String(taskId || '').trim();
+    if (!cleanTaskId) return false;
+
+    const id = `taskCreated:${cleanTaskId}`;
+    const queue = writeNotifyQueue(readNotifyQueue());
+
+    if (queue.some(item => item.id === id)) {
+      console.log('🔔 Notify already queued:', cleanTaskId);
+      scheduleNotifyQueue(0);
+      return false;
+    }
+
+    queue.push({
+      id,
+      type: 'taskCreated',
+      taskId: cleanTaskId,
+      assigneeIds: Array.isArray(audienceIds)
+        ? [...new Set(audienceIds.map(String).map(s => s.trim()).filter(Boolean))]
+        : [],
+      attempts: 0,
+      createdAt: Date.now(),
+      nextAttemptAt: 0,
+      lastAttemptAt: 0,
+      lastError: ''
+    });
+
+    writeNotifyQueue(queue);
+    console.log('🔔 Notify queued:', cleanTaskId);
+    scheduleNotifyQueue(0);
+    return true;
+  }
+
+  function getNotifyRetryDelay(attemptNumber){
+    const index = Math.max(
+      0,
+      Math.min(attemptNumber - 1, NOTIFY_RETRY_DELAYS_MS.length - 1)
+    );
+    return NOTIFY_RETRY_DELAYS_MS[index];
+  }
+
+  function scheduleNotifyQueue(forcedDelayMs = null){
+    clearTimeout(notifyQueueTimer);
+    notifyQueueTimer = null;
+
+    const queue = writeNotifyQueue(readNotifyQueue());
+    if (!queue.length) return;
+    if (!navigator.onLine) return;
+
+    const now = Date.now();
+    const nextAt = Math.min(
+      ...queue.map(item => Math.max(0, Number(item.nextAttemptAt || 0)))
+    );
+
+    const calculatedDelay = Math.max(0, nextAt - now);
+    const delay = forcedDelayMs === null
+      ? calculatedDelay
+      : Math.max(0, Number(forcedDelayMs || 0));
+
+    notifyQueueTimer = setTimeout(() => {
+      runNotifyQueue().catch(e => {
+        console.warn('notify queue run failed:', e?.message || e);
+      });
+    }, Math.max(250, delay));
+  }
+
+  async function postTaskCreatedNotify(item){
+    const controller = new AbortController();
+    const timeoutId = setTimeout(
+      () => controller.abort(),
+      NOTIFY_REQUEST_TIMEOUT_MS
+    );
+
+    try {
+      // URLSearchParams оставляет запрос "простым" CORS-запросом:
+      // отдельный OPTIONS/preflight обычно не нужен.
+      const body = new URLSearchParams();
+      body.set('taskId', item.taskId);
+      body.set(
+        'assigneeIds',
+        Array.isArray(item.assigneeIds) ? item.assigneeIds.join(',') : ''
+      );
+
+      const response = await fetch(NOTIFY_URL_CREATED, {
+        method: 'POST',
+        mode: 'cors',
+        cache: 'no-store',
+        credentials: 'omit',
+        keepalive: true,
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8'
+        },
+        body: body.toString(),
+        signal: controller.signal
+      });
+
+      let result = null;
+      try {
+        result = await response.json();
+      } catch (_) {}
+
+      return {
+        response,
+        result
+      };
+    } finally {
+      clearTimeout(timeoutId);
+    }
+  }
+
+  async function processNotifyQueueItem(originalItem){
+    // Повторно читаем запись: другая вкладка могла уже удалить её.
+    const current = findNotifyQueueItem(originalItem.id);
+    if (!current) return;
+
+    if (Date.now() < Number(current.nextAttemptAt || 0)) return;
+
+    if (Number(current.attempts || 0) >= NOTIFY_MAX_ATTEMPTS) {
+      removeNotifyQueueItem(current.id);
+      console.error('🔕 Notify attempts exhausted:', current.taskId);
+      showToast('Пуш не отправлен после 6 попыток', 'err');
+      return;
+    }
+
+    const attempt = Number(current.attempts || 0) + 1;
+    const fallbackDelay = getNotifyRetryDelay(attempt);
+
+    // Считаем попытку ДО fetch. Если вкладка закроется посередине,
+    // после открытия не будет мгновенного бесконечного повтора.
+    updateNotifyQueueItem(current.id, {
+      attempts: attempt,
+      lastAttemptAt: Date.now(),
+      nextAttemptAt: Date.now() + fallbackDelay,
+      lastError: ''
+    });
+
+    try {
+      const {response, result} = await postTaskCreatedNotify(current);
+
+      // Сервер уже обработал событие: отправил, увидел duplicate,
+      // не нашёл токенов или вернул другой окончательный результат.
+      if (response.ok && result?.ok === true) {
+        removeNotifyQueueItem(current.id);
+        console.log('✅ Notify completed:', current.taskId, result);
+        return;
+      }
+
+      // Сервер явно говорит, что повторять бессмысленно.
+      if (
+        result?.final === true ||
+        result?.retryable === false ||
+        [400, 401, 403, 404, 405, 422].includes(response.status)
+      ) {
+        removeNotifyQueueItem(current.id);
+        console.error('🔕 Notify rejected permanently:', current.taskId, result);
+        showToast('Пуш отклонён сервером', 'err');
+        return;
+      }
+
+      // Другой запрос уже обрабатывает тот же taskId.
+      // Ждём время аренды server lock.
+      if (response.status === 409 && result?.retryable === true) {
+        const retryAfterMs = Math.max(
+          3000,
+          Math.min(Number(result.retryAfterMs || fallbackDelay), 5 * 60 * 1000)
+        );
+
+        updateNotifyQueueItem(current.id, {
+          nextAttemptAt: Date.now() + retryAfterMs,
+          lastError: String(result?.reason || 'notification is processing').slice(0, 300)
+        });
+
+        console.log('⏳ Notify is processing on server:', current.taskId);
+        return;
+      }
+
+      // 408/425/429/5xx и ответы retryable:true оставляем в очереди.
+      const retryable =
+        result?.retryable === true ||
+        [408, 425, 429].includes(response.status) ||
+        response.status >= 500;
+
+      if (!retryable) {
+        removeNotifyQueueItem(current.id);
+        console.error('🔕 Unexpected final notify response:', response.status, result);
+        return;
+      }
+
+      throw new Error(
+        result?.error ||
+        result?.reason ||
+        `notify HTTP ${response.status}`
+      );
+    } catch (e) {
+      const latest = findNotifyQueueItem(current.id);
+      if (!latest) return;
+
+      const message = e?.name === 'AbortError'
+        ? 'request timeout'
+        : String(e?.message || e || 'network error');
+
+      if (attempt >= NOTIFY_MAX_ATTEMPTS) {
+        removeNotifyQueueItem(current.id);
+        console.error('🔕 Notify failed permanently:', current.taskId, message);
+        showToast('Задание создано, но пуш не отправился', 'err');
+        return;
+      }
+
+      updateNotifyQueueItem(current.id, {
+        nextAttemptAt: Date.now() + fallbackDelay,
+        lastError: message.slice(0, 300)
+      });
+
+      console.warn(
+        `🔁 Notify retry ${attempt}/${NOTIFY_MAX_ATTEMPTS}:`,
+        current.taskId,
+        message
+      );
+    }
+  }
+
+  async function runNotifyQueue(){
+    if (notifyQueueRunning) return;
+    if (!navigator.onLine) return;
+
+    notifyQueueRunning = true;
+
+    try {
+      const queue = writeNotifyQueue(readNotifyQueue())
+        .sort((a, b) => Number(a.createdAt || 0) - Number(b.createdAt || 0));
+
+      for (const item of queue) {
+        if (!navigator.onLine) break;
+        await processNotifyQueueItem(item);
+      }
+    } finally {
+      notifyQueueRunning = false;
+      scheduleNotifyQueue();
+    }
+  }
+
+  window.addEventListener('online', () => scheduleNotifyQueue(0));
+
+  window.addEventListener('pageshow', () => scheduleNotifyQueue(0));
+
+  window.addEventListener('storage', event => {
+    if (event.key === NOTIFY_QUEUE_KEY) {
+      scheduleNotifyQueue(250);
+    }
+  });
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+      scheduleNotifyQueue(0);
+    }
+  });
 
 
   // ======= AUTH + старт =======
@@ -512,6 +841,7 @@
     touchLastUpdated();
     loadUsers();
     initTasksFeed();
+    runNotifyQueue().catch(e => console.warn('notify queue start failed:', e));
   })
   .catch(e => alert("Auth error: " + (e?.message||e)));
 
@@ -881,16 +1211,11 @@
     return out;
   }
 
-  // безопасные уведомления БЕЗ очереди
-  function notifyTaskCreated(taskId, audienceIds){
-    const assigneeIdsCsv = (audienceIds && audienceIds.length)
-      ? audienceIds.join(",")
-      : "";
-
-    return sendNotifyOnce(NOTIFY_URL_CREATED, {
-      taskId,
-      assigneeIds: assigneeIdsCsv
-    });
+  // Безопасное уведомление через ограниченную локальную очередь.
+  // Функция не пересоздаёт задачу и не загружает файлы.
+  async function notifyTaskCreated(taskId, audienceIds){
+    enqueueTaskCreatedNotify(taskId, audienceIds);
+    await runNotifyQueue();
   }
 
   function notifyAssigneesChanged(taskId, newIds){
@@ -1209,7 +1534,7 @@
 
   <script>
   // ====== PWA / установка как приложение ======
-  const APP_VERSION = "web-2026-07-08-2-empty-car-version";
+  const APP_VERSION = "web-2026-07-10-1-safe-notify-queue";
   console.log("APP_VERSION:", APP_VERSION);
 
   let deferredPwaPrompt = null;
@@ -1310,7 +1635,7 @@
 
   <script>
   // ====== ВИДИМАЯ ВЕРСИЯ В ИНТЕРФЕЙСЕ ======
-  window.APP_VISIBLE_VERSION = "web-2026-07-08-2-empty-car-version";
+  window.APP_VISIBLE_VERSION = "web-2026-07-10-1-safe-notify-queue";
 
   window.addEventListener("load", () => {
     let badge = document.getElementById("appVersionBadge");
